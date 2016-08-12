@@ -8,131 +8,15 @@ namespace PO
 		namespace Assistant
 		{
 
-			template<typename T> class function_object_parameter_able_detect_
-			{
-				using final_input = std::remove_reference_t<T>;
-				template<typename K>
-				static std::true_type func(std::integral_constant<decltype(&K::operator()), &K::operator()>*);
-				template<typename K>
-				static std::false_type func(...);
-			public :
-				static constexpr bool value = decltype(func<final_input>(nullptr))::value;
-			};
-
-			template<typename T, typename P, typename ...AT> struct function_type 
-			{
-				static constexpr bool is_member = std::is_same<P, void>::value;
-				template<template<typename ...> class out> using out_parameter = out<AT...>;
-			};
-
-
-			template<typename T> class function_object_parameter_detect_
-			{
-				using final_input = std::remove_reference_t<T>;
-				static_assert(function_object_parameter_able_detect_<final_input>::value, "can not be detect_");
-				template< typename P, typename ...AT > static function_type<P, void, AT...> func(P(*)(AT...));
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...));
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const );
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) volatile);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const volatile);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const &&);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) volatile &&);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const volatile &&);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) &);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const &);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) volatile &);
-				template< typename P, typename L, typename ...AT> static function_type<P, L, AT...> func(P(L::*)(AT...) const volatile &);
-			public:
-				using type = decltype(func(&final_input::operator()));
-			};
-
-			template<size_t ... index, typename fun_obj, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_obj&& fo, in_para&&... ip)
-			{
-				return fo(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...), type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) &, type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) &&, type&& t, in_para&&... ip)
-			{
-				return (std::move(t).*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) const, const type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) const &, const type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) const && ,const type&& t, in_para&&... ip)
-			{
-				return (std::move(t).*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile , type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile &, type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile && , type&& t, in_para&&... ip)
-			{
-				return (std::move(t).*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile const, const type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile const &, const type& t, in_para&&... ip)
-			{
-				return (t.*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-			template<size_t ... index, typename fun_ret, typename type, typename ...fun_para, typename ...in_para>
-			decltype(auto) app_adapter_func(Tool::index_container<index...>, fun_ret(type::* func)(fun_para...) volatile const &&, const type&& t, in_para&&... ip)
-			{
-				return (std::move(t).*func)(Tool::pick_parameter<index>::in(std::forward<in_para>(ip)...)...);
-			}
-
-
-
+			/*----- match_detect -----*/
 			template<typename target_type, typename ...detect_type> struct match_detect
 			{
-				template<typename match_type> using match_ope = std::is_constructible<target_type, match_type>;
+				template<typename match_type> using match_ope = std::is_convertible<target_type, match_type>;
 				using type = localizer_t<0, match_ope, Tool::index_container, detect_type...>;
 			};
 			template<typename target_type, typename ...detect_type> using match_detect_t = typename match_detect<target_type, detect_type...>::type;
 
+			/*----- adapter_operator -----*/
 			template<typename T, typename L> struct adapter_index_less : std::integral_constant<bool, (T::value < L::value)>{};
 			template<typename v1, typename ...vo> struct adapter_find_min_index { using type = v1; };
 			template<typename v1, typename v2, typename ...vo> struct adapter_find_min_index<v1, v2, vo...>
@@ -195,124 +79,67 @@ namespace PO
 			};
 
 		}
-
+		
 		template<typename ...input> using adapter_by_order_t = typename Assistant::adapter_by_order<input...>::type;
 		template<typename ...input> using adapter_by_first_match_t = typename Assistant::adapter_by_first_match<input...>::type;
 
 
+		/*----- auto_adapter -----*/
+		namespace Assistant
+		{
+
+			template<size_t ... index, typename fun_obj, typename ...input>
+			decltype(auto) auto_adapter_execute(Tool::index_container<index...>, fun_obj&& fo, input&& ...in)
+			{
+				return Tool::apply_function_object(std::forward<fun_obj>(fo),
+					Tool::pick_parameter<index>::in(std::forward<input>(in)...)...
+				);
+			}
+
+			template<bool, typename index> struct auto_adapter_index_execute;
+			template<size_t ...index> struct auto_adapter_index_execute<false,Tool::index_container<index...>>
+			{
+				using type = Tool::index_container<0, (index + 1)...>;
+			};
+			template<size_t ...index> struct auto_adapter_index_execute<true, Tool::index_container<index...>>
+			{
+				using type = Tool::index_container<index...>;
+			};
+
+		}
+		
 		template<template<typename ...> class adapter_rule, typename func_object,typename ...input>
-		decltype(auto) auto_adapter(func_object&& fo, input&&... input_para)
+		decltype(auto) auto_adapter(func_object&& fo, input&&... in)
 		{
-			return Tool::statement_if<!Assistant::function_object_parameter_able_detect_<func_object>::value>
-				(
-					[](auto&& fun_object,auto&& ...in) {  return fun_object(std::forward<decltype(in)&&>(in)...); },
-					[](auto&& fun_object,auto&& ...in) {
+			using fun_type = funtion_detect_t<func_object>;
+			static_assert(std::is_same<typename fun_type::owner_type, void>::value || sizeof...(in) >= 1, "PO::Tool::auto_adapter need a ref of the owner for its member function");
 
-				using index = typename Assistant::function_object_parameter_detect_<decltype(fun_object)>::type::template out_parameter
-					<
-						Tool::packet<
-							Tool::instant<Assistant::match_detect_t, input...>::template front_in_t,
-							adapter_rule
-						>::template in_t
-					>;
-				return Assistant::app_adapter_func(index(), std::forward<decltype(fun_object) && >(fun_object), std::forward<decltype(in) && >(in)...);
-			},
-					std::forward<func_object>(fo),
-				std::forward<input>(input_para)...
-					);
+			using pick_index = make_index_range_t<Tool::index_container, (std::is_same<typename fun_type::owner_type, void>::value ? 0 : 1), sizeof...(in)>;
+
+			using pre_index = funtion_detect_t<func_object>::template parameter_out
+				<
+					packet<
+						select_t<
+							pick_index,
+							Tool::instant<Assistant::match_detect_t>::template in,
+							input...
+						>::template front_in_t,
+						adapter_rule
+					>::template in_t
+				>;
+			
+			using finnal_index = std::conditional_t<
+				fun_type::value,
+				typename  Assistant::auto_adapter_index_execute<
+					std::is_same<typename fun_type::owner_type, void>::value,
+					pre_index
+				>::type,
+				make_index_range_t<Tool::index_container, 0, sizeof...(in)>
+			>;
+			
+			return Assistant::auto_adapter_execute(finnal_index(),std::forward<func_object>(fo),std::forward<input>(in)...);
+			
 		}
 
-		
-		template<template<typename ...> class adapter_rule, typename func_ret, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret (fo)(func_parameter...), input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, std::forward<input>(input_para)...);
-		}
-
-		
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...), type& t,input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) &, type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) &&, type&& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, std::move(t), std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) const , const type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) const &, const type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) const && , const type&& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, std::move(t), std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile , type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile &, type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile && , type&& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, std::move(t), std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile const, const type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile const &, const type& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, t, std::forward<input>(input_para)...);
-		}
-
-		template<template<typename ...> class adapter_rule, typename func_ret, typename type, typename ...func_parameter, typename ...input>
-		decltype(auto) auto_adapter(func_ret(type::* fo)(func_parameter...) volatile const &&, const type&& t, input&&... input_para)
-		{
-			using index = adapter_rule< Tool::instant_t<Assistant::match_detect_t, func_parameter, input...>...>;
-			Assistant::app_adapter_func(index(), fo, std::move(t), std::forward<input>(input_para)...);
-		}
 	}
 }

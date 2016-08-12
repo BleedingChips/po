@@ -1,17 +1,116 @@
 #pragma once
-#include <memory>
-#include <set>
 #include <functional>
+#include "type_tool.h"
+#include "tool.h"
+#include "auto_adapter.h"
+#include <memory>
 #include <list>
-#include <mutex>
-#include "../tool/tool.h"
 namespace PO
 {
-	
 	namespace Tool
 	{
 		namespace Mail
 		{
+
+			namespace Assistant
+			{
+				template<typename fun_obj>
+				struct box_obj_control
+				{
+					exist_flag control;
+					exist_flag_weak receipt_flag;
+					fun_obj func;
+				};
+			}
+
+			template<typename fun_type> class list_box;
+			template<typename fun_ret,typename ...fun_para> class list_box<fun_ret(fun_para...)>
+			{
+				using store = std::list<Assistant::box_obj_control>;
+				store control_list;
+			public:
+				class receipt
+				{
+					exist_flag rec_control;
+					exist_flag_weak obj_control;
+
+				public:
+
+					operator bool() 
+
+					template<typename T> bool bind(T&& t)
+					{
+						using fun_type = Tool::funtion_detect_t<T>;
+						if (!func_list.expired())
+						{
+							auto list_ptr = func_list.lock();
+							func = std::make_shared<std::function<fun_type>>(std::forward<T>(t));
+							list_ptr->push_back(func);
+							this_ite = --list_ptr->end();
+							end_ite = list_ptr->end();
+							return true;
+						}
+						return false;
+					}
+				};
+
+
+				void operator()(fun_para... it)
+				{
+					if (func_list)
+					{
+						store& fl = *func_list;
+						for (auto po = fl.begin(); po != fl.end(); )
+						{
+							if (po->expired())
+								fl.erase(po++);
+							else {
+								auto fun = (po++)->lock();
+								(*fun)(it...);
+							}
+						}
+					}
+				}
+
+				template<typename break_if>
+				void operator()(break_if&& bi, fun_para... it)
+				{
+					if (func_list)
+					{
+						store& fl = *func_list;
+						for (auto po = fl.begin(); po != fl.end(); )
+						{
+							if (po->expired())
+								fl.erase(po++);
+							else {
+								auto fun = (po++)->lock();
+								if (std::forward<break_if>(bi)((*fun)(it...)))
+									break;
+							}
+						}
+					}
+				}
+			};
+
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			/*
+
+
 			namespace Assistant
 			{
 				template<typename T> struct mail_control;
@@ -305,6 +404,8 @@ namespace PO
 
 			};
 
+
+			*/
 		}
 	}
 	
