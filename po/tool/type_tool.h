@@ -69,8 +69,10 @@ namespace PO {
 		{
 			template<typename ...other_input> using in = instant<output, input..., other_input...>;
 			template<typename ...other_input> using in_t = typename Assistant::instant_execute<output, input..., other_input...>::type;
+			template<typename ...other_input> using in_t_t = typename Assistant::instant_execute<output, input..., other_input...>::type::type;
 			template<typename ...other_input> using front_in = instant<output, other_input..., input...>;
 			template<typename ...other_input> using front_in_t = typename Assistant::instant_execute<output, other_input..., input...>::type;
+			template<typename ...other_input> using front_in_t_t = typename Assistant::instant_execute<output, other_input..., input...>::type::type;
 		};
 		template<template<typename ...> class output, typename ...input> using instant_t = typename Assistant::instant_execute<output, input... >::type;
 
