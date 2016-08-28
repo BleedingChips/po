@@ -66,7 +66,7 @@ namespace PO
 			template<size_t ... index, typename fun_obj, typename ...input>
 			decltype(auto) auto_adapter_execute(Tool::index_container<index...>, fun_obj&& fo, input&& ...in)
 			{
-				static_assert(Tool::is_callable<fun_obj, Tool::picker_t<index, input...>...>::value, "PO::Adapter::Assistant::auto_adapter_execute can call function with those");
+				static_assert(Tool::is_callable<fun_obj, Tool::picker_t<index, input...>...>::value, "PO::Adapter::Assistant::auto_adapter_execute can not call function with those");
 				return std::invoke(std::forward<fun_obj>(fo),
 					Tool::pick_parameter<index>::in(std::forward<input>(in)...)...
 				);
@@ -128,7 +128,7 @@ namespace PO
 
 			template<bool, typename match_, template<typename...> class adapter, typename func_obj, typename ...input> struct analyzer_execute
 			{
-				using type = typename analyzer_execute_2 < std::is_member_function_pointer<func_obj>::value, match_, adapter, Tool::funtion_obejct_extract_t<func_obj>, input... >::type;
+				using type = typename analyzer_execute_2 < std::is_member_function_pointer<std::remove_reference_t<func_obj>>::value, match_, adapter, Tool::funtion_obejct_extract_t<func_obj>, input... >::type;
 			};
 
 			template<typename match_, template<typename...> class adapter, typename func_obj, typename ...input> struct analyzer_execute<true, match_, adapter,func_obj, input...>

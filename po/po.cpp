@@ -1,6 +1,5 @@
 #include "po.h"
 
-/*
 namespace 
 {
 	std::mutex window_list_mutex;
@@ -89,7 +88,6 @@ namespace PO
 	{
 		bool event_box::respond_event(const PO::Platform::window_event& we)
 		{
-			
 			bool respond = false;
 			auto next_judge = [&respond](bool co) { respond = co; return !co; };
 			switch (we.msg)
@@ -106,8 +104,6 @@ namespace PO
 				break;
 			}
 			return respond;
-			
-			return true;
 		}
 	}
-}*/
+}

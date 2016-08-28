@@ -9,32 +9,6 @@
 namespace PO
 {
 
-	class form_substanr
-	{
-	public:
-	};
-
-
-	class form_ptr
-	{
-	public:
-	};
-
-
-	class gui_context
-	{
-	public:
-		void text() {}
-	};
-
-
-
-
-
-
-
-
-	/*
 	namespace Event
 	{
 		struct key : PO::Platform::window_event 
@@ -67,16 +41,16 @@ namespace PO
 
 		struct event_box
 		{
-			//Tool::Mail::box<bool(const key&)> key_box;
-			//Tool::Mail::box<bool(const mouse&)> mouse_box;
-			//Tool::Mail::box<bool(const form&)> form_box;
-			//Tool::Mail::box<bool(const system&)> system_box;
+			Tool::Mail::box<bool(const key&)> key_box;
+			Tool::Mail::box<bool(const mouse&)> mouse_box;
+			Tool::Mail::box<bool(const form&)> form_box;
+			Tool::Mail::box<bool(const system&)> system_box;
 			bool respond_event(const PO::Platform::window_event&);
 		};
 
 		struct event_receipt
 		{
-			//Tool::Mail::receipt<bool(const key&)> key_receipt;
+			Tool::Mail::receipt<bool(const key&)> key_receipt;
 			//Tool::Mail::receipt<bool(const key&)> key_receipt;
 		};
 	}
@@ -147,21 +121,14 @@ namespace PO
 		}
 		
 	};
-
-
-
-
 	
 	template<typename T = default_expand > class window_substance : public T::renderer
 	{
 
-		//std::thread logic_thread;
+		std::thread tick_loop;
 
 		std::recursive_mutex plugin_list_mutex;
-		std::list<std::unique_ptr<plugin_ptr<T>>> init_plugin_list;
-
-		std::recursive_mutex plugin_list_mutex;
-		std::list<std::unique_ptr<plugin_ptr<T>>> init_plugin_list;
+		std::list<std::unique_ptr<plugin_ptr<T>>> plugin_list;
 
 		std::chrono::system_clock::time_point last_time_point;
 
@@ -184,9 +151,7 @@ namespace PO
 
 		window_substance()
 		{
-			
 			last_time_point = std::chrono::system_clock::now();
-
 			tick_loop = std::thread(
 				[this]() {
 				last_time_point = std::chrono::system_clock::now();
@@ -210,13 +175,11 @@ namespace PO
 							plugin_list.erase(ptr++);
 					}
 					plugin_list_mutex.unlock();
-
 					std::this_thread::sleep_until(target);
 					
 				}
 			}
 			);
-			
 		}
 
 		template<typename K,typename ...AT> K& create_plugin(AT&&... at)
@@ -238,17 +201,10 @@ namespace PO
 		~window_substance()
 		{
 			//if(tick_loop.joinable())
-			//tick_loop.join();
+			tick_loop.join();
 			cout << "call this!" << endl;
 		}
 
-	};
-
-	template<typename T = default_expand> class window_ptr
-	{
-		std::unique_ptr<window_substance<T>> win_ptr;
-	public:
-		window_ptr
 	};
 
 	template<typename T = default_expand > class ticker
@@ -320,7 +276,7 @@ namespace PO
 
 	};
 
-	
+	/*
 	class window_ptr
 	{
 		std::shared_ptr<>

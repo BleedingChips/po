@@ -72,7 +72,7 @@ namespace
 namespace
 {
 
-	const char16_t static_class_name[] = u"po_frame_window_class";
+	const char32_t static_class_name[] = U"po_frame_window_class";
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	{
@@ -88,7 +88,7 @@ namespace
 	{
 		std::mutex init_mutex;
 		size_t init_count = 0;
-		WNDCLASSEXW static_class = { sizeof(WNDCLASSEX), CS_HREDRAW | CS_VREDRAW , WndProc, 0, 0, GetModuleHandle(0), NULL,NULL, 0, NULL, (const wchar_t*)static_class_name, NULL };
+		WNDCLASSEX static_class = { sizeof(WNDCLASSEX), CS_HREDRAW | CS_VREDRAW , WndProc, 0, 0, GetModuleHandle(0), NULL,NULL, 0, NULL, (const wchar_t*)static_class_name, NULL };
 	public:
 		void init()
 		{
