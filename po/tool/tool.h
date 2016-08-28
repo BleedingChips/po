@@ -1,13 +1,11 @@
 #pragma once
 #include <functional>
-#include <string>
-#include <memory>
-#include <mutex>
-#include <assert.h>
+#include "type_tool.h"
 namespace PO
 {
 	namespace Tool
 	{
+		/*----- destructor -----*/
 		class destructor
 		{
 			std::function<void(void)> func;
@@ -16,159 +14,93 @@ namespace PO
 			~destructor() { func(); }
 		};
 
+
+		/*----- statement_if -----*/
 		namespace Assistant
 		{
-			class ref_count
+			template<bool> struct statement_if_struct
 			{
-				size_t strong_ref;
-				size_t all_ref;
-			public:
-				ref_count() :strong_ref(0), all_ref(0) {}
-				void add_storng_ref() noexcept
-				{
-					++strong_ref;
-					++all_ref;
-					assert(strong_ref <= all_ref);
-				}
-				void add_weak_ref() noexcept
-				{
-					++all_ref;
-					assert(strong_ref <= all_ref);
-				}
-				void sub_storng_ref() noexcept
-				{
-					assert(strong_ref > 0 && all_ref > 0);
-					--strong_ref;
-					--all_ref;
-				}
-				void sub_weak_ref() noexcept
-				{
-					assert(all_ref > 0);
-					--all_ref;
-					assert(strong_ref <= all_ref);
-				}
-				bool zero_all_ref() const noexcept { return all_ref == 0; }
-				bool zero_storng_ref() const noexcept { return strong_ref == 0; }
+				template<typename F, typename P, typename ...AT> static decltype(auto) run(F&& t, P&& p, AT&&... at) { return std::forward<F>(t)(std::forward<AT>(at)...); }
 			};
 
-			template<typename lock_type = std::mutex>
-			class ref_count_ts :ref_count
+			template<> struct statement_if_struct<false>
 			{
-				lock_type mutex;
-			public:
-				ref_count_ts() = default;
-				void add_storng_ref() noexcept { std::lock_guard<lock_type> guard(mutex); ref_count::add_storng_ref(); }
-				void add_weak_ref() noexcept { std::lock_guard<lock_type> guard(mutex); ref_count::add_weak_ref(); }
-				void sub_storng_ref() noexcept { std::lock_guard<lock_type> guard(mutex); ref_count::sub_storng_ref(); }
-				void sub_weak_ref() noexcept { std::lock_guard<lock_type> guard(mutex); ref_count::sub_weak_ref(); }
-				
-				template<typename fun_obj>
-				void sub_weak_ref_if_zero_unlock(fun_obj&& fo) 
-				{ 
-					bool call = false;
-					{
-						std::lock_guard<lock_type> guard(mutex);
-						ref_count::sub_weak_ref();
-						call = ref_count::zero_all_ref();
-					}
-					if (call)
-					{
-						std::forward<fun_obj>(fo)();
-					}
+				template<typename T, typename P, typename ...AT> static decltype(auto) run(T&& t, P&& p, AT&&... at) { return std::forward<P>(p)(std::forward<AT>(at)...); }
+			};
+
+			template<bool s, typename T = int> struct statement_if_execute
+			{
+				T t;
+				template<typename ...AT> decltype(auto) operator()(AT&&... at) { return t(std::forward<AT>(at)...); }
+				template<bool other_s, typename K> statement_if_execute& elseif_(K&& k) {
+					return *this;
 				}
-
-				template<typename fun_obj, typename fun_obj2>
-				void sub_storng_ref_if_zero_unlock(fun_obj&& fo, fun_obj2&& fo2) 
-				{
-					bool call_strong = false;
-					bool call_weak = false;
-					{
-						std::lock_guard<lock_type> guard(mutex);
-						ref_count::sub_storng_ref();
-						call_strong = ref_count::zero_storng_ref();
-						call_weak = ref_count::zero_all_ref();
-					}
-					if (call_strong) std::forward<fun_obj>(fo)();
-					if (call_weak) std::forward<fun_obj2>(fo2)();
+				template<typename K> statement_if_execute& else_(K&& k) {
+					return *this;
 				}
+			};
 
-
-				bool zero_all_ref() const noexcept { std::lock_guard<lock_type> guard(mutex); return ref_count::zero_all_ref(); }
-				bool zero_storng_ref() const noexcept { std::lock_guard<lock_type> guard(mutex); ref_count::zero_storng_ref(); }
-				template<typename func_obj>
-				void lock(fun_obj&& fo)
-				{
-					std::lock_guard<lock_type> guard(mutex);
-					fo(static_cast<ref_count&>(*this));
+			template<typename T> struct statement_if_execute<false, T>
+			{
+				T t;
+				template<typename ...AT> decltype(auto) operator()(AT&&... at) { }
+				template<bool other_s, typename K> decltype(auto) elseif_(K&& k) {
+					return statement_if_execute<other_s, K&&>{std::forward<K>(k)};
+				}
+				template<typename K> decltype(auto) else_(K&& k) {
+					return statement_if_execute<true, K&&>{std::forward<K>(k)};
 				}
 			};
 		}
 
-		class exist_flag
+		template<bool s, typename T, typename P, typename ...AK> decltype(auto) statement_if(T&& t, P&& p, AK&& ...ak) { return Assistant::statement_if_struct<s>::run(std::forward<T>(t), std::forward<P>(p), std::forward<AK>(ak)...); }
+		template<bool s, typename T> decltype(auto) statement_if(T&& t) { return Assistant::statement_if_execute<s, T&&>{std::forward<T>(t)}; }
+
+
+
+		/*----- pick_parameter -----*/
+		template<size_t i> struct pick_parameter
 		{
-			Assistant::ref_count* rf;
-			friend class exist_flag_weak;
-		public:
-			operator bool() const { return rf != nullptr && !rf->zero_storng_ref(); }
-			exist_flag() : rf(nullptr) { }
-			exist_flag(exist_flag&& ef) : rf(ef.rf) { ef.rf = nullptr; }
-			~exist_flag() 
-			{ 
-				if (rf != nullptr) 
-				{
-					rf->sub_storng_ref();
-				} 
+			template<typename this_parameter, typename ...parameter>
+			static decltype(auto) in(this_parameter&& tp, parameter&& ... pa)
+			{
+				static_assert(i <= sizeof...(pa), "pick_parameter overflow");
+				return pick_parameter<i - 1>::in(std::forward<parameter>(pa)...);
 			}
 		};
 
-		class exist_flag_weak
+		template<> struct pick_parameter<0>
 		{
-			Assistant::ref_count* rf;
-		public:
-			exist_flag_weak() : rf(nullptr) { }
-			exist_flag_weak(const exist_flag& ef) : rf(ef.rf) { if (rf != nullptr) rf->add_weak_ref(); }
-			exist_flag_weak(exist_flag_weak&& ef) : rf(ef.rf) { ef.rf = nullptr; }
-			exist_flag_weak& operator=(const exist_flag& ef)
-			{
-				if (rf != nullptr)
-				{
-					rf->sub_weak_ref();
-					if (rf->zero_all_ref())
-						delete rf;
-				}
-				rf = ef.rf;
-				if (rf != nullptr)
-				{
-					rf->add_weak_ref();
-				}
-			}
-			exist_flag_weak& operator=(const exist_flag_weak& ef)
-			{
-				if (rf != nullptr)
-				{
-					rf->sub_weak_ref();
-					if (rf->zero_all_ref())
-						delete rf;
-				}
-				rf = ef.rf;
-				if (rf != nullptr)
-				{
-					rf->add_weak_ref();
-				}
-			}
-			~exist_flag_weak()
-			{
-				if (rf != nullptr)
-				{
-					rf->sub_weak_ref();
-					if (rf->zero_all_ref())
-						delete rf;
-				}
-			}
-			operator bool() const { return rf != nullptr && !rf->zero_all_ref(); }
+			template<typename this_parameter, typename ...parameter>
+			static decltype(auto) in(this_parameter&& tp, parameter&& ... pa) { return std::forward<this_parameter>(tp); }
 		};
 
+		namespace Assistant
+		{
+			template<typename T, typename P> struct auto_cast_able_dynamic_cast
+			{
+				template<typename K, typename I> static std::true_type fun(decltype(dynamic_cast<K>(std::declval<I>()))*);
+				template<typename K, typename I> static std::false_type fun(...);
+				using type = decltype(fun<T, P>(nullptr));
+			};
+		}
 
+		/*----- auto_cast -----*/
+		template<typename T, typename P> T auto_dynamic_cast(P&& data)
+		{
+#ifdef _DEBUG
+			return statement_if<Assistant::auto_cast_able_dynamic_cast<T, P>::type::value>
+				(
+					[](auto&& u) {  cout << "call this" << endl; return dynamic_cast<T>(std::forward<decltype(u) && >(u)); },
+					[](auto&& u) {  cout << "call this2" << endl; return static_cast<T>(std::forward<decltype(u) && >(u)); },
+					std::forward<P>(data)
+			);
+#else
+			return static_cast<T>(std::forward<decltype(u) && >(u));
+#endif // DEBUG
+
+
+		}
 	}
 }
 

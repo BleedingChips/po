@@ -7,7 +7,7 @@ namespace PO {
 		struct handle {
 			virtual handle* copy() const = 0;
 			virtual ~handle() {}
-		};
+		}; 
 		template<typename T>
 		struct holder:public handle {
 			T data;
@@ -22,9 +22,9 @@ namespace PO {
 		~any() { delete data; }
 		any() :data(nullptr) {}
 		any(any&& m) :data(m.data) { m.data = nullptr; }
-		any(const any& m) :data(m.data == nullptr ? m.data : m.data->copy()) {}
+		any(const any& m) :data(m.data == nullptr ? nullptr : m.data->copy()) {}
 		template<typename T> any(T&& t) : data(new holder<typename std::remove_reference<T>::type>(std::forward<T>(t))) { }
-		template<size_t i> any(const char(&p)[i]) : data(new holder<std::string>(std::string(p))) {}
+		//template<size_t i> any(const char(&p)[i]) : data(new holder<std::string>(std::string(p))) {}
 		
 		template<typename T> any& operator = (T&& t) 
 		{
