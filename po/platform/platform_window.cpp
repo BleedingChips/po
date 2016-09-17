@@ -4,7 +4,6 @@
 #include <atomic>
 #include <sstream>
 #include <unordered_map>
-#include "../tool/mail.h"
 #include "platform_event.h"
 namespace {
 	std::mutex translate_char_buffer_mutex;
@@ -72,55 +71,39 @@ namespace
 namespace
 {
 
-	const char32_t static_class_name[] = U"po_frame_window_class";
+	const char16_t static_class_name[] = u"po_frame_window_class";
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	{
-		PO::Platform::window_instance* ptr = reinterpret_cast<PO::Platform::window_instance*> (GetWindowLongW(hWnd, GWL_USERDATA));
-		if (ptr != nullptr)
-		{
-			return ptr->main_event_respond(hWnd,msg,wParam,lParam);
-		}else
-			return DefWindowProcW(hWnd, msg, wParam, lParam);
+		//std::cout << PO::Platform::translate_event_to_string(msg) << std::endl;
+		return DefWindowProcW(hWnd, msg, wParam, lParam);
+		//PO::Platform::window_instance* ptr = reinterpret_cast<PO::Platform::window_instance*> (GetWindowLongW(hWnd, GWL_USERDATA));
+		//if (ptr != nullptr)
+		//{
+			//return ptr->main_event_respond(hWnd,msg,wParam,lParam);
+		//}else
+			//return DefWindowProcW(hWnd, msg, wParam, lParam);
 	}
 
-	class
-	{
-		std::mutex init_mutex;
-		size_t init_count = 0;
-		WNDCLASSEX static_class = { sizeof(WNDCLASSEX), CS_HREDRAW | CS_VREDRAW , WndProc, 0, 0, GetModuleHandle(0), NULL,NULL, 0, NULL, (const wchar_t*)static_class_name, NULL };
-	public:
-		void init()
-		{
-			init_mutex.lock();
-			if (init_count == 0)
-			{
-				HRESULT res = RegisterClassExW(&static_class);
-				if (!SUCCEEDED(res))
-				{
-					init_mutex.unlock();
-					throw PO::Platform::Error::win32_init_error("window_instance::window_instance ");
-				}
-			}
-			++init_count;
-			init_mutex.unlock();
-		}
-		void destory()
-		{
-			init_mutex.lock();
-			if (init_count == 0)
-			{
-				init_mutex.unlock();
-				throw std::overflow_error("window_class_initer::destory meet init_count of zero");
-			}
-			if (init_count == 1)
-				UnregisterClassW((const wchar_t*)static_class_name, GetModuleHandleW(0));
-			--init_count;
-			init_mutex.unlock();
-		}
-		const wchar_t* const get_class_name() const { return (const wchar_t* const)static_class_name; }
-	}ws_init;
+	const WNDCLASSEXW static_class = { sizeof(WNDCLASSEXW), CS_HREDRAW | CS_VREDRAW , WndProc, 0, 0, GetModuleHandle(0), NULL,NULL, 0, NULL, (const wchar_t*)static_class_name, NULL };
 
+	const struct static_class_init_struct
+	{
+		static_class_init_struct() 
+		{
+			HRESULT res = RegisterClassExW(&static_class);
+			if (!SUCCEEDED(res))
+			{
+				throw PO::Platform::Error::win32_init_error("window_instance::window_instance ");
+			}
+		}
+
+		~static_class_init_struct()
+		{
+			UnregisterClassW((const wchar_t*)static_class_name, GetModuleHandleW(0));
+		}
+
+	}static_class_init;
 }
 
 namespace PO
@@ -132,9 +115,9 @@ namespace PO
 										window_shift_x((GetSystemMetrics(SM_CXSCREEN) - 1024) / 2),
 										window_shift_y((GetSystemMetrics(SM_CYSCREEN) - 768) / 2),
 										window_width(1024),
-										window_height(768),
-										ex_style(0),
-										style(WS_OVERLAPPEDWINDOW | WS_VISIBLE)
+										window_height(768)
+										//ex_style(0),
+										//style(WS_OVERLAPPEDWINDOW | WS_VISIBLE)
 		{}
 
 		namespace Error
@@ -145,26 +128,14 @@ namespace PO
 		window_instance::window_instance() :window_instance(window_style()) {}
 		window_instance::window_instance(const window_style& ws) 
 		{
-			ws_init.init();
 
 			RECT win_rect = { ws.window_shift_x,ws.window_shift_y,ws.window_shift_x + ws.window_width, ws.window_shift_y + ws.window_height };
 
-			AdjustWindowRectEx(&win_rect,ws.style,false,ws.ex_style);
-
-			RECT avalibleWindow;
-			SystemParametersInfo(SPI_GETWORKAREA, 0, (PVOID)&avalibleWindow, 0);
-
-			if (win_rect.top < avalibleWindow.top)
-			{
-				win_rect.bottom -= (win_rect.top - avalibleWindow.top);
-				win_rect.top = avalibleWindow.top;
-			}
-
 			win = CreateWindowExW(
-				ws.ex_style,
-				ws_init.get_class_name(),
+				WS_EX_CLIENTEDGE,
+				(const wchar_t*)static_class_name,
 				(const wchar_t*)ws.title.c_str(),
-				ws.style,
+				WS_VISIBLE | WS_OVERLAPPEDWINDOW,
 				win_rect.left,
 				win_rect.top,
 				win_rect.right - win_rect.left,
@@ -176,7 +147,7 @@ namespace PO
 
 			if (win == nullptr)
 			{
-				ws_init.destory();
+				//ws_init.destory();
 				throw Error::win32_init_error("window_instance::window_instance ");
 			}
 
@@ -190,13 +161,15 @@ namespace PO
 				DestroyWindow(win);
 				win = nullptr;
 			}
-			ws_init.destory();
+			//ws_init.destory();
 		}
 
 		LRESULT window_instance::main_event_respond(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
+			//std::cout << PO::Platform::translate_event_to_string(msg) << std::endl;
+			/*
 			window_event tem_event{ hWnd, msg, wParam, lParam };
-
+			//std::cout << PO::Platform::translate_event_to_string(msg) << std::endl;
 			bool finish = false;
 			if (!finish && respond_event(tem_event))
 			{
@@ -205,17 +178,31 @@ namespace PO
 				case WM_CLOSE:
 					window_exist = false;
 					break;
+				case WM_QUIT:
+					window_exist = false;
+					break;
+				case WM_DESTROY:
+					window_exist = false;
+					break;
+				case WM_KEYDOWN:
+					window_exist = false;
+					break;
 				}
 				return DefWindowProcW(hWnd, msg, wParam, lParam);
 			}else
 				return DefWindowProcW(hWnd, msg, wParam, lParam);
+				*/
+			return DefWindowProcW(hWnd, msg, wParam, lParam);;
 		}
 
 		void window_instance::one_frame_loop()
 		{
 			MSG msg;
-			while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+
+			while (PeekMessageW(&msg, win, 0, 0, PM_REMOVE))
 			{
+				std::cout << PO::Platform::translate_event_to_string(msg.message) << std::endl;
+				//TranslateMessage(&msg);
 				DispatchMessageW(&msg);
 			}
 		}

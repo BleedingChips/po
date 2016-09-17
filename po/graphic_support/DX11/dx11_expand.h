@@ -1,13 +1,14 @@
 #pragma once
 #include <d3d11.h>
 #pragma comment(lib,"d3d11.lib")
-#include "../../platform/platform_window.h"
+#include "../../platform/win32/win32_form.h"
+#include <iostream>
 namespace PO
 {
 	namespace DX11
 	{
 
-		struct initializer :public PO::Platform::window_style
+		struct initializer :public Platform::Win32::win32_initializer
 		{
 			DXGI_SWAP_CHAIN_DESC DSCD =
 			{
@@ -20,7 +21,8 @@ namespace PO
 				DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
 				DXGI_MODE_SCALING_UNSPECIFIED
 			},
-				DXGI_SAMPLE_DESC{
+				DXGI_SAMPLE_DESC
+			{
 				1,
 				0
 			},
@@ -33,29 +35,41 @@ namespace PO
 			};
 		};
 
-		struct renderer:public PO::Platform::window_instance
+		
+		class renderer:public PO::Platform::Win32::win32_form
 		{
 			ID3D11Device* dev;
 			ID3D11DeviceContext* dc;
 			IDXGISwapChain* swap;
-			renderer(const initializer& it = initializer())
-			{
-				initializer tem(it);
-
-				tem.DSCD.OutputWindow = get_index();
-				HRESULT res;
-				//res = 
-			}
+			//event_receipt receipt;
+			typename win32_form::event_receipt er;
+		public:
+			renderer(Tool::completeness_protector_ref&& cpf, const initializer& it = initializer());
 		};
-
 		
-
+		class renderer_view
+		{
+			renderer& red;
+		public:
+			renderer_view(renderer* data) :red(*data) {}
+			renderer_view(const renderer_view& rv) :red(rv.red) {}
+			void text() { std::cout << "No!!!!" << std::endl; }
+		};
 		
 	}
 
 	struct DX11_expand
 	{
-		using initializer = DX11::initializer;
-		using renderer = DX11::renderer;
+		using form = Tool::completeness_protector<DX11::renderer>;
+		//using renderer_view = DX11::renderer_view;
+		static inline bool form_avalible(form& r)
+		{
+			return r;
+		};
+		static inline void form_close(form& r)
+		{
+			r.close_window();
+		};
+		//inline static bool  is_renderer_avalible(Tool::completeness_protector_ref& cpr, form& r) { return r; }
 	};
 }

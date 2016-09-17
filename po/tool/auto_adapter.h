@@ -45,7 +45,7 @@ namespace PO
 			template<size_t i, size_t o> struct find_index2<i, o> { static_assert(o > i, "adapter_order unable adapter"); using type = Tool::index_container<o>; };
 			template<size_t i, size_t o, size_t e, size_t ...ui> struct find_index2<i, o, e, ui...>
 			{ 
-				using type = typename find_index2<i, ((e > i) && (e < o) || (o < i) && (e > i)) ? e : o, ui... >::type;
+				using type = typename find_index2<i, (((e > i) && (e < o)) || ((o < i) && (e > i))) ? e : o, ui... >::type;
 			};
 		public:
 			template<typename ...input> using adapter = Tool::for_packet_t<
@@ -66,7 +66,7 @@ namespace PO
 			template<size_t ... index, typename fun_obj, typename ...input>
 			decltype(auto) auto_adapter_execute(Tool::index_container<index...>, fun_obj&& fo, input&& ...in)
 			{
-				static_assert(Tool::is_callable<fun_obj, Tool::picker_t<index, input...>...>::value, "PO::Adapter::Assistant::auto_adapter_execute can not call function with those");
+				static_assert(Tool::is_callable<fun_obj, Tool::picker_t<index, input...>...>::value, "PO::Adapter::Assistant::auto_adapter_execute can call function with those");
 				return std::invoke(std::forward<fun_obj>(fo),
 					Tool::pick_parameter<index>::in(std::forward<input>(in)...)...
 				);
@@ -101,7 +101,7 @@ namespace PO
 
 			template<bool, typename match_, template<typename...> class adapter, typename func_obj, typename ...input> struct analyzer_execute_2
 			{
-				template<typename target, typename ...in> using match = Tool::localizer_t<0, typename match_::template in<target>::template in_t, Tool::index_container, in...>;
+				template<typename target, typename ...in> using match = Tool::localizer_t<0, match_::template in<target>::template in_t, Tool::index_container, in...>;
 				using type = typename func_obj::template parameter_out
 					<
 						Tool::packet<
@@ -113,7 +113,7 @@ namespace PO
 
 			template<typename match_, template<typename...> class adapter, typename func_obj, typename owner, typename ...input> struct analyzer_execute_2<true, match_, adapter, func_obj, owner, input...>
 			{
-				template<typename target, typename ...in> using match = Tool::localizer_t<1, typename match_::template in<target>::template in_t, Tool::index_container, in...>;
+				template<typename target, typename ...in> using match = Tool::localizer_t<1, match_::template in<target>::template in_t, Tool::index_container, in...>;
 				using pre_index = typename func_obj::template parameter_out
 					<
 						Tool::packet<

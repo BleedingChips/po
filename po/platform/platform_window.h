@@ -1,4 +1,5 @@
 #pragma once
+#include <Unknwnbase.h>
 #include <windows.h>
 #include <memory>
 #include <string>
@@ -45,7 +46,7 @@ namespace PO
 		class window_instance
 		{
 			HWND win;
-			std::atomic_bool window_exist = true;
+			std::atomic_bool window_exist;// = true;
 
 		public:
 			HWND get_index() const { return win; }
@@ -54,13 +55,12 @@ namespace PO
 			window_instance();
 			window_instance(const window_style&);
 
-			virtual bool respond_event(const window_event&) =0;
+			virtual bool respond_event(const window_event&) { return true; };
 
 			virtual ~window_instance();
 			bool is_exist() const { return window_exist; }
-			static void one_frame_loop();
+			void one_frame_loop();
 			LRESULT main_event_respond(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 		};
 
 		

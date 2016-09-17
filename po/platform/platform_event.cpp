@@ -1,12 +1,13 @@
 #include "platform_event.h"
 #include <sstream>
-#define SWITCH_HELPER_2(x) u##x
-#define SWITCH_HELPER(x)  case x: return SWITCH_HELPER_2(#x);
+
 
 namespace PO
 {
 	namespace Platform
 	{
+#define SWITCH_HELPER_2(x) u##x
+#define SWITCH_HELPER(x)  case x: return SWITCH_HELPER_2(#x);
 			std::u16string translate_event_to_u16string(UINT type) noexcept
 			{
 				switch (type)

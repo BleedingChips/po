@@ -1,5 +1,7 @@
 #pragma once
 #include <functional>
+#include <mutex>
+#include <thread>
 #include "type_tool.h"
 namespace PO
 {
@@ -91,16 +93,307 @@ namespace PO
 #ifdef _DEBUG
 			return statement_if<Assistant::auto_cast_able_dynamic_cast<T, P>::type::value>
 				(
-					[](auto&& u) {  cout << "call this" << endl; return dynamic_cast<T>(std::forward<decltype(u) && >(u)); },
-					[](auto&& u) {  cout << "call this2" << endl; return static_cast<T>(std::forward<decltype(u) && >(u)); },
+					[](auto&& u) { return dynamic_cast<T>(std::forward<decltype(u) && >(u)); },
+					[](auto&& u) { return static_cast<T>(std::forward<decltype(u) && >(u)); },
 					std::forward<P>(data)
 			);
 #else
 			return static_cast<T>(std::forward<decltype(u) && >(u));
 #endif // DEBUG
-
-
 		}
+
+
+		template<typename T> class completeness_protector;
+		class completeness_protector_ref;
+		namespace Assistant
+		{
+			enum class completeness_protector_state : int8_t
+			{
+				Construction,
+				Ready,
+				Destruction,
+				Missing
+			};
+
+			struct completeness_protector_head_data_struct
+			{
+				std::mutex mutex;
+				completeness_protector_state state = completeness_protector_state::Construction;
+				size_t ref = 0;
+				size_t read_ref = 0;
+			};
+			class completeness_protector_head
+			{
+				completeness_protector_head_data_struct* data;
+				completeness_protector_head() :data(new completeness_protector_head_data_struct) 
+				{ 
+					std::lock_guard<decltype(data->mutex)> lg(data->mutex);
+					data->state = completeness_protector_state::Construction;
+					++(data->ref);
+				}
+				completeness_protector_head(completeness_protector_head&& cph) :data(new completeness_protector_head_data_struct)
+				{
+					std::lock_guard<decltype(data->mutex)> lg(data->mutex);
+					++(data->ref);
+					data->state = completeness_protector_state::Construction;
+					std::swap(data,cph.data);
+				}
+				completeness_protector_head(const completeness_protector_head&) :data(new completeness_protector_head_data_struct)
+				{
+					std::lock_guard<decltype(data->mutex)> lg(data->mutex);
+					data->state = completeness_protector_state::Construction;
+					++(data->ref);
+				}
+				~completeness_protector_head() 
+				{ 
+					size_t res = 0;
+					{
+						std::lock_guard<decltype(data->mutex)> lg(data->mutex);
+						res = --data->ref;
+						data->state = completeness_protector_state::Missing;
+					}
+					if (res == 0)
+						delete data;
+				}
+				template<typename T> friend class Tool::completeness_protector;
+				friend class Tool::completeness_protector_ref;
+			};
+		}
+
+		template<typename T>
+		class completeness_protector_construct_selecter : public std::remove_reference_t<T>
+		{
+			template<typename ref, typename ...AT> completeness_protector_construct_selecter(std::true_type, ref&& re, AT&& ...at) : std::remove_reference_t<T>(std::forward<ref>(re), std::forward<AT>(at)...) {}
+			template<typename ref, typename ...AT> completeness_protector_construct_selecter(std::false_type, ref&& re, AT&& ...at) : std::remove_reference_t<T>(std::forward<AT>(at)...) {}
+		public:
+			template<typename ...AT>  completeness_protector_construct_selecter(Tool::completeness_protector_ref&& cpr, AT&& ...at) : completeness_protector_construct_selecter(
+				std::integral_constant<bool,
+					std::is_constructible<std::remove_reference_t<T>, completeness_protector_ref, AT...>::value
+				>(),
+				std::move(cpr), std::forward<AT>(at)...
+			) {}
+
+			template<typename ...AT>  completeness_protector_construct_selecter(const Tool::completeness_protector_ref& cpr, AT&& ...at) : completeness_protector_construct_selecter(
+				std::integral_constant<bool,
+				std::is_constructible<std::remove_reference_t<T>, completeness_protector_ref, AT...>::value
+				>(),
+				cpr, std::forward<AT>(at)...
+			) {}
+		};
+
+		template<typename T>
+		class completeness_protector :private Assistant::completeness_protector_head, public completeness_protector_construct_selecter<T>
+		{
+			friend class completeness_protector_ref;
+		public:
+			completeness_protector() : completeness_protector_construct_selecter<T>(static_cast<Assistant::completeness_protector_head&>(*this)) 
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+
+			completeness_protector(completeness_protector&& cp) : Assistant::completeness_protector_head(std::move(cp)), completeness_protector_construct_selecter<T>(static_cast<Assistant::completeness_protector_head&>(*this),std::move(cp))
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+
+			completeness_protector(const completeness_protector& cp) : completeness_protector_construct_selecter<T>(static_cast<Assistant::completeness_protector_head&>(*this), std::move(cp))
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+
+			template<typename ...AT> completeness_protector(AT&& ...at) : completeness_protector_construct_selecter<T>(static_cast<Assistant::completeness_protector_head&>(*this), std::forward<AT>(at)...)
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+			~completeness_protector()
+			{
+				while (true)
+				{
+					Assistant::completeness_protector_head::data->mutex.lock();
+					if (Assistant::completeness_protector_head::data->read_ref == 0)
+					{
+						Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Destruction;
+						Assistant::completeness_protector_head::data->mutex.unlock();
+						break;
+					}
+					else
+					{
+						Assistant::completeness_protector_head::data->mutex.unlock();
+						std::this_thread::yield();
+					}
+				}
+			}
+		};
+
+		template<>
+		class completeness_protector<void> :private Assistant::completeness_protector_head
+		{
+			friend class completeness_protector_ref;
+		public:
+			completeness_protector()
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+
+			completeness_protector(completeness_protector&& cp) : Assistant::completeness_protector_head(std::move(cp))
+			{
+				std::lock_guard<decltype(Assistant::completeness_protector_head::data->mutex)> lg(Assistant::completeness_protector_head::data->mutex);
+				Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Ready;
+			}
+
+			completeness_protector(const completeness_protector& cp) :completeness_protector() {}
+
+			~completeness_protector()
+			{
+				while (true)
+				{
+					Assistant::completeness_protector_head::data->mutex.lock();
+					if (Assistant::completeness_protector_head::data->read_ref == 0)
+					{
+						Assistant::completeness_protector_head::data->state = Assistant::completeness_protector_state::Destruction;
+						Assistant::completeness_protector_head::data->mutex.unlock();
+						break;
+					}
+					else
+					{
+						Assistant::completeness_protector_head::data->mutex.unlock();
+						std::this_thread::yield();
+					}
+				}
+			}
+		};
+
+		class completeness_protector_ref
+		{
+			Assistant::completeness_protector_head_data_struct* data;
+		public:
+			operator bool() const { return data != nullptr; }
+			completeness_protector_ref(const Assistant::completeness_protector_head& cpd) :data(cpd.data)
+			{
+				data->mutex.lock();
+				++(data->ref);
+				data->mutex.unlock();
+			}
+			completeness_protector_ref() :data(nullptr) {}
+			completeness_protector_ref(const completeness_protector_ref& cpd) :data(cpd.data)
+			{
+				if (data != nullptr)
+				{
+					data->mutex.lock();
+					++(data->ref);
+					data->mutex.unlock();
+				}
+			}
+			completeness_protector_ref(completeness_protector_ref&& cpf) :data(cpf.data)
+			{
+				cpf.data = nullptr;
+			}
+			template<typename T> completeness_protector_ref(const completeness_protector<T>& cp) : completeness_protector_ref(static_cast<const Assistant::completeness_protector_head&>(cp)) {}
+			completeness_protector_ref& operator=(const completeness_protector_ref& cpf)
+			{
+				completeness_protector_ref tem(cpf);
+				drop();
+				data = tem.data;
+				if (data != nullptr)
+				{
+					data->mutex.lock();
+					++data->ref;
+					data->mutex.unlock();
+				}
+				return *this;
+			}
+			completeness_protector_ref& operator=(completeness_protector_ref&& cpf)
+			{
+				completeness_protector_ref tem(std::move(cpf));
+				drop();
+				data = tem.data;
+				tem.data = nullptr;
+				return *this;
+			}
+			template<typename T>
+			completeness_protector_ref& operator=(const completeness_protector<T>&& cp)
+			{
+				return operator&=(static_cast<const Assistant::completeness_protector_head&>(cp));
+			}
+			void drop()
+			{
+				if (data != nullptr)
+				{
+					data->mutex.lock();
+					size_t res = --data->ref;
+					data->mutex.unlock();
+					if (res == 0)
+						delete data;
+					data = nullptr;
+				}
+			}
+			template<typename T>
+			bool lock_if(T&& fun)
+			{
+				if (data != nullptr)
+				{
+					while (true)
+					{
+						data->mutex.lock();
+						if (data->state == Assistant::completeness_protector_state::Ready)
+						{
+							++data->read_ref;
+							data->mutex.unlock();
+							destructor de([this]()
+							{
+								data->mutex.lock();
+								--data->read_ref;
+								data->mutex.unlock();
+							});
+							fun();
+							return true;
+						}
+						else if(data->state != Assistant::completeness_protector_state::Destruction){
+							data->mutex.unlock();
+							std::this_thread::yield();
+						}
+						else {
+							data->mutex.unlock();
+							return false;
+						}
+					}
+				}
+				return false;
+			}
+			template<typename T>
+			bool try_lock_if(T&& fun)
+			{
+				if (data != nullptr)
+				{
+					data->mutex.lock();
+					if (data->state == Assistant::completeness_protector_state::Ready)
+					{
+						++data->read_ref;
+						data->mutex.unlock();
+						destructor de([this]()
+						{
+							data->mutex.lock();
+							--data->read_ref;
+							data->mutex.unlock();
+						});
+						fun();
+						return true;
+					}
+					else
+						data->mutex.unlock();
+				}
+				return false;
+			}
+			~completeness_protector_ref()
+			{
+				drop();
+			}
+		};
 	}
 }
 

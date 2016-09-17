@@ -1,109 +1,93 @@
 #include "po.h"
 
-namespace 
+namespace
 {
-	std::mutex window_list_mutex;
-	std::list < std::unique_ptr<PO::Platform::window_instance> > window_list;
-
 	std::mutex init_count_mutex;
 	size_t init_count = 0;
+
+	std::recursive_mutex all_form_mutex;
+	std::deque<std::unique_ptr<PO::Assistant::form_ptr>> all_form;
 }
 
 namespace PO
 {
-
-	gui_context::gui_context()
+	
+	context::context()
 	{
 		init_count_mutex.lock();
 		++init_count;
 		init_count_mutex.unlock();
 	}
 
-	gui_context::~gui_context()
+	context::~context()
 	{
-		init_count_mutex.lock();
-		--init_count;
-		if (init_count == 0)
-		{
-			window_list_mutex.lock();
-			window_list.clear();
-			window_list_mutex.unlock();
-		}
-		init_count_mutex.unlock();
-	}
 
-	void gui_context::regedit_window(std::unique_ptr<PO::Platform::window_instance>&& ptr)
-	{
-		window_list_mutex.lock();
-		window_list.push_back(std::move(ptr));
-		window_list_mutex.unlock();
-	}
-
-	void gui_context::loop()
-	{
-		init_count_mutex.lock();
-		if (init_count == 1)
 		{
-			init_count_mutex.unlock();
-			while (true)
+			std::lock_guard<decltype(this_form_mutex)> ld(this_form_mutex);
+			for (auto& ptr : this_form)
 			{
-				window_list_mutex.lock();
-				if (window_list.size() > 0)
+				ptr->force_exist_form = true;
+			}
+			for (auto& ptr : this_form)
+			{
+				ptr.reset();
+			}
+			this_form.clear();
+		}
+
+		{
+			std::lock_guard<decltype(init_count_mutex)> ld(init_count_mutex);
+			if (--init_count == 0)
+			{
+				std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
+				for (auto& ptr : all_form)
 				{
-					for (auto ptr = window_list.begin(); ptr != window_list.end(); )
-					{
-						if ((*ptr) && (*ptr)->is_exist())
-							++ptr;
-						else
-							window_list.erase(ptr++);
-					}
+					ptr->force_exist_form = true;
 				}
-				if (window_list.empty())
+				for (auto& ptr : all_form)
 				{
-					window_list_mutex.unlock();
-					break;
+					ptr.reset();
 				}
-				window_list_mutex.unlock();
-				PO::Platform::window_instance::one_frame_loop();
-				std::this_thread::sleep_for(std::chrono::microseconds(1));
+				all_form.clear();
 			}
 		}
-		else {
-			init_count_mutex.unlock();
-		}
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-	namespace Event
+	void context::detach()
 	{
-		bool event_box::respond_event(const PO::Platform::window_event& we)
+		std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
+		std::lock_guard<decltype(this_form_mutex)> ld2(this_form_mutex);
+		for (auto& io : this_form)
+			all_form.push_back(std::move(io));
+		this_form.clear();
+	}
+
+	void context::wait_all_form_close()
+	{
 		{
-			bool respond = false;
-			auto next_judge = [&respond](bool co) { respond = co; return !co; };
-			switch (we.msg)
+			std::lock_guard<decltype(this_form_mutex)> ld(this_form_mutex);
+			for (auto& ptr : this_form)
 			{
-			case WM_KEYUP:
-			case WM_KEYDOWN:
-				key_box(next_judge, key(we));
-				break;
-			case WM_MOUSEMOVE:
-			case WM_MOUSEWHEEL:
-				mouse_box(next_judge, mouse(we));
-				break;
-			default:
-				break;
+				ptr.reset();
 			}
-			return respond;
+			this_form.clear();
+		}
+
+		{
+			std::lock_guard<decltype(init_count_mutex)> ld(init_count_mutex);
+			if (--init_count == 0)
+			{
+				std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
+				for (auto& ptr : all_form)
+				{
+					ptr->force_exist_form = true;
+				}
+				for (auto& ptr : all_form)
+				{
+					ptr.reset();
+				}
+				all_form.clear();
+			}
 		}
 	}
 }
