@@ -10,17 +10,6 @@
 namespace
 {
 
-	bool event_translate(PO::event& ev, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-	{
-		switch (msg)
-		{
-		case WM_CLOSE:
-			ev.msg = WM_CLOSE;
-			return true; 
-		}
-		return false;
-	}
-
 	const char16_t static_class_name[] = u"po_frame_window_class2";
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -33,23 +22,14 @@ namespace
 			return DefWindowProcW(hWnd, msg, wParam, lParam);
 		default:
 		{
+			if (msg >= WM_USER && msg <= 0x7fff)
+			{
+				return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
+			}
 			PO::Platform::Win32::win32_form* ptr = reinterpret_cast<PO::Platform::Win32::win32_form*> (GetWindowLongW(hWnd, GWL_USERDATA));
-			PO::event eve;
-			if (ptr != nullptr && event_translate(eve, hWnd, msg, wParam, lParam))
-			{
-				if (ptr->reapond_window_evnet(eve))
+			if (ptr != nullptr && ptr->input_event(PO::Platform::Win32::simple_event{hWnd,msg , wParam, lParam}))
 					return 0;
-			}
-			switch (msg)
-			{
-			case WM_CLOSE:
-				ptr->close_window();
-				return 0;
-			default:
-				break;
-			}
-			return DefWindowProcW(hWnd, msg, wParam, lParam);
-			break;
+			return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
 		}
 		}
 	}
@@ -72,7 +52,7 @@ namespace
 			UnregisterClassW((const wchar_t*)static_class_name, GetModuleHandleW(0));
 		}
 
-	}static_class_init;
+	};
 
 
 	HWND create_window(
@@ -107,106 +87,106 @@ namespace
 
 	class form_event_thread_manager
 	{
+		std::mutex thread_mutex;
 		std::thread event_thread;
-		std::recursive_mutex ref_mutex;
+		std::mutex ref_mutex;
 		size_t ref = 0;
 		std::function<void(void)> delegate_function;
+		std::condition_variable cv;
 	public:
+
+		void main_thread()
+		{
+			while (true)
+			{
+				std::unique_lock<decltype(ref_mutex)> ul(ref_mutex);
+				if (ref == 0) break;
+				while (delegate_function)
+				{
+					delegate_function();
+					delegate_function = std::function<void()>{};
+					ul.unlock();
+					cv.notify_one();
+					std::this_thread::yield();
+					ul.lock();
+				}
+				ul.unlock();
+				MSG msg;
+				while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
+				{
+					DispatchMessageW(&msg);
+				}
+				std::this_thread::yield();
+			}
+		}
+
 		HWND create(
 			const PO::Platform::Win32::win32_initializer& wi,
 			PO::Platform::Win32::win32_form* wf)
 		{
-			std::promise<HWND> pro;
-			std::future<HWND> fur = pro.get_future();
+			std::unique_lock<decltype(ref_mutex)> ul(ref_mutex);
+			++ref;
+			if (ref == 1)
 			{
-				std::lock_guard<decltype(ref_mutex)> ld(ref_mutex);
-				++ref;
-				if (ref == 1)
-				{
-					if(event_thread.joinable())
-						event_thread.join();
-					event_thread = std::thread(
-						[this]()
-						{
-							while(true)
-							{
-								{
-									std::lock_guard<decltype(ref_mutex)> ld(ref_mutex);
-									if(ref == 0) break;
-									if(delegate_function)
-									{
-										delegate_function();
-										delegate_function = std::function<void()>{};
-									}
-								}
-								MSG msg;
-								while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
-								{
-									DispatchMessageW(&msg);
-								}
-								std::this_thread::yield();
-							}
-						}
-					);
-				}
-				if(std::this_thread::get_id()==event_thread.get_id())
-				{
-					return create_window(wi,wf);
-				}else{
-					while(delegate_function)
-					{
-						ref_mutex.unlock();
-						std::this_thread::yield();
-						ref_mutex.lock();
-					}
-					delegate_function = [&]()
-					{
-						pro.set_value(create_window(wi,wf));
-					};
-				}
+				std::lock_guard<decltype(thread_mutex)> ld(thread_mutex);
+				if (event_thread.joinable())
+					event_thread.join();
+				event_thread = std::thread([this]() {this->main_thread(); });
 			}
-			fur.wait();
-			return fur.get();
+
+			if (std::this_thread::get_id() == event_thread.get_id())
+			{
+				return create_window(wi, wf);
+			}
+			else {
+				cv.wait(ul, [this]() {return !static_cast<bool>(delegate_function); });
+				std::promise<HWND> pro;
+				auto fur = pro.get_future();
+				delegate_function = [&]()
+				{
+					pro.set_value(create_window(wi, wf));
+				};
+				ul.unlock();
+				fur.wait();
+				return fur.get();
+			}
 		}
 
 		void destory(HWND handle)
 		{
-			std::promise<void> pro;
-			std::future<void> fur = pro.get_future();
+			std::unique_lock<decltype(ref_mutex)> ul(ref_mutex);
+			if (std::this_thread::get_id() == event_thread.get_id())
 			{
-				std::lock_guard<decltype(ref_mutex)> ld(ref_mutex);
-				if(std::this_thread::get_id() == event_thread.get_id())
+				destory_window(handle);
+				--ref;
+				return;
+			}
+			else {
+				cv.wait(ul, [this]() {return !static_cast<bool>(delegate_function); });
+				std::promise<void> pro;
+				auto fur = pro.get_future();
+				delegate_function = [&]()
 				{
 					destory_window(handle);
-					--ref;
-					return;
-				}else{
-					while(delegate_function)
-					{
-						ref_mutex.unlock();
-						std::this_thread::yield();
-						ref_mutex.lock();
-					}
-					delegate_function = [&]()
-					{
-						destory_window(handle);
-						pro.set_value();
-					};
+					pro.set_value();
+				};
+				ul.unlock();
+				fur.wait();
+				ul.lock();
+				--ref;
+				if (ref == 0)
+				{
+					ul.unlock();
+					std::lock_guard<decltype(thread_mutex)> ld(thread_mutex);
+					if (event_thread.joinable())
+						event_thread.join();
 				}
 			}
-			fur.wait();
-			fur.get();
-			{
-				std::lock_guard<decltype(ref_mutex)> ld(ref_mutex);
-				--ref;
-				if(ref !=0 ) return;
-			}
-			if (event_thread.joinable())
-				event_thread.join();
 		}
 
 		~form_event_thread_manager()
 		{
+			std::lock_guard<decltype(thread_mutex)> ld(thread_mutex);
 			if(event_thread.joinable())
 			{
 				{
@@ -230,6 +210,7 @@ namespace PO
 		{
 			win32_form::win32_form(const win32_initializer& wi) : avalible(true)
 			{
+				static static_class_init_struct static_class_init;
 				raw_handle = manager.create(wi, this);
 			}
 
@@ -238,17 +219,30 @@ namespace PO
 				manager.destory(raw_handle);
 			}
 
-			
-			bool win32_form::reapond_window_evnet(const event& ev)
+			bool win32_form::input_event(simple_event msg)
 			{
-				bool res = false;
-				return respond_call_back.capture(
-					[&res](bool r) 
+				std::lock_guard<decltype(mut)> lg(mut);
+				if (delegate_event)
 				{
-					res = r;
-					return r;
+					input_message.push_back(msg);
+					return true;
 				}
-				, ev) && res;
+				return false;
+			}
+
+			void win32_form::respond_event()
+			{
+				if (func)
+				{
+					std::lock_guard<decltype(mut)> lg(mut);
+					delegate_event = true;
+					for (auto& ev : input_message)
+					{
+						if (!func(ev))
+							SendMessageW(ev.hwnd, ev.message + WM_USER, ev.wParam, ev.lParam);
+					}
+					input_message.clear();
+				}
 			}
 			
 

@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include "auto_adapter.h"
+#include "thread_tool.h"
 namespace PO
 {
 	namespace Mail
@@ -249,7 +250,7 @@ namespace PO
 			template<typename func_type> class mail_box_completeness_request;
 			template<typename func_type > class receipt_completeness_request : protected receipt<func_type>
 			{
-				Tool::completeness_protector_ref cpf;
+				Tool::completeness_ref cpf;
 				friend class mail_box_completeness_request<func_type>;
 			public:
 				operator bool() const { return static_cast<bool>(cpf) && receipt<func_type>::operator bool(); }
@@ -257,14 +258,14 @@ namespace PO
 				receipt_completeness_request() = default;
 				receipt_completeness_request(receipt_completeness_request&&) = default;
 				receipt_completeness_request(const receipt_completeness_request&) = default;
-				template<typename func_obj, typename ...input> receipt_completeness_request(const Tool::completeness_protector_ref& cpr, func_obj&& fo, input&&... in) :cpf(cpr), receipt<func_type>(std::forward<func_obj>(fo),std::forward<input>(in)...) {};
+				template<typename func_obj, typename ...input> receipt_completeness_request(const Tool::completeness_ref& cpr, func_obj&& fo, input&&... in) :cpf(cpr), receipt<func_type>(std::forward<func_obj>(fo),std::forward<input>(in)...) {};
 				receipt_completeness_request& operator= (const receipt_completeness_request&) = default;
 				receipt_completeness_request& operator= (receipt_completeness_request&&) = default;
 			};
 
 			template<typename func_type> class mail_box_completeness_request : protected mail_box<func_type>
 			{
-				Tool::completeness_protector_ref cpr;
+				Tool::completeness_ref cpr;
 			public:
 				mail_box_completeness_request() = default;
 				mail_box_completeness_request(const mail_box_completeness_request&) = default;
@@ -309,7 +310,7 @@ namespace PO
 			Assistant::mail_box_completeness_request<fun_type> func;
 		public:
 			using receipt = Assistant::receipt_completeness_request<fun_type>;
-			template<typename func_obj, typename ...input> decltype(auto) bind(const Tool::completeness_protector_ref& cpr, func_obj&& fo, input&& ...in)
+			template<typename func_obj, typename ...input> decltype(auto) bind(const Tool::completeness_ref& cpr, func_obj&& fo, input&& ...in)
 			{
 				receipt re(cpr, std::forward<func_obj>(fo), std::forward<input>(in)...);
 				func = re;
@@ -360,7 +361,7 @@ namespace PO
 			};
 
 			template<typename fun_ob, typename ...input>
-			decltype(auto) bind(const Tool::completeness_protector_ref& cpr, fun_ob&& func, input&& ...k)
+			decltype(auto) bind(const Tool::completeness_ref& cpr, fun_ob&& func, input&& ...k)
 			{
 				std::lock_guard<std::recursive_mutex> lg(mutex);
 				Assistant::receipt_completeness_request<fun_type> tem(cpr, std::forward<fun_ob>(func), std::forward<input>(k)...);

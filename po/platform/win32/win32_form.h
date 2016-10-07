@@ -1,14 +1,11 @@
 #pragma once
 #include <Windows.h>
 #include <string>
-#include "log\win32_log.h"
-#include "../../tool/mail.h"
-#include "../../event/event.h"
 #include <mutex>
 #include <atomic>
 #include <future>
-#include <chrono>
 #include <thread>
+#include <deque>
 namespace PO
 {
 	namespace Platform
@@ -31,7 +28,14 @@ namespace PO
 					DWORD ex_window_style = WS_EX_CLIENTEDGE;
 				};
 			}
-			
+
+			struct simple_event
+			{
+				HWND        hwnd;
+				UINT        message;
+				WPARAM      wParam;
+				LPARAM      lParam;
+			};
 
 			struct win32_initializer
 			{
@@ -48,11 +52,15 @@ namespace PO
 			{
 				HWND raw_handle = nullptr;
 				std::atomic_bool avalible;
-				Mail::single_mail_completeness_request<bool(const event&)> respond_call_back;
+				std::mutex mut;
+				bool delegate_event = false;
+				std::deque<simple_event> input_message;
+				std::function<bool(simple_event)> func;
 			public:
-				template<typename ...AT>
-				decltype(auto) bind_event_function(AT&& ...at) { return respond_call_back.bind(std::forward<AT>(at)...); }
-				using event_receipt = decltype(respond_call_back)::receipt;
+				bool input_event(simple_event msg);
+				void respond_event();
+				bool bind_event_function(std::function<bool(simple_event)>&& f) { func = std::move(f); }
+				bool bind_event_function(const std::function<bool(simple_event)>& f) { func = f; }
 				bool window_close = false;
 				HWND raw() const { return raw_handle; }
 				operator bool() const 
@@ -63,15 +71,7 @@ namespace PO
 					const win32_initializer& = win32_initializer()
 					);
 				~win32_form();
-				bool reapond_window_evnet(const PO::event&);
 				void close_window() { avalible = false; }
-				void wait_for_close(const std::chrono::duration<long long, std::ratio<1, 1000>>& time) 
-				{
-					while (avalible) 
-					{ 
-						std::this_thread::sleep_for(time); 
-					} 
-				}
 			};
 
 		}

@@ -12,6 +12,15 @@ namespace
 namespace PO
 {
 	
+	namespace Assistant
+	{
+		form_ptr::~form_ptr()
+		{
+			if (logic_form_thread.joinable())
+				logic_form_thread.join();
+		}
+	}
+
 	context::context()
 	{
 		init_count_mutex.lock();
