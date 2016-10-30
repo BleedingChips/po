@@ -1,10 +1,9 @@
 #pragma once
-#include <dxgi.h>
-#pragma comment(lib,"DXGI.lib")
 #include <Atlbase.h>
 #include <vector>
 #include <map>
 #include <functional>
+#include "dxgi_define.h"
 
 namespace PO
 {

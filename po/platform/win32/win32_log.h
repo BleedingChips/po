@@ -1,5 +1,5 @@
 #pragma once
-#include "win32_form.h"
+#include <Windows.h>
 #include <sstream>
 namespace PO
 {

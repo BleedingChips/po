@@ -7,31 +7,35 @@
 #include <future>
 #include <map>
 #include <chrono>
+#include <set>
 namespace
 {
-
 	const char16_t static_class_name[] = u"po_frame_window_class2";
+
+
+	const std::set<UINT> handled_event_filter= 
+	{
+		WM_CLOSE,
+		WM_MOUSEMOVE
+	};
+
+	HRESULT default_handled_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{
+		// WM_CLOSE
+		return 0;
+	}
+
+
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
-		switch (msg)
+		if (handled_event_filter.find(msg) != handled_event_filter.end())
 		{
-		case WM_CREATE:
-		case WM_PAINT:
-		case WM_DESTROY:
-			return DefWindowProcW(hWnd, msg, wParam, lParam);
-		default:
-		{
-			if (msg >= WM_USER && msg <= 0x7fff)
-			{
-				return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
-			}
 			PO::Platform::Win32::win32_form* ptr = reinterpret_cast<PO::Platform::Win32::win32_form*> (GetWindowLongW(hWnd, GWL_USERDATA));
-			if (ptr != nullptr && ptr->input_event(PO::Platform::Win32::simple_event{hWnd,msg , wParam, lParam}))
-					return 0;
-			return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
+			if (ptr != nullptr && ptr->respond_event( hWnd,msg , wParam, lParam ))
+				return default_handled_event(hWnd,msg,wParam, lParam);
 		}
-		}
+		return DefWindowProcW(hWnd, msg, wParam, lParam);
 	}
 
 	const WNDCLASSEXW static_class = { sizeof(WNDCLASSEXW), CS_HREDRAW | CS_VREDRAW , WndProc, 0, 0, GetModuleHandle(0), NULL,NULL, 0, NULL, (const wchar_t*)static_class_name, NULL };
@@ -71,6 +75,7 @@ namespace
 			GetModuleHandle(0),
 			NULL
 		);
+		HRESULT re = GetLastError();
 		if (handle == nullptr)
 		{
 			throw PO::Platform::Win32::win32_init_error{};
@@ -219,33 +224,24 @@ namespace PO
 				manager.destory(raw_handle);
 			}
 
-			bool win32_form::input_event(simple_event msg)
+			bool win32_form::respond_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
-				std::lock_guard<decltype(mut)> lg(mut);
-				if (delegate_event)
+				bool result = false;
+
+				if (event_mail.lock_if_capture(
+					[&result](bool re) { result = re; },
+					hWnd, msg, wParam, lParam
+				) && result)
+					return true;
+
+				switch (msg)
 				{
-					input_message.push_back(msg);
+				case WM_CLOSE:
+					avalible = false;
 					return true;
 				}
 				return false;
 			}
-
-			void win32_form::respond_event()
-			{
-				if (func)
-				{
-					std::lock_guard<decltype(mut)> lg(mut);
-					delegate_event = true;
-					for (auto& ev : input_message)
-					{
-						if (!func(ev))
-							SendMessageW(ev.hwnd, ev.message + WM_USER, ev.wParam, ev.lParam);
-					}
-					input_message.clear();
-				}
-			}
-			
-
 		}
 	}
 }

@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include "type_tool.h"
+#include <memory>
 namespace PO
 {
 	namespace Tool
@@ -101,6 +102,88 @@ namespace PO
 			return static_cast<T>(std::forward<decltype(u) && >(u));
 #endif // DEBUG
 		}
+
+		template<typename ...T> struct adapter
+		{
+			template<typename K>  adapter(K&& k) {}
+		};
+
+		template<typename P, typename ...T> struct adapter<P,T...> : adapter<T...>
+		{
+			P data;
+			template<typename K>  adapter(K&& k) : adapter<T...>(std::forward<K>(k)), data(std::forward<K>(k)) {}
+			template<typename D>
+			decltype(auto) get()
+			{
+				static_assert(is_one_of<D, P, T...>::value, "what you get is not exist");
+				return Tool::statement_if< std::is_same<D, P>::value >
+					(
+						[](auto& it) { return it.adapter<P,T...>::data;  },
+						[](auto& it) { return it.adapter<T...>::template get<D>(); },
+						*this
+						);
+			}
+		};
+
+
+
+		namespace Assistant
+		{
+			struct mail_receiption_base
+			{
+				virtual operator bool() const = 0;
+				virtual ~mail_receiption_base() {}
+			};
+		}
 		
+		struct receiption
+		{
+			std::unique_ptr<Assistant::mail_receiption_base> ptr;
+		public:
+			operator bool() const { return static_cast<bool>(ptr) && *ptr; }
+			void cancle() { ptr.reset(); }
+			receiption() {}
+			receiption(std::unique_ptr<Assistant::mail_receiption_base>&& p) :ptr(std::move(p)) {}
+			receiption(const receiption&) = delete;
+			receiption(receiption&&) = default;
+			receiption& operator=(receiption&&) = default;
+			receiption& operator=(std::unique_ptr<Assistant::mail_receiption_base>&& p)
+			{
+				ptr = std::move(p);
+				return *this;
+			}
+		};
+
+		template<typename T> struct mail
+		{
+			struct control {};
+			std::weak_ptr<std::function<T>> func;
+			std::shared_ptr<control> ref;
+			struct receiption : Assistant::mail_receiption_base
+			{
+				std::shared_ptr<std::function<T>> func;
+				std::weak_ptr<control> ref;
+				operator bool() const { return static_cast<bool>(func) && !ref.expired(); }
+				operator Tool::receiption() && { return Tool::receiption(std::make_unique<receiption>(*this)); }
+				receiption(std::shared_ptr<std::function<T>>&& sp, const std::weak_ptr<control>& wp) :func(std::move(sp)), ref(wp) {}
+				receiption(const receiption&) = default;
+				receiption(receiption&&) = default;
+				receiption& operator=(const receiption&) = default;
+				receiption& operator=(receiption&&) = default;
+			};
+			operator bool() const { return !func.expired(); }
+			template<typename ...AT>
+			decltype(auto) operator()(AT&& ...at) { return (*(func.lock()))(std::forward<AT>(at)...); }
+			template<typename K>
+			decltype(auto) bind(K&& t)
+			{
+				if (!ref)
+					ref = std::make_shared<control>();
+				auto fun = std::make_shared<std::function<T>>(std::forward<K>(t));
+				func = fun;
+				return receiption{ std::move(fun), ref };
+			}
+		};
+
 	}
 }

@@ -1,11 +1,12 @@
 #pragma once
-#include <Windows.h>
 #include <string>
 #include <mutex>
 #include <atomic>
 #include <future>
 #include <thread>
 #include <deque>
+#include "../../tool/thread_tool.h"
+#include "win32_define.h"
 namespace PO
 {
 	namespace Platform
@@ -53,23 +54,13 @@ namespace PO
 				HWND raw_handle = nullptr;
 				std::atomic_bool avalible;
 				std::mutex mut;
-				bool delegate_event = false;
-				std::deque<simple_event> input_message;
-				std::function<bool(simple_event)> func;
 			public:
-				bool input_event(simple_event msg);
-				void respond_event();
-				bool bind_event_function(std::function<bool(simple_event)>&& f) { func = std::move(f); }
-				bool bind_event_function(const std::function<bool(simple_event)>& f) { func = f; }
+				Tool::mail_ts<bool(HWND, UINT, WPARAM, LPARAM)> event_mail;
+				bool respond_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 				bool window_close = false;
 				HWND raw() const { return raw_handle; }
-				operator bool() const 
-				{
-					return avalible; 
-				}
-				win32_form(
-					const win32_initializer& = win32_initializer()
-					);
+				operator bool() const { return avalible; }
+				win32_form( const win32_initializer& = win32_initializer() );
 				~win32_form();
 				void close_window() { avalible = false; }
 			};

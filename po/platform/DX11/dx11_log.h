@@ -1,5 +1,5 @@
 #pragma once
-#include "dx11_expand.h"
+#include "dx11_define.h"
 namespace PO
 {
 	namespace DX11

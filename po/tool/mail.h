@@ -2,12 +2,68 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include "auto_adapter.h"
 #include "thread_tool.h"
 namespace PO
 {
 	namespace Mail
 	{
+		/*
+		namespace Assistant
+		{
+			struct receiption_base
+			{
+				virtual operator bool() const = 0;
+				virtual ~receiption_base() {}
+			};
+		}
+
+		template<typename T> struct mail
+		{
+			struct control {};
+			std::weak_ptr<std::function<T>> func;
+			std::shared_ptr<control> ref;
+			struct receiption: Assistant::receiption_base
+			{
+				std::shared_ptr<std::function<T>> func;
+				std::weak_ptr<control> ref;
+				operator bool() const { return static_cast<bool>(func) && !ref.expired(); }
+			};
+			operator bool() const { return !func.expired(); }
+			template<typename ...AT>
+			decltype(auto) operator()(AT&& ...at) { return func(std::forward<AT>(at)...); }
+			template<typename K>
+			decltype(auto) bind(K&& t)
+			{
+				if (!ref)
+					ref = std::make_shared<control>();
+				return receiption{std::make_shared<std::function<T>>(std::function<T>(std::forward<K>(t))),ref};
+			}
+		};
+		*/
+		/*
+		template<typename T> struct mail_ts_base
+		{
+			Tool::completeness_ptr<std::function<T>> func;
+		};
+
+		template<typename T> struct mail_ts : Tool::completeness<mail_ts_base<T>>
+		{
+			struct receiption_ts : Assistant::receiption_base
+			{
+				Tool::completeness_ref mail_ref;
+				Tool::completeness<function<T>> func;
+			};
+			template<typename K>
+			decltype(auto) bind(K&& t)
+			{
+				if (!ref)
+					ref = std::make_shared<control>();
+				return receiption{ std::make_shared<std::function<T>>(std::function<T>(std::forward<K>(t))),ref };
+			}
+		}*/
+
+
+		/*
 		namespace Assistant
 		{
 			template<typename target_type> struct mail_create_funtion_ptr_execute;
@@ -455,6 +511,6 @@ namespace PO
 			}
 
 		};
-
+		*/
 	}
 }

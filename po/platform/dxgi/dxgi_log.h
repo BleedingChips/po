@@ -1,6 +1,6 @@
 #pragma once
 #include "dxgi.h"
-#include "../win32_log.h"
+#include "../win32/win32_log.h"
 #include <string>
 namespace PO
 {
