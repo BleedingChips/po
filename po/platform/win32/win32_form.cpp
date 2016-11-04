@@ -12,6 +12,10 @@ namespace
 {
 	const char16_t static_class_name[] = u"po_frame_window_class2";
 
+	bool make_po_define_event(PO::event& ev, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{
+		return true;
+	}
 
 	const std::set<UINT> handled_event_filter= 
 	{
@@ -227,12 +231,14 @@ namespace PO
 			bool win32_form::respond_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				bool result = false;
-
-				if (event_mail.lock_if_capture(
+				event ev;
+				if (make_po_define_event(ev, hWnd, msg, wParam,lParam) &&
+					event_mail.lock_if_capture(
 					[&result](bool re) { result = re; },
-					hWnd, msg, wParam, lParam
+						ev
 				) && result)
 					return true;
+
 
 				switch (msg)
 				{

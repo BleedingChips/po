@@ -1,6 +1,8 @@
 #pragma once
 #include <chrono>
 #include "..\tool\tool.h"
+#include "..\tool\thread_tool.h"
+#include <stdint.h>
 namespace PO
 {
 	using duration = std::chrono::duration<long long, std::ratio<1, 1000>>;
@@ -38,42 +40,64 @@ namespace PO
 		}
 	};
 
-	enum class Event_Type
+	enum class EventType : std::int8_t
 	{
-		E_MOUSE_BUTTON,
-		E_MOUSE_WHEEL,
-		E_MOUSE_MOVE,
-		E_KEY
+		E_CLICK_L,
+		E_CLICK_R,
+		E_CLICK_M,
+		E_WHEEL,
+		E_MOVE,
+		E_KEY,
+		E_CLOSE
 	};
 
-	//enum class E_Mou
-
-	enum class Sys_Mouse_Button_Event_Type
+	enum class ButtonState
 	{
-		//EM_
+		BS_UP = 0,
+		BS_DOWN =1,
 	};
 
-	struct mouse
+	enum class KeyState : int8_t
 	{
-		struct mouse_flag
-		{
-			//Sys_Event_Type type;
-			Sys_Mouse_Button_Event_Type button;
-		}flag;
+		KS_SHIFT = 0x1,
+		KS_ALT = 0x2,
+		KS_CTRL = 0x3,
+	};
+
+	struct click_type
+	{
+		EventType type;
+		ButtonState button_state : 1;
+		KeyState key_state : 3;
+		int : 0;
 		int16_t location_x;
-		int16_t loaction_y;
+		int16_t location_y;
+		bool is_up() { return button_state == ButtonState::BS_UP; }
+		bool is_down() { return button_state == ButtonState::BS_DOWN; }
+		int16_t get_x() { return location_x; }
+		int16_t get_y() { return location_y; }
 	};
 
-	
-	union event_data
+	struct move_type
 	{
-		Event_Type type;
+		EventType type;
+		int16_t location_x;
+		int16_t location_y;
+		int16_t get_x() { return location_x; }
+		int16_t get_y() { return location_y; }
 	};
 	
-	struct event
+	union event
 	{
-		time_point time;
-		event_data data;
+		EventType type;
+		click_type click;
+		move_type move;
+		bool is_quit() { return type == EventType::E_CLOSE; }
+		bool is_click_L() { return type == EventType::E_CLICK_L; }
+		bool is_click_M() { return type == EventType::E_CLICK_M; }
+		bool is_click_R() { return type == EventType::E_CLICK_R; }
+		bool is_click() { return is_click_L() || is_click_M() || is_click_R(); }
+		bool is_move() { return type == EventType::E_MOVE; }
 	};
 	
 }

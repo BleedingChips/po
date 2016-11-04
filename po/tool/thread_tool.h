@@ -1,5 +1,6 @@
 #pragma once
 #include "tool.h"
+#include <atomic>
 namespace PO
 {
 	namespace Tool
@@ -102,7 +103,6 @@ namespace PO
 
 		class completeness_ref
 		{
-			mutable std::recursive_mutex mutex;
 			Assistant::completeness_head_data_struct* data;
 			void drop()
 			{
@@ -114,7 +114,21 @@ namespace PO
 				}
 			}
 		public:
-			operator bool() const { std::lock_guard<decltype(mutex)> lg(mutex); return data != nullptr && *data; }
+			operator bool() const { return data != nullptr && *data; }
+			operator bool() 
+			{ 
+				if (data != nullptr)
+				{
+					if (*data)
+						return true;
+					else {
+						if (data->del_ref())
+							delete data;
+						data = nullptr;
+					}
+				}
+				return false;
+			}
 			completeness_ref(const Assistant::completeness_head& cpd) :data(cpd.data)
 			{
 				data->add_ref();
@@ -137,7 +151,6 @@ namespace PO
 
 			completeness_ref& operator=(const completeness_ref& cpf)
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
 				completeness_ref tem(cpf);
 				drop();
 				data = tem.data;
@@ -149,11 +162,10 @@ namespace PO
 			}
 
 			template<typename T>
-			completeness_ref& operator=(const completeness<T>& cpd) { std::lock_guard<decltype(mutex)> lg(mutex); return operator=(static_cast<const Assistant::completeness_head&>(cpd)); }
+			completeness_ref& operator=(const completeness<T>& cpd) { return operator=(static_cast<const Assistant::completeness_head&>(cpd)); }
 
 			completeness_ref& operator=(completeness_ref&& cpf)
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
 				completeness_ref tem(std::move(cpf));
 				drop();
 				data = tem.data;
@@ -163,7 +175,6 @@ namespace PO
 
 			completeness_ref& operator=(const Assistant::completeness_head& chd)
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
 				drop();
 				data = chd.data;
 				data->add_ref();
@@ -172,15 +183,13 @@ namespace PO
 
 			void reset()
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
 				drop();
 			}
 
 			template<typename T>
 			bool lock_if(T&& fun)
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
-				if (data != nullptr && data->add_read_ref())
+				if (operator bool() && data->add_read_ref())
 				{
 					Tool::destructor de([this]() {data->del_read_ref(); });
 					fun();
@@ -191,8 +200,7 @@ namespace PO
 			template<typename T>
 			bool try_lock_if(T&& fun)
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
-				if (data != nullptr && data->try_add_read_ref())
+				if (operator bool() && data->try_add_read_ref())
 				{
 					Tool::destructor de([this]() {data->del_read_ref(); });
 					fun();
@@ -202,7 +210,6 @@ namespace PO
 			}
 			~completeness_ref()
 			{
-				std::lock_guard<decltype(mutex)> lg(mutex);
 				drop();
 			}
 		};
@@ -211,44 +218,45 @@ namespace PO
 		{
 			template<typename T> struct mail_ts_base
 			{
-				std::recursive_mutex mutex;
+				std::mutex mutex;
 				completeness_ref self_ref;
 				completeness_ref func_ref;
-				std::function<T>* func;
+				std::function<T> func;
 
 			public:
 
 				mail_ts_base(const completeness_ref& r) :self_ref(r) {}
 
-				struct receiption : mail_receiption_base
+				struct receiption_implement : mail_receiption_base
 				{
-					std::unique_ptr<std::function<T>> func;
 					completeness_ref ref;
-					operator bool() const { return static_cast<bool>(func) && ref; }
-					operator Tool::receiption() && { return Tool::receiption(std::make_unique<receiption>(std::move(*this))); }
-					receiption() {}
-					receiption(std::unique_ptr<std::function<T>>&& sp, const completeness_ref& wp) :func(std::move(sp)), ref(wp) {}
-					receiption(const receiption&) = default;
-					receiption(receiption&&) = default;
-					receiption& operator=(const receiption&) = default;
-					receiption& operator=(receiption&&) = default;
+					operator bool() const { return ref; }
+					operator bool() { return ref; }
+					receiption_implement() {}
+					receiption_implement(const completeness_ref& wp) : ref(wp) {}
+					//receiption_implement(const receiption&) = default;
+					//receiption_implement(receiption&&) = default;
+					//receiption_implement& operator=(const receiption_implement&) = default;
+					//receiption_implement& operator=(receiption_implement&&) = default;
 				};
 
 				template<typename K>
 				decltype(auto) bind(const completeness_ref& ref, K&& k)
 				{
+					/*
 					std::lock_guard<decltype(mutex)> lg(mutex);
 					static_assert(std::is_constructible<std::function<T>, K&&>::value, "mail unable bind this fun.");
-					receiption temporary;
-					auto fun = std::make_unique<std::function<T>>(std::forward<K>(k));
-					func = fun.get();
+					//std::unique_ptr<completeness<receiption_implement>> rec_ptr = std::make_unique<completeness<receiption_implement>>();
+					func = std::forward<K>(k);
 					func_ref = ref;
-					return receiption{ std::move(fun), self_ref };
+					return receiption{ self_ref };
+					*/
 				}
 
 				template<typename K, typename ...AT>
 				bool lock_if_capture(K&& k, AT&&... at)
 				{
+					/*
 					std::lock_guard<decltype(mutex)> lg(mutex);
 					return func_ref.lock_if(
 						[&, this]() {
@@ -260,22 +268,27 @@ namespace PO
 								);
 					}
 					);
+					*/
+					return true;
 				}
 
 				template<typename ...AT>
 				bool lock_if(AT&&... at)
 				{
+					/*
 					std::lock_guard<decltype(mutex)> lg(mutex);
 					return func_ref.lock_if(
 						[&, this]() {
 						(*func)(std::forward<AT>(at)...);
 					}
 					);
+					*/
 				}
 
 				template<typename K, typename ...AT>
 				bool try_lock_if_capture(K&& k, AT&&... at)
 				{
+					/*
 					std::lock_guard<decltype(mutex)> lg(mutex);
 					return func_ref.try_lock_if(
 						[&, this]() {
@@ -287,16 +300,19 @@ namespace PO
 								);
 					}
 					);
+					*/
 				}
 				template<typename ...AT>
 				bool try_lock_if(AT&&... at)
 				{
+					/*
 					std::lock_guard<decltype(mutex)> lg(mutex);
 					return func_ref.try_lock_if(
 						[&, this]() {
 						(*func)(std::forward<AT>(at)...);
 					}
 					);
+					*/
 				}
 			};
 		}

@@ -99,7 +99,7 @@ namespace PO
 					std::forward<P>(data)
 					);
 #else
-			return static_cast<T>(std::forward<decltype(u) && >(u));
+			return static_cast<T>(std::forward<decltype(data) && >(data));
 #endif // DEBUG
 		}
 

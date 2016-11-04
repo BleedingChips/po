@@ -35,6 +35,7 @@ namespace PO
 
 			struct dx11_renderer_interface 
 			{
+				void lalala() {};
 				dx11_renderer_interface(dx11_renderer&) {}
 			};
 

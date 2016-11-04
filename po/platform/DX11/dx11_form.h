@@ -1,4 +1,5 @@
 #pragma once
+#include "../../frame/define.h"
 #include "dx11_define.h"
 #include "../win32/win32_form.h"
 
@@ -35,10 +36,13 @@ namespace PO
 				Tool::completeness_ref self_ref;
 				CComPtr<ID3D11Texture2D> pDepthStencilBuffer = 0;
 				CComPtr<ID3D11DepthStencilView> pDepthView;
-				//event_receipt receipt;
+				Tool::mail_ts<bool(event)> event_function;
+				template<typename T> void bind_event(T&& t)
+				{
+
+				}
 				dx11_form(Tool::completeness_ref cpf, const dx11_init& it = dx11_init());
 				~dx11_form();
-				bool is_available() { return *this; }
 			};
 
 			struct dx11_form_interface

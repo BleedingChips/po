@@ -6,170 +6,157 @@
 #include <future>
 namespace PO
 {
-	template<typename mod_type, typename interface_type, typename viewer_type> class mod_pair;
 
 	namespace Assistant
 	{
-		struct default_viewer_or_interface
+		struct void_interface_or_viewer
 		{
-			template<typename mod>
-			default_viewer_or_interface(mod& m){}
-		};
-
-		template<typename T> struct is_mod_pair :std::false_type {};
-		template<typename mod_type, typename interface_type, typename viewer_type> struct is_mod_pair<mod_pair<mod_type, interface_type, viewer_type>> :std::true_type {};
-
-		template<typename mod_pair, typename append_pair> struct can_mod_pair_append
-		{
-			static_assert(is_mod_pair<mod_pair>::value, "can only append to mod pair");
-			static_assert(is_mod_pair<append_pair>::value, "can only append to mod pair");
-			static constexpr bool value = std::is_constructible<typename mod_pair::mod, typename append_pair::mod_interface&>::value;
+			template<typename T> void_interface_or_viewer(T&& t) {}
 		};
 	}
 
-	template<typename mod_type, typename interface_type = Assistant::default_viewer_or_interface, typename viewer_type = Assistant::default_viewer_or_interface > class mod_pair
+	template<typename mod_type, typename interface_type = Assistant::void_interface_or_viewer, typename viewer_type = Assistant::void_interface_or_viewer> struct mod_pair
 	{
-		using pure_mod = std::remove_const_t<std::remove_reference_t<mod_type>>;
-		using pure_interface = std::remove_const_t<std::remove_reference_t<interface_type>>;
-		using pure_viewer = std::remove_const_t<std::remove_reference_t<viewer_type>>;
-	public:
-		using mod = pure_mod;
-		using mod_interface = pure_interface;
-		using mod_viewer = pure_viewer;
-		static_assert(std::is_constructible<mod_interface, mod&>::value, "mod have an interface but can't construct form mod&");
-		static_assert(std::is_constructible<mod_viewer, mod&>::value, "mod have an interface but can't construct form mod&");
+		using mod = std::remove_const_t<std::remove_reference_t<mod_type>>;
+		using mod_interface = std::remove_const_t<std::remove_reference_t<interface_type>>;
+		using mod_viewer = std::remove_const_t<std::remove_reference_t<viewer_type>>;
+		static_assert(std::is_constructible<mod_interface, mod&>::value, "interface need to be able to construct form mod");
+		static_assert(std::is_constructible<mod_viewer, mod&>::value, "viewer need to be able to construct form mod");
 	};
 
 	namespace Assistant
 	{
-		template<typename form_type, typename = void> struct form_have_is_available : std::false_type {};
-		template<typename form_type> struct form_have_is_available < form_type, std::void_t<decltype(std::declval<form_type>().is_available())>> : std::true_type {};
 
-		template<typename frame_type, typename = void > struct frame_have_form : std::false_type 
+		template<typename T> struct is_mod_pair : std::false_type {};
+		template<typename mod_type, typename interface_type, typename viewer_type> struct is_mod_pair<mod_pair<mod_type, interface_type, viewer_type>> : std::true_type {};
+
+		template<typename pre, typename append> struct append_pair_assert
 		{
-			using viewer = default_viewer_or_interface;
-		};
-		template<typename frame_type> struct frame_have_form<frame_type, std::void_t<typename frame_type::form> > : std::true_type
-		{
-			static_assert(is_mod_pair<typename frame_type::form>::value, "frame::form should define as mod_pair");
-			static_assert(form_have_is_available<typename frame_type::form::mod>::value, "form should have member function bool is_available()");
-			using viewer = typename frame_type::form::mod_viewer;
+			static_assert(is_mod_pair<pre>::value, "can only mod_pair append");
+			static_assert(is_mod_pair<append>::value, "can only mod_pair append");
+			static constexpr bool value = std::is_constructible<typename pre::mod, typename append::mod_interface&>::value;
 		};
 
-		template<typename frame_type, typename = void > struct frame_have_renderer : std::false_type 
+		template<typename T, typename = void> struct form_have_is_available : std::false_type {};
+		template<typename T> struct form_have_is_available<T,std::void_t<decltype(std::declval<T>().is_available())>> : std::true_type {};
+
+		template<typename T, typename = void> struct form_have_bind_event : std::false_type {};
+		template<typename T> struct form_have_bind_event < T, std::void_t<decltype(std::declval<T>().bind_event(std::function<bool(event)> {} )) >> : std::true_type {};
+
+		template<typename frame, typename = void> struct frame_have_form : std::false_type { using viewer = void_interface_or_viewer; };
+		template<typename frame> struct frame_have_form<frame, std::void_t<typename frame::form>> : std::true_type 
 		{
-			using viewer = default_viewer_or_interface;
-		};
-		template<typename frame_type> struct frame_have_renderer<frame_type, std::void_t<typename frame_type::renderer> > : std::true_type
-		{
-			static_assert(is_mod_pair<typename frame_type::renderer>::value, "frame::renderer should define as mod_pair");
-			static_assert(can_mod_pair_append<typename frame_type::renderer, typename frame_type::form>::value, "renderer can not construct from form interface");
-			using viewer = typename frame_type::renderer::mod_viewer;
+			static_assert(is_mod_pair<typename frame::form>::value, "form should be define as a mod_pair");
+			static_assert(form_have_is_available<typename frame::form::mod>::value, "form need provide member function bool is_available()");
+			static_assert(form_have_bind_event<typename frame::form::mod>::value, "form need provide member function bool bind_event(std::function<bool(event)>)");
+			using viewer = typename frame::form::mod_viewer; 
 		};
 
-		template<typename frame_type, typename = void > struct frame_have_scene : std::false_type 
-		{
-			using viewer = default_viewer_or_interface;
+		template<typename frame, typename = void> struct frame_have_renderer : std::false_type { using viewer = void_interface_or_viewer; };
+		template<typename frame> struct frame_have_renderer<frame, std::void_t<typename frame::renderer>> : std::true_type
+		{ 
+			static_assert(is_mod_pair<typename frame::renderer>::value, "renderer should be define as a mod_pair");
+			static_assert(frame_have_form<frame>::value, "renderer need define after form");
+			static_assert(append_pair_assert<typename frame::renderer, typename frame::form>::value, "renderer can not append to form");
+			using viewer = typename frame::renderer::mod_viewer; 
 		};
-		template<typename frame_type> struct frame_have_scene<frame_type, std::void_t<typename frame_type::scene> > : std::true_type
+
+		template<typename frame, typename = void> struct frame_have_scene : std::false_type { using viewer = void_interface_or_viewer; };
+		template<typename frame> struct frame_have_renderer<frame, std::void_t<typename frame::scene>> : std::true_type
 		{
-			static_assert(is_mod_pair<typename frame_type::scene>::value, "frame::scene should define as mod_pair");
-			static_assert(frame_have_renderer<frame_type>::value, "frame should define renderer before scene");
-			static_assert(can_mod_pair_append<typename frame_type::scene, typename frame_type::renderer>::value, "scene can not construct from renderer interface");
-			using viewer = typename frame_type::scene::mod_viewer;
+			static_assert(is_mod_pair<typename frame::scene>::value, "scene should be define as a mod_pair");
+			static_assert(frame_have_renderer<frame>::value, "scene need define after renderer");
+			static_assert(append_pair_assert<typename frame::scene, typename frame::renderer>::value, "scene can not append to renderer");
+			using viewer = typename frame::scene::mod_viewer;
 		};
 
 		template<typename T, typename = void> struct able_operator_to_call_tick : std::false_type {};
 		template<typename T> struct able_operator_to_call_tick < T, std::void_t<decltype(std::declval<T>().tick(time_point{})) >> : std::true_type {};
 
-		template<typename frame_type> struct frame_form_implement
+		template<typename frame> struct frame_form_implement
 		{
-			static_assert(frame_have_form<frame_type>::value, "frame should have form");
-			typename frame_type::form::mod form_mod;
-			operator typename frame_type::form::mod&(){ return form_mod; }
-			template<typename ...any_parameter> frame_form_implement(any_parameter&& ...ap) :form_mod(std::forward<any_parameter>(ap)...) {}
-			bool is_available() { return form_mod.is_available(); }
+			typename frame::form::mod form_data;
+			operator typename frame::form::mod&() { return form_data; }
+			template<typename ...any_parameter> frame_form_implement(const Tool::completeness_ref& cr, any_parameter&&... ap) :
+				frame_form_implement(
+					std::integral_constant<bool, std::is_constructible<typename frame::form::mod, const Tool::completeness_ref&, any_parameter&&...>::value>(),
+					cr, std::forward<any_parameter>(ap)...
+				) {}
+			using channel = typename frame::form::mod_interface;
+			bool is_available() { return form_data.is_available(); }
+			void tick(time_point da) 
+			{
+				Tool::statement_if<able_operator_to_call_tick<typename frame::form::mod>::value>
+					([&da](auto& f) { f.tick(da); })
+					(form_data);
+			}
+			template<typename func> decltype(auto) bind_event(func&& f)
+			{
+				form_data.bind_event(std::forward<func>(f));
+			}
+		private:
+			template<typename ...any_parameter> frame_form_implement(std::true_type, const Tool::completeness_ref& cr, any_parameter&&... ap) :
+				form_data(cr, std::forward<any_parameter>(ap)...) {}
+			template<typename ...any_parameter> frame_form_implement(std::false_type, const Tool::completeness_ref& cr, any_parameter&&... ap) :
+				form_data(std::forward<any_parameter>(ap)...) {}
+		};
+
+		template<bool, typename frame> struct frame_renderer_implement : frame_form_implement<frame>
+		{
+			using frame_form_implement<frame>::frame_form_implement;
+		};
+		template<typename frame> struct frame_renderer_implement<true, frame> : frame_form_implement<frame>
+		{
+			typename frame::renderer::mod renderer_data;
+			operator typename frame::renderer::mod&() { return renderer_data; }
+			using channel = typename frame::renderer::mod_interface;
+			template<typename ...any_parameter> frame_renderer_implement(any_parameter&&... ap) :
+				frame_form_implement<frame>(std::forward<any_parameter>(ap)...),
+				renderer_data(typename frame::form::mod_interface(static_cast<typename frame::form::mod&>(*this))) {}
 			void tick(time_point da)
 			{
-				Tool::statement_if<able_operator_to_call_tick<decltype(form_mod)>::value>
+				Tool::statement_if<able_operator_to_call_tick<typename frame::renderer::mod>::value>
 					([&da](auto& f) { f.tick(da); })
-					(form_mod);
+					(renderer_data);
+				frame_form_implement<frame>::tick(da);
 			}
 		};
 
-		template<bool, bool, typename frame_type> struct frame_implement : frame_form_implement<frame_type>
+		template<bool, typename frame> struct frame_scene_implement : frame_renderer_implement<frame_have_renderer<frame>::value, frame>
 		{
-			using frame_form_implement<frame_type>::frame_form_implement;
-			using channel = typename frame_type::form::mod_interface;
+			using frame_renderer_implement<frame_have_renderer<frame>::value, frame>::frame_renderer_implement;
 		};
-
-		template<bool s, typename frame_type> struct frame_implement<true, s, frame_type> : frame_form_implement<frame_type>
+		template<typename frame> struct frame_scene_implement<true, frame> : frame_renderer_implement<true, frame>
 		{
-			using frame_form_implement<frame_type>::frame_form_implement;
-			typename frame_type::renderer::mod renderer_mod;
-			typename frame_type::scene::mod scene_mod;
-			using channel = typename frame_type::scene::mod_interface;
-			operator typename frame_type::renderer::mod&(){ return renderer_mod; }
-			operator typename frame_type::scene::mod&(){ return scene_mod; }
-
-			template<typename ...any_parameter> frame_implement(any_parameter&& ...ap) :
-				frame_form_implement<frame_type>(std::forward<any_parameter>(ap)...),
-				renderer_mod(typename frame_type::form::mod_interface(static_cast<frame_form_implement<frame_type>&>(*this))),
-				scene_mod(typename frame_type::renderer::append)
-			{
-			}
-			
+			typename frame::scene::mod scene_data;
+			operator typename frame::scene::mod&() { return scene_data; }
+			using channel = typename frame::scene::mod_interface;
+			template<typename ...any_parameter> frame_scene_implement(any_parameter&&... ap) :
+				frame_renderer_implement<true, frame>(std::forward<any_parameter>(ap)...),
+				scene_data(typename frame::renderer::mod_interface(static_cast<typename frame::renderer::mod&>(*this))) {}
 			void tick(time_point da)
 			{
-				Tool::statement_if<able_operator_to_call_tick<decltype(scene_mod)>::value>
+				Tool::statement_if<able_operator_to_call_tick<typename frame::scene::mod>::value>
 					([&da](auto& f) { f.tick(da); })
-					(scene_mod);
-				Tool::statement_if<able_operator_to_call_tick<decltype(renderer_mod)>::value>
-					([&da](auto& f) { f.tick(da); })
-					(renderer_mod);
-				frame_form_implement<frame_type>::tick(da);
+					(scene_data);
+				frame_renderer_implement<true, frame>::tick(da);
 			}
 		};
 
-		template<typename frame_type> struct frame_implement<false, true, frame_type> : frame_form_implement<frame_type>
-		{
-			using frame_form_implement<frame_type>::frame_form_implement;
-			using channel = typename frame_type::renderer::mod_interface;
-			typename frame_type::renderer::mod renderer_mod;
-			operator typename frame_type::renderer::mod&(){ return renderer_mod; }
-			template<typename ...any_parameter> frame_implement(any_parameter&& ...ap) :
-				frame_form_implement<frame_type>(std::forward<any_parameter>(ap)...),
-				renderer_mod(typename frame_type::form::mod_interface(static_cast<frame_form_implement<frame_type>&>(*this)))
-			{
-			}
-			void tick(time_point da)
-			{
-				Tool::statement_if<able_operator_to_call_tick<decltype(renderer_mod)>::value>
-					([&da](auto& f) { f.tick(da); })
-					(renderer_mod);
-				frame_form_implement<frame_type>::tick(da);
-			}
-		};
+		template<typename frame_type> using frame = frame_scene_implement<frame_have_scene<frame_type>::value, frame_type>;
 
-		template<typename frame_type> using frame = frame_implement< frame_have_scene<frame_type>::value, frame_have_renderer<frame_type>::value, frame_type>;
-		template<typename frame_type> using frame_channel = typename frame<frame_type>::channel;
-		
 		template<typename frame_type> class frame_viewer
 		{
 			typename frame_have_form<frame_type>::viewer form_viewer;
 			typename frame_have_renderer<frame_type>::viewer renderer_viewer;
 			typename frame_have_scene<frame_type>::viewer scene_viewer;
 		public:
+			template<typename T>
+			frame_viewer(T&& t) : form_viewer(std::forward<T>(t)), renderer_viewer(std::forward<T>(t)), scene_viewer(std::forward<T>(t)) {}
 			decltype(auto) get_form() { return form_viewer; }
 			decltype(auto) get_renderer() { return renderer_viewer; }
 			decltype(auto) get_scene() { return scene_viewer; }
-			frame_viewer(frame<frame_type>& f) :form_viewer(f), renderer_viewer(f), scene_viewer(f) {}
 		};
-
-	}
-
-	namespace Assistant
-	{
 
 		struct plugin_control
 		{
@@ -226,8 +213,8 @@ namespace PO
 			form_packet<frame_type>* form_ptr = nullptr;
 			friend class initial<frame_type>;
 		public:
-			viewer(form_final<frame_type>& ff) : form_ref(ff), form_ptr(&ff), frame_viewer<frame_type>(ff) {}
-			viewer(const Tool::completeness_ref& cr, form_packet<frame_type>& ff) : form_ref(cr), form_ptr(&ff), frame_viewer<frame_type>(ff) {}
+			viewer(form_final<frame_type>& ff) : frame_viewer<frame_type>(ff), form_ref(ff), form_ptr(&ff) {}
+			viewer(const Tool::completeness_ref& cr, form_packet<frame_type>& ff) : frame_viewer<frame_type>(ff), form_ref(cr), form_ptr(&ff) {}
 			viewer() {}
 			viewer(const viewer&) = default;
 			template<typename plugin_type, typename ...AK> decltype(auto) create_plugin(AK&&...ak);
@@ -237,10 +224,10 @@ namespace PO
 		class initial : public viewer<frame_type>
 		{
 			plugin_self plugin_data;
-			frame_channel<frame_type> channel_data;
+			typename frame<frame_type>::channel channel_data;
 		public:
 			operator plugin_self& () { return plugin_data; }
-			operator frame_channel<frame_type>& () { return channel_data; }
+			operator typename frame<frame_type>::channel& () { return channel_data; }
 			decltype(auto) get_self() { return plugin_data; }
 			decltype(auto) get_channel() { return channel_data; }
 			initial(form_final<frame_type>& ff, plugin_control& pp) : viewer<frame_type>(ff), plugin_data(pp), channel_data(ff){}
@@ -293,11 +280,8 @@ namespace PO
 			virtual void init()
 			{
 				Tool::statement_if<able_to_call_init<frame_type, plugin_type>::value>
-					(
-						[&](auto& plugin) { plugin.init(ticker_data); },
-						[this](auto& plugin) {},
-						(plugin_data)
-						);
+					([&](auto& plugin) { plugin.init(ticker_data); })
+					(plugin_data);
 			}
 
 			void tick_implementation(duration ti) override
@@ -355,33 +339,29 @@ namespace PO
 					plugin_list.erase(ptr++);
 				} 
 			}
+			bool event_function(event ev)
+			{
+				return false;
+			}
 		};
+
+		
 
 		template<typename frame_type> class form_packet : public frame<frame_type>
 		{
 			plugin_append all_plugin;
 
-			template<typename ...AK> form_packet(std::true_type, const Tool::completeness_ref& cr, AK&&... ak) : 
-				frame<frame_type>(cr, std::forward<AK>(ak)...)
-				{}
-			template<typename ...AK> form_packet(std::false_type, const Tool::completeness_ref& cr, AK&&... ak) : 
-				frame<frame_type>(std::forward<AK>(ak)...)
-				{}
-
 			friend class viewer<frame_type>;
-
 		public:
-
 			template<typename ...AK> form_packet(const Tool::completeness_ref& cr, AK&&... ak) :
-				form_packet(
-					std::integral_constant<bool, std::is_constructible<frame<frame_type>, const Tool::completeness_ref&, AK... >::value>(),
-					cr, std::forward<AK>(ak)...
-				) {}
-
-			void tick(time_point da)
+				frame<frame_type>(cr, std::forward<AK>(ak)...) 
 			{
-				all_plugin.tick(da);
+				frame<frame_type>::template bind_event([this](event ev) -> bool {return all_plugin.event_function(ev); });
+			}
+			void tick(time_point& da)
+			{
 				frame<frame_type>::tick(da);
+				all_plugin.tick(da);
 			}
 		};
 
@@ -431,13 +411,5 @@ namespace PO
 				[&, this]() {  (*form_ptr).all_plugin.template create_plugin<frame_type, plugin_type>(*this,std::forward<AK>(ak)... ); }
 			);
 		}
-
-
 	}
-
-
-
-	
-
-
 }

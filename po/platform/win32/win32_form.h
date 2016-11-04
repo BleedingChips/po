@@ -7,6 +7,7 @@
 #include <deque>
 #include "../../tool/thread_tool.h"
 #include "win32_define.h"
+#include "../../frame/define.h"
 namespace PO
 {
 	namespace Platform
@@ -54,15 +55,34 @@ namespace PO
 				HWND raw_handle = nullptr;
 				std::atomic_bool avalible;
 				std::mutex mut;
+				Tool::mail_ts<bool(event)> event_mail;
 			public:
-				Tool::mail_ts<bool(HWND, UINT, WPARAM, LPARAM)> event_mail;
+				template<typename T>
+				decltype(auto) bind_event(const Tool::completeness_ref& cr, T&& t)
+				{
+					return event_mail.bind(cr, std::forward<T>(t));
+				}
 				bool respond_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 				bool window_close = false;
 				HWND raw() const { return raw_handle; }
-				operator bool() const { return avalible; }
+				bool is_available() const { return avalible; }
 				win32_form( const win32_initializer& = win32_initializer() );
 				~win32_form();
 				void close_window() { avalible = false; }
+			};
+
+			class win32_interface
+			{
+				HWND raw_handle = nullptr;
+			public:
+				win32_interface(win32_form& wf) : raw_handle(wf.raw()) {}
+			};
+
+			class win32_viewer
+			{
+				HWND raw_handle = nullptr;
+			public:
+				win32_viewer(win32_form& wf) : raw_handle(wf.raw()) {}
 			};
 
 		}

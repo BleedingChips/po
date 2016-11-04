@@ -73,7 +73,15 @@ namespace PO
 				 hr = dev->CreateDepthStencilView(pDepthStencilBuffer,
 					0, &pDepthView);
 				dev->CreateRenderTargetView(main_buffer, 0, &pView);
-				rec = event_mail.bind(self_ref, [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) -> bool { return false; });
+
+				/*
+				rec = event_mail.bind(self_ref, [this](event ev) -> bool { 
+					bool result = false;
+					return event_function.lock_if_capture(
+						[&result](bool r) {result = r; },
+						ev
+					) && result ; });
+					*/
 				
 				ID3D11RenderTargetView* RenderTargetViews[1] = { pView };
 				ID3D11DepthStencilView* DepthTargetView = pDepthView;
