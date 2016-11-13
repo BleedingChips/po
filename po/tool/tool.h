@@ -6,12 +6,30 @@
 #include <memory>
 namespace PO
 {
+	namespace Error
+	{
+		struct tool_exeception : public std::exception
+		{
+			std::string scription;
+		public:
+			tool_exeception(std::string&& s) : scription(std::move(s)) {}
+			tool_exeception(const std::string& s) : scription(s) {}
+			tool_exeception(const tool_exeception&) = default;
+			tool_exeception(tool_exeception&&) = default;
+			tool_exeception() {}
+			operator std::string& () { return scription; }
+			operator const std::string& () const { return scription; }
+			operator const char*() const { return scription.c_str(); }
+			const char* what() const override { return *this; }
+		};
+	}
+
 	namespace Tool
 	{
 		/*----- destructor -----*/
 		class destructor
 		{
-			std::function<void(void)> func;
+			std::function<void(void) noexcept> func;
 		public:
 			template<typename T>  destructor(T&& t) :func(std::forward<T>(t)) {}
 			~destructor() { func(); }
@@ -182,6 +200,148 @@ namespace PO
 				auto fun = std::make_shared<std::function<T>>(std::forward<K>(t));
 				func = fun;
 				return receiption{ std::move(fun), ref };
+			}
+		};
+
+		template<size_t ...i> struct find_first
+		{
+			static_assert(sizeof...(i) > 0, "empty index in find_first");
+		};
+
+		template<size_t i, size_t ...o> struct find_first<i, o...> : index_container<i> {};
+
+		template<typename ...T> class variant
+		{
+			template<typename O> struct des 
+			{
+				using type = typename O::type;
+				void operator() (char* da) noexcept
+				{
+					reinterpret_cast<type*>(da)->~type();
+				}
+			};
+			struct default_des
+			{
+				void operator() (char* da) { throw Error::tool_exeception("variant find unknow type"); }
+			};
+			using dest_mapping = typename add_serial_t<1, call<static_mapping<less_serial, equal_serial, des, default_des>>::template in_t, T...>;
+
+
+			static_assert(!is_repeat<T...>::value, "type of variant can not repeat");
+			char data[compare<value_bigger_t>::template in_t<index_container<sizeof(T)>...>::value];
+			std::conditional_t<
+				(sizeof...(T)+1 <= 255),
+				uint8_t,
+				std::conditional_t<
+					(sizeof...(T)+1 <= 65535),
+					uint16_t,
+					std::conditional_t<
+						(sizeof...(T)+1 <= 4294967295),
+						uint32_t,
+						uint64_t
+					>
+				>
+			> index;
+		public:
+			operator bool() const noexcept { return index != 0; }
+			template<typename ...K>
+			variant(K&& ...t) : index( localizer_t<0, instant<std::is_constructible, K...>::template front_in_t, find_first, T...>::value + 1)
+			{
+				using type = picker_t<
+					localizer_t<0, instant<std::is_constructible, K...>::template front_in_t, find_first, T...>::value,
+					T...
+				>;
+				new (data) type(std::forward<K>(t)...);
+			}
+			variant() : index(0) {}
+			~variant()
+			{
+				if (index != 0)
+				{
+					dest_mapping()(index, data);
+				}
+			}
+			template<typename K>
+			variant& operator= (K&& k)
+			{
+				using pure_type = std::remove_reference_t<std::remove_const_t<K>>;
+				static_assert(is_one_of<pure_type, T...>::value, "variant can not cast to unbinded type.");
+				using type = localizer_t<0, instant<std::is_same, pure_type>::template front_in_t, find_first, T...>;
+				if (index == type::value + 1)
+				{
+					reinterpret_cast<K*>(data)->operator=(std::forward<K>(k));
+					return *this;
+				}
+				else {
+					if (index != 0)
+						dest_mapping()(index, data);
+					new (data) picker_t<type::value, T...>(std::forward<K>(k));
+					index = type::value + 1;
+					return *this;
+				}
+			}
+			template<typename P> bool able_cast() const noexcept
+			{
+				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
+				return index == value;
+			}
+			template<typename P> P& cast()
+			{
+				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
+				if (value != index)
+				{
+					throw Error::tool_exeception( "variant now are not this type" );
+				}
+				return *reinterpret_cast<P*>(data);
+			}
+			template<typename P> P* cast_pointer()
+			{
+				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
+				if (value != index)
+				{
+					return nullptr;
+				}
+				return reinterpret_cast<P*>(data);
+			}
+		};
+
+		//[](void* ptr) { static_cast<T>(ptr)->~T(); }
+
+		template<typename T> class optional : variant<T>
+		{
+		public:
+			T& operator*() { return cast<T>(); }
+			T* operator->() noexcept { return cast_pointer<T>(); }
+			const T& operator*() const { return cast<T>(); }
+			const T* operator->() const noexcept { return cast_pointer<T>(); }
+			operator bool() const noexcept { return able_cast<T>(); }
+			using variant<T>::variant;
+
+			T& value_or(T& or_data) &
+			{
+				if (able_cast<T>())
+					return cast<T>();
+				else
+					return or_data;
+			}
+
+			const T& value_or(const T& or_data) const
+			{
+				if (able_cast<T>())
+					return cast<T>();
+				else
+					return or_data;
+			}
+			
+			T&& value_or(T&& or_data) &&
+			{
+				if (able_cast<T>())
+					return cast<T>();
+				else
+					return std::move(or_data);
 			}
 		};
 

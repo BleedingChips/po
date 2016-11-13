@@ -34,7 +34,9 @@ namespace PO
 		{
 			static_assert(is_mod_pair<pre>::value, "can only mod_pair append");
 			static_assert(is_mod_pair<append>::value, "can only mod_pair append");
-			static constexpr bool value = std::is_constructible<typename pre::mod, typename append::mod_interface&>::value;
+			static constexpr bool use_interface = std::is_constructible<typename pre::mod, typename append::mod_interface&>::value;
+			static constexpr bool use_mod = std::is_constructible<typename pre::mod, typename append::mod&>::value;
+			static constexpr bool value = use_interface || use_mod;
 		};
 
 		template<typename T, typename = void> struct form_have_is_available : std::false_type {};
@@ -71,7 +73,7 @@ namespace PO
 		};
 
 		template<typename T, typename = void> struct able_operator_to_call_tick : std::false_type {};
-		template<typename T> struct able_operator_to_call_tick < T, std::void_t<decltype(std::declval<T>().tick(time_point{})) >> : std::true_type {};
+		template<typename T> struct able_operator_to_call_tick < T, std::void_t<decltype((*((T*)(nullptr))).tick(time_point{})) >> : std::true_type {};
 
 		template<typename frame> struct frame_form_implement
 		{
@@ -111,8 +113,7 @@ namespace PO
 			operator typename frame::renderer::mod&() { return renderer_data; }
 			using channel = typename frame::renderer::mod_interface;
 			template<typename ...any_parameter> frame_renderer_implement(any_parameter&&... ap) :
-				frame_form_implement<frame>(std::forward<any_parameter>(ap)...),
-				renderer_data(typename frame::form::mod_interface(static_cast<typename frame::form::mod&>(*this))) {}
+				frame_renderer_implement(std::integral_constant<bool, append_pair_assert<typename frame::renderer, typename frame::form>::use_interface>(), std::forward<any_parameter>(ap)...) {}
 			void tick(time_point da)
 			{
 				Tool::statement_if<able_operator_to_call_tick<typename frame::renderer::mod>::value>
@@ -120,6 +121,11 @@ namespace PO
 					(renderer_data);
 				frame_form_implement<frame>::tick(da);
 			}
+		private:
+			template<typename ...any_parameter> frame_renderer_implement(std::true_type, any_parameter&&... ap) :frame_form_implement<frame>(std::forward<any_parameter>(ap)...),
+				renderer_data(typename frame::form::mod_interface(static_cast<typename frame::form::mod&>(*this))) {}
+			template<typename ...any_parameter> frame_renderer_implement(std::false_type, any_parameter&&... ap) : frame_form_implement<frame>(std::forward<any_parameter>(ap)...),
+				renderer_data(static_cast<typename frame::form::mod&>(*this)) {}
 		};
 
 		template<bool, typename frame> struct frame_scene_implement : frame_renderer_implement<frame_have_renderer<frame>::value, frame>
@@ -132,8 +138,7 @@ namespace PO
 			operator typename frame::scene::mod&() { return scene_data; }
 			using channel = typename frame::scene::mod_interface;
 			template<typename ...any_parameter> frame_scene_implement(any_parameter&&... ap) :
-				frame_renderer_implement<true, frame>(std::forward<any_parameter>(ap)...),
-				scene_data(typename frame::renderer::mod_interface(static_cast<typename frame::renderer::mod&>(*this))) {}
+				frame_scene_implement(std::integral_constant<bool, append_pair_assert<typename frame::scene, typename frame::renderer>::use_interface>(), std::forward<any_parameter>(ap)...) {}
 			void tick(time_point da)
 			{
 				Tool::statement_if<able_operator_to_call_tick<typename frame::scene::mod>::value>
@@ -141,6 +146,11 @@ namespace PO
 					(scene_data);
 				frame_renderer_implement<true, frame>::tick(da);
 			}
+		private:
+			template<typename ...any_parameter> frame_scene_implement(std::true_type, any_parameter&&... ap) :frame_renderer_implement<true, frame>(std::forward<any_parameter>(ap)...),
+				scene_data(typename frame::renderer::mod_interface(static_cast<typename frame::form::mod&>(*this))) {}
+			template<typename ...any_parameter> frame_scene_implement(std::false_type, any_parameter&&... ap) : frame_renderer_implement<true, frame>(std::forward<any_parameter>(ap)...),
+				scene_data(static_cast<typename frame::renderer::mod&>(*this)) {}
 		};
 
 		template<typename frame_type> using frame = frame_scene_implement<frame_have_scene<frame_type>::value, frame_type>;
@@ -162,6 +172,7 @@ namespace PO
 		{
 			Tool::completeness_ref cr;
 			bool use_tick = true;
+			bool use_event = true;
 			std::atomic_bool avalible;
 			time_calculator record;
 
@@ -177,22 +188,41 @@ namespace PO
 						da, [this](duration da) {tick_implementation(da); }
 					);
 			}
+			bool event_respond(event& da)
+			{
+				return use_event &&  event_respond_implement(da);
+			}
+			virtual bool event_respond_implement(event& da) = 0;
 		};
 
-		struct plugin_self
+		struct self_control
 		{
 			Tool::completeness_ref plugin_ref;
 			plugin_control* plugin_ptr = nullptr;
 		public:
-			plugin_self() {}
-			plugin_self(plugin_control& pc) : plugin_ref(pc.cr), plugin_ptr(&pc) {}
-			bool destory_plugin() 
-			{ 
-				return plugin_ref.lock_if([this]() {plugin_ptr->avalible = false; });
-			}
-			bool set_duration(duration da)
+			operator bool() const { return plugin_ptr != nullptr; }
+			operator const Tool::completeness_ref& () { return plugin_ref; }
+			self_control() {}
+			self_control(plugin_control& pc) : plugin_ref(pc.cr), plugin_ptr(&pc) {}
+			void destory_self()
 			{
-				return plugin_ref.lock_if([this,&da]() {plugin_ptr->record.set_duration(da); });
+				plugin_ptr->avalible = false;
+			}
+			void set_duration(duration da)
+			{
+				plugin_ptr->record.set_duration(da);
+			}
+			void tick_state(bool s = true)
+			{
+				plugin_ptr->use_tick = s;
+			}
+			void event_state(bool s = true)
+			{
+				plugin_ptr->use_event = s;
+			}
+			template<typename T>
+			bool lock_if(T&& t) {
+				return plugin_ref.lock_if(std::forward<T>(t));
 			}
 		};
 
@@ -206,12 +236,12 @@ namespace PO
 		template<typename frame_type> using form_final = Tool::completeness<form_packet<frame_type>>;
 		struct form_ptr;
 
-		template<typename frame_type> class initial;
+		template<typename frame_type> struct carrier;
 		template<typename frame_type> class viewer : public frame_viewer<frame_type>
 		{
 			Tool::completeness_ref form_ref;
 			form_packet<frame_type>* form_ptr = nullptr;
-			friend class initial<frame_type>;
+			friend struct carrier<frame_type>;
 		public:
 			viewer(form_final<frame_type>& ff) : frame_viewer<frame_type>(ff), form_ref(ff), form_ptr(&ff) {}
 			viewer(const Tool::completeness_ref& cr, form_packet<frame_type>& ff) : frame_viewer<frame_type>(ff), form_ref(cr), form_ptr(&ff) {}
@@ -221,56 +251,120 @@ namespace PO
 		};
 
 		template<typename frame_type>
-		class initial : public viewer<frame_type>
+		struct carrier
 		{
-			plugin_self plugin_data;
+			viewer<frame_type> viewer_data;
+			self_control plugin_data;
 			typename frame<frame_type>::channel channel_data;
-		public:
-			operator plugin_self& () { return plugin_data; }
-			operator typename frame<frame_type>::channel& () { return channel_data; }
-			decltype(auto) get_self() { return plugin_data; }
-			decltype(auto) get_channel() { return channel_data; }
-			initial(form_final<frame_type>& ff, plugin_control& pp) : viewer<frame_type>(ff), plugin_data(pp), channel_data(ff){}
-			initial(viewer<frame_type>& v, plugin_control& pp) : viewer<frame_type>(v), plugin_data(pp), channel_data(*v.form_ptr) {}
-			initial(const initial&) = default;
-			initial() {}
+			duration duration_data;
+			event message;
+			carrier(viewer<frame_type>& v, plugin_control& pp) : viewer_data(v), plugin_data(pp), channel_data(*v.form_ptr) {}
 		};
 
-		template<typename frame_type> class ticker : public initial<frame_type>
+		template<typename frame_type>
+		class initial
 		{
-			duration duration_time;
+			carrier<frame_type>& carr;
 		public:
-			operator duration() const { return duration_time; }
-			void set_time(duration da) { duration_time = da; }
-			auto get_time() const { return duration_time; }
-			using initial<frame_type>::initial;
+			initial(carrier<frame_type>& c) :carr(c) {}
+			initial(const initial&) = default;
+			operator self_control& () { return carr.plugin_data; }
+			decltype(auto) get_form() { return carr.viewer_data.get_form(); }
+			decltype(auto) get_renderer() { return carr.viewer_data.get_renderer(); }
+			decltype(auto) get_scene() { return carr.viewer_data.get_scene(); }
+			decltype(auto) get_self() { return carr.plugin_data; }
+			decltype(auto) get_channel() { return carr.channel_data; }
+		};
+
+		class ticker_self
+		{
+			duration da;
+			self_control plu;
+		public:
+			ticker_self(duration d, self_control p) : da(d), plu(p) {}
+			ticker_self(const ticker_self&) = default;
+			decltype(auto) get_self() { return plu; }
+			decltype(auto) get_time() { return da; }
+		};
+
+		class responder_self
+		{
+			event& da;
+			self_control plu;
+		public:
+			responder_self(event& d, self_control p) : da(d), plu(p) {}
+			responder_self(const responder_self&) = default;
+			decltype(auto) get_self() { return plu; }
+			decltype(auto) get_event() { return da; }
+		};
+
+		template<typename frame_type>
+		class ticker
+		{
+			carrier<frame_type>& carr;
+		public:
+			operator ticker_self() {
+				return ticker_self{get_time(),get_self()};
+			}
+			operator self_control () { return carr.plugin_data; }
+			operator duration() { return carr.duration_data; }
+			ticker(carrier<frame_type>& c) :carr(c) {}
+			ticker(const ticker&) = default;
+			decltype(auto) get_form() { return carr.viewer_data.get_form(); }
+			decltype(auto) get_renderer() { return carr.viewer_data.get_renderer(); }
+			decltype(auto) get_scene() { return carr.viewer_data.get_scene(); }
+			decltype(auto) get_self() { return carr.plugin_data; }
+			decltype(auto) get_channel() { return carr.channel_data; }
+			decltype(auto) get_time() { return carr.duration_data; }
+		};
+
+		template<typename frame_type>
+		class responder
+		{
+			carrier<frame_type>& carr;
+		public:
+			operator responder_self() {
+				return responder_self{ get_event(),get_self() };
+			}
+			operator self_control () { return carr.plugin_data; }
+			operator event& () { return carr.message; }
+			responder(carrier<frame_type>& c) :carr(c) {}
+			responder(const responder&) = default;
+			decltype(auto) get_form() { return carr.viewer_data.get_form(); }
+			decltype(auto) get_renderer() { return carr.viewer_data.get_renderer(); }
+			decltype(auto) get_scene() { return carr.viewer_data.get_scene(); }
+			decltype(auto) get_self() { return carr.plugin_data; }
+			decltype(auto) get_channel() { return carr.channel_data; }
+			decltype(auto) get_event() { return carr.message; }
 		};
 
 		template<typename frame_type, typename plugin_type, typename = void> struct able_to_call_tick :std::false_type {};
-		template<typename frame_type, typename plugin_type> struct able_to_call_tick<frame_type, plugin_type, std::void_t<decltype(std::declval<plugin_type>().tick(std::declval<ticker<frame_type>&>()))>> :std::true_type {};
+		template<typename frame_type, typename plugin_type> struct able_to_call_tick<frame_type, plugin_type, std::void_t<decltype(std::declval<plugin_type>().tick(std::declval<ticker<frame_type>>()))>> :std::true_type {};
 		template<typename frame_type, typename plugin_type, typename = void> struct able_to_call_init :std::false_type {};
-		template<typename frame_type, typename plugin_type> struct able_to_call_init<frame_type, plugin_type, std::void_t<decltype(std::declval<plugin_type>().init(std::declval<initial<frame_type>&>()))>> :std::true_type {};
+		template<typename frame_type, typename plugin_type> struct able_to_call_init<frame_type, plugin_type, std::void_t<decltype(std::declval<plugin_type>().init(std::declval<initial<frame_type>>()))>> :std::true_type {};
+		template<typename frame_type, typename plugin_type, typename = void> struct able_to_call_event_respond :std::false_type {};
+		template<typename frame_type, typename plugin_type> struct able_to_call_event_respond<frame_type, plugin_type, std::void_t<decltype(std::declval<plugin_type>().event_respond(std::declval<responder<frame_type>>()))>> :std::true_type {};
 
 		template<typename frame_type, typename plugin_type> class plugin_implement : public plugin_control
 		{
 			plugin_type plugin_data;
 			using form_type = typename frame_type::form;
 
-			ticker<frame_type> ticker_data;
+			carrier<frame_type> all_data;
 
 			template<typename ...AK>
 			plugin_implement(std::true_type, const Tool::completeness_ref& cpr, viewer<frame_type>& ff, AK&& ...ak) :
-				plugin_control(cpr), plugin_data(initial<frame_type>(ff, *this), std::forward<AK>(ak)...), ticker_data(ff, *this) {}
+				plugin_control(cpr), plugin_data(ff, std::forward<AK>(ak)...), all_data(ff, *this) {}
 			template<typename ...AK>
 			plugin_implement(std::false_type, const Tool::completeness_ref& cpr, viewer<frame_type>& ff, AK&& ...ak) :
-				plugin_control(cpr), plugin_data(std::forward<AK>(ak)...), ticker_data(ff, *this) {}
+				plugin_control(cpr), plugin_data(std::forward<AK>(ak)...), all_data(ff, *this) {}
 
 		public:
 
 			template<typename ...AK>
 			plugin_implement(const Tool::completeness_ref& cpr, viewer<frame_type>& ff, AK&& ...ak) :
 				plugin_implement(
-					std::integral_constant<bool, std::is_constructible<plugin_type, initial<frame_type>, AK... >::value>(),
+					std::integral_constant<bool, std::is_constructible<plugin_type, viewer<frame_type>, AK... >::value>(),
 					cpr, ff, std::forward<AK>(ak)...
 				)
 			{
@@ -280,17 +374,28 @@ namespace PO
 			virtual void init()
 			{
 				Tool::statement_if<able_to_call_init<frame_type, plugin_type>::value>
-					([&](auto& plugin) { plugin.init(ticker_data); })
+					([&](auto& plugin) { plugin.init(initial<frame_type>(all_data)); })
 					(plugin_data);
 			}
 
 			void tick_implementation(duration ti) override
 			{
-				ticker_data.set_time(ti);
+				all_data.duration_data = ti;
 				Tool::statement_if<able_to_call_tick<frame_type, plugin_type>::value>
 					(
-						[&](auto& plugin) { plugin.tick(ticker_data); },
+						[&](auto& plugin) { plugin.tick(ticker<frame_type>(all_data)); },
 						[this](auto& plugin) {use_tick = false; },
+						(plugin_data)
+						);
+			}
+
+			bool event_respond_implement(event& ev) override
+			{
+				all_data.message = ev;
+				return Tool::statement_if<able_to_call_event_respond<frame_type, plugin_type>::value>
+					(
+						[&](auto& plugin) { return plugin.event_respond(responder<frame_type>(all_data)); },
+						[this](auto& plugin) {use_tick = false; return false; },
 						(plugin_data)
 						);
 			}
@@ -339,13 +444,22 @@ namespace PO
 					plugin_list.erase(ptr++);
 				} 
 			}
+
 			bool event_function(event ev)
 			{
+				for (auto ptr = plugin_list.begin(); ptr != plugin_list.end();)
+				{
+					if ((*ptr) && (**ptr))
+					{
+						if ((*ptr++)->event_respond(ev))
+							return true;
+						continue;
+					}
+					plugin_list.erase(ptr++);
+				}
 				return false;
 			}
 		};
-
-		
 
 		template<typename frame_type> class form_packet : public frame<frame_type>
 		{

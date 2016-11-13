@@ -64,20 +64,28 @@ namespace PO
 
 namespace PO
 {
-	using plugin_self = Assistant::plugin_self;
+	using self_control = Assistant::self_control;
 	template<typename frame_type> using viewer = Assistant::viewer<frame_type>;
 	template<typename frame_type> using initial = Assistant::initial<frame_type>;
 	template<typename frame_type> using ticker = Assistant::ticker<frame_type>;
+	template<typename frame_type> using responder = Assistant::responder<frame_type>;
 
 	class ticker_self
 	{
-		plugin_self ps;
+		self_control ps;
 		duration da;
 	public:
 		template<typename frame_type>
 		ticker_self(ticker<frame_type>& t) : ps(t), da(t) {}
 		decltype(auto) get_self() { return ps; }
 		decltype(auto) time() { return da; }
+	};
+
+	class responder_self
+	{
+		self_control ps;
+		event& ev;
+	public:
 	};
 
 	class context

@@ -23,18 +23,5 @@ namespace PO
 			CComPtr<ID3D11Texture2D> pDepthStencilBuffer;
 			CComPtr<ID3D11DepthStencilView> pDepthView;
 		};
-
-		struct dx11_renderer_implement
-		{
-			CComPtr<ID3D11Device> dev;
-			CComPtr<ID3D11DeviceContext> dc;
-			CComPtr<IDXGISwapChain> swap;
-		};
-
-		struct dx11_scene_implement
-		{
-
-		};
-
 	}
 }

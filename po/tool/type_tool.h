@@ -5,12 +5,25 @@ namespace PO {
 	namespace Tool {
 
 		/*----- container -----*/
-		template<typename ...AT> struct type_container { using size = std::integral_constant<size_t, sizeof...(AT)>; };
+		template<typename ...AT> struct type_container 
+		{ 
+			using size = std::integral_constant<size_t, sizeof...(AT)>; 
+			template<typename ...AT2> using call = type_container<AT..., AT2...>;
+		};
 
 		template<size_t ...i> struct index_container {};
-		template<size_t i> struct index_container<i>:std::integral_constant<size_t, i> {};
+		template<size_t i> struct index_container<i> : std::integral_constant<size_t, i> {};
 
+		template<typename T, typename K> struct value_bigger
+		{
+			using type = std::conditional_t< ( T::value > K::value ), T, K > ;
+		};
+		template<typename T, typename K> using value_bigger_t = typename value_bigger<T, K>::type;
 
+		template<size_t i, typename t> struct serial_type : std::integral_constant<size_t, i>
+		{
+			using type = t;
+		};
 		/*----- make_index_range -----*/
 		namespace Assistant
 		{
@@ -31,7 +44,13 @@ namespace PO {
 		};
 		template<template<size_t ...> class out, size_t start, size_t to> using make_index_range_t = typename Assistant::make_index_range_execute<index_container<>, out, start, to>::type;
 
-
+		template<template<typename ...> class out, typename input> struct sperate_index_type;
+		template<template<typename ...> class out, size_t ...input, template<size_t...> class tank> struct sperate_index_type<out, tank<input...>>
+		{
+			using type = out<index_container<input>...>;
+		};
+		template<template<typename ...> class out, typename input> using sperate_index_type_t =
+			typename sperate_index_type<out, input>::type;
 
 		/*----- itself -----*/
 		template<typename T> struct itself
@@ -56,6 +75,21 @@ namespace PO {
 		};
 		template<template<typename...> class output, typename input> using extract_t = typename Assistant::extract_final<output, input>::type;
 
+		/* link */
+		namespace Assistant
+		{
+			template<template<typename ...> class output, typename early_input, typename ...input> struct link_execute;
+			template<template<typename ...> class output, typename ...early_input> struct link_execute<output, type_container<early_input...>>
+			{
+				using type = output<early_input...>;
+			};
+			template<template<typename ...> class output, typename ...early_input, typename ...this_input, template<typename ...> class tank, typename ...input> 
+			struct link_execute<output, type_container<early_input...>, tank<this_input...>, input...>
+			{ 
+				using type = typename link_execute<output, type_container<early_input..., this_input...>, input... >::type;
+			};
+		}
+		template<template<typename ...> class output, typename ...input> using link_t = typename Assistant::link_execute<output, type_container<>, input...>::type;
 
 		/*----- instant -----*/
 		namespace Assistant
@@ -190,7 +224,6 @@ namespace PO {
 		/*----- filter -----*/
 		namespace Assistant
 		{
-
 			template<template<typename ...>  class rule, template<typename ...> class output, typename result, typename ...input > struct filter_execute;
 			template<template<typename ...>  class rule, template<typename ...> class output, typename ...result > struct filter_execute<rule, output, type_container<result...>>
 			{
@@ -433,31 +466,6 @@ namespace PO {
 
 		namespace Assistant
 		{
-			/*
-			template<bool, typename fun_obj, typename ...paramter> class can_function_object_call_with_execute;;
-			template<typename fun_obj, typename real_own, typename ...paramter> class can_function_object_call_with_execute<true, fun_obj, real_own, paramter...>
-			{
-				template<typename r, typename fo, typename ...pa> static std::true_type func(decltype((std::declval<r>().*std::declval<fo>())(std::declval<pa>()...))*);
-				template<typename r, typename fo, typename ...pa> static std::false_type func(...);
-			public:
-				using type = decltype(func<real_own, fun_obj, paramter...>(nullptr));
-			};
-
-			template<typename fun_obj> class can_function_object_call_with_execute<true, fun_obj>
-			{
-			public:
-				using type = std::false_type;
-			};
-
-			template<typename fun_obj, typename ...paramter> class can_function_object_call_with_execute<false, fun_obj, paramter...>
-			{
-				template<typename fo, typename ...pa> static std::true_type func(decltype((std::declval<fo>())(std::declval<pa>()...))*);
-				template<typename fo, typename ...pa> static std::false_type func(...);
-			public:
-				using type = decltype(func<fun_obj, paramter...>(nullptr));
-			};
-			*/
-
 			template<typename function, typename ...paramer> class is_callable_execute
 			{
 				template<typename fun, typename ...pa> static std::true_type fun(decltype(std::invoke(std::declval<fun>(), std::declval<pa>()...))*);
@@ -469,32 +477,240 @@ namespace PO {
 		}
 		template<typename function, typename ...paramer> using is_callable = typename Assistant::is_callable_execute<function, paramer...>::type;
 
-		
-		/*----- apply_function_object -----*/
-		/*
+		/*  combine */
 		namespace Assistant
 		{
-			template<typename T> T& get_ref(T* in) { return *in; }
-			template<typename T> decltype(auto) get_ref(T&& in) { return std::forward<T>(in); }
+			template<template<typename ...> class func, typename ...input_other> struct compare_execute 
+			{
+				static_assert(sizeof...(input_other) > 0, "compare need 1 or more input");
+			};
+			template<template<typename ...> class func, typename input, typename ...input_other> struct compare_execute<func, input, input_other...> { using type = input; };
+			template<template<typename ...> class func, typename input, typename other_input, typename ...input_other> struct compare_execute<func, input, other_input, input_other...> 
+			{ 
+				using type = typename compare_execute< func, func<input, other_input>, input_other... >::type;
+			};
+		}
+		
+		template<template<typename ...> class func, typename ...input> struct compare
+		{
+			template<typename ...o_input> using in = compare<func, input..., o_input...>;
+			template<typename ...o_input> using in_t = typename Assistant::compare_execute<func, input..., o_input...>::type;
+			template<typename ...o_input> using front_in = compare<func, o_input..., input...>;
+			template<typename ...o_input> using front_in_t = typename Assistant::compare_execute<func, o_input..., input...>::type;
+			template<typename ...o_input> using rule_in = compare< instant<func, o_input...>:: template front_in_t, input... >;
+			template<typename ...o_input> using rule_in_t = typename Assistant::compare_execute<instant<func, o_input...>:: template front_in_t, input...>::type;
+			template<typename ...o_input> using rule_front_in = compare< instant<func, o_input...>:: template in_t, input... >;
+			template<typename ...o_input> using rule_front_in_t = typename Assistant::compare_execute<instant<func, o_input...>:: template in_t, input...>::type;
+		};
+
+
+		/* call */
+		namespace Assistant
+		{
+			template<typename T> 
+			struct is_func_have_template_call_inside
+			{
+				template<template<typename...> class func> struct str;
+				template<typename P> static std::true_type func(str<P::template call>*);
+				template<typename P> static std::false_type func(...);
+				static constexpr bool value = decltype(func<T>(nullptr))::value;
+			};
+
+
+			struct call_execute_empty {};
+
+			template<typename func_type, typename replace_type, typename replace_para, typename input_para> struct call_execute;
+			template<typename func_type, typename replace_type, typename ...replace_para, typename ...input_para> 
+			struct call_execute<func_type, replace_type, type_container<replace_para...>, type_container<input_para...>>
+			{
+				static_assert(is_func_have_template_call_inside<func_type>::value, "func_type of call need to have a template class name call");
+				template<typename ...other_input> using in = 
+					call_execute<func_type, replace_type, type_container<replace_para..., other_input...>, type_container<input_para...> >;
+				template<typename ...other_input> using in_t =
+					call_execute<typename replace_type::template replace<func_type, replace_para..., other_input... >::type, call_execute_empty, type_container<>, type_container<input_para...> >;
+				template<typename ...other_input> using int_t_t =
+					typename replace_type::template replace<func_type, replace_para..., other_input... >::type::template call<input_para...>::type;
+
+				template<typename ...other_input> using front =
+					call_execute<func_type, replace_type, type_container<other_input..., replace_para...>, type_container<input_para...> >;
+				template<typename ...other_input> using front_t =
+					call_execute<typename replace_type::template replace<func_type, other_input..., replace_para... >::type, call_execute_empty, type_container<>, type_container<input_para...> >;
+				template<typename ...other_input> using front_t_t =
+					typename replace_type::template replace<func_type, other_input..., replace_para...  >::type::template call<input_para...>::type;
+				
+				template<typename new_replace_type, typename ...new_replace_type_para> using replace =
+					typename call_execute<typename replace_type::template replace<func_type, replace_para... >::type, new_replace_type, type_container<new_replace_type_para...>, type_container<input_para...>>;
+			};
+
+			template<typename func_type, typename ...replace_para, typename ...input_para>
+			struct call_execute<func_type, call_execute_empty, type_container<replace_para...>, type_container<input_para...>>
+			{
+				template<typename ...other_input> using in =
+					call_execute<func_type, call_execute_empty, type_container<replace_para...>, type_container<input_para..., other_input...> >;
+				template<typename ...other_input> using in_t =
+					typename func_type::template call<input_para..., other_input...>::type;
+
+				template<typename ...other_input> using front =
+					call_execute<func_type, call_execute_empty, type_container<replace_para...>, type_container<other_input..., input_para...> >;
+				
+				template<typename ...other_input> using front_t =
+					typename func_type::template call<other_input ..., input_para ...>::type;
+
+				template<typename new_replace_type, typename ...new_replace_type_para> using replace =
+					call_execute<func_type, new_replace_type, type_container<new_replace_type_para...>, type_container<input_para...>>;
+			};
 		}
 
-		template<typename fun_object, typename ...input> decltype(auto) apply_function_object(fun_object&& fo, input&&... in)
+		template<typename func_type> struct call_func 
 		{
-			using fun_type = funtion_detect_t<fun_object>;
-			static_assert(std::is_same<typename fun_type::owner_type, void>::value ||  std::is_object<fun_object>::value || sizeof...(in) >= 1, "PO::Tool::app_adapter_func need a ref of the owner for its member function");
-			return statement_if< std::is_same<typename fun_type::owner_type, void >::value >
-				(
-					[](auto&& fobj, auto&& ...in) { return std::forward<decltype(fobj) && >(fobj)(std::forward<decltype(in) && >(in)...); },
-					[](auto&& fobj, auto&& owner, auto&& ...input) {
-				static_assert(
-					std::is_convertible<std::remove_pointer_t<decltype(owner)&&>&, typename fun_type::owner_type& >::value, 
-					"PO::Tool::app_adapter_func need a avalible ref for its member function"
-					);
-				return (Assistant::get_ref(owner).*std::forward<decltype(fobj) && >(fobj))(std::forward<decltype(input) && >(input)...);
-			},
-					std::forward<fun_object>(fo), std::forward<input>(in)...
-				);
-		}*/
+			template<typename old_func_type> struct replace
+			{
+				using type = func_type;
+			};
+		};
 
+		struct call_default
+		{
+			template<typename ...input> struct call
+			{
+				using type = type_container<input...>;
+			};
+		};
+
+		template<typename func_type = call_default, typename ...input> using call = Assistant::call_execute<func_type, Assistant::call_execute_empty, type_container<>, type_container<input...> >;
+		template<typename func_type = call_default, typename ...input> using call_t = typename func_type::template call<input...>;
+
+		template<template<typename ...> class less_ope, template<typename ...> class output> struct sort
+		{
+			template<typename ...input> struct call
+			{
+				using type = output<input...>;
+			};
+		};
+
+		/* sperate_input  */
+		template<typename func_type> struct sperate_input
+		{
+			static_assert(Assistant::is_func_have_template_call_inside<func_type>::value, "func_type of sperate_input need to have a template class name call");
+			template<typename ...input> struct call
+			{
+				using type = typename link_t<func_type::template call, input...>::type;
+			};
+		};
+		
+
+		/* index_replace */
+		namespace Assistant
+		{
+			template<size_t i, typename T, template<typename ...> class output, typename front, typename middle, typename last> struct index_replace_execute;
+			template<size_t i, typename T, template<typename ...> class output, typename ...front, typename middle, typename pre_last, typename ...last>
+			struct index_replace_execute<i, T, output, type_container<front...>, middle, type_container<pre_last, last...>>
+			{
+				using type = typename index_replace_execute<i - 1, T, output, type_container<front..., middle>, pre_last, type_container<last...>>::type;
+			};
+			template<typename T, template<typename ...> class output, typename ...front, typename middle, typename ...last>
+			struct index_replace_execute<0, T, output, type_container<front...>, middle, type_container<last...>>
+			{
+				using type = output<front..., T, last...>;
+			};
+			template<typename T, template<typename ...> class output, typename ...front, typename middle, typename pre_last, typename ...last>
+			struct index_replace_execute<0, T, output, type_container<front...>, middle, type_container<pre_last, last...>>
+			{
+				using type = output<front..., T, pre_last, last...>;
+			};
+		}
+		
+		template<size_t i, typename T, template<typename ...> class output> struct index_replace
+		{
+			template<typename first, typename ...input> struct call
+			{
+				using type = typename Assistant::index_replace_execute<i, T, output, type_container<>, first, type_container<input...>>::type;
+			};
+		};
+		
+		/* index_swap */
+		template<size_t i, size_t i2, template<typename ...> class output> struct index_swap
+		{
+			template<typename ...input> struct call
+			{
+				using pre = picker_t<i, input...>;
+				using last = picker_t<i2, input...>;
+				using type = typename index_replace<i2, pre, index_replace<i, last, output>::template call>::template call<input...>::type::type;
+			};
+		};
+
+		/* static_mapping */
+		namespace Assistant
+		{
+			template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, size_t s, size_t o, typename ...input>
+			struct static_mapping_execute
+			{
+				template<typename T, typename ...AP>
+				decltype(auto) operator()(T&& t, AP&&... ap)
+				{
+					using pick_type = picker_t<(s + o) / 2, input...>;
+					if (equal_ope<pick_type>{}(std::forward<T>(t)))
+					{
+						return ope<pick_type>{}(std::forward<AP>(ap)...);
+					}
+					else if (less_ope<pick_type>{}(std::forward<T>(t)))
+					{
+						return static_mapping_execute<less_ope, equal_ope, ope, default_op, s, (s + o) / 2, input...>{}(std::forward<T>(t), std::forward<AP>(ap)...);
+					}
+					else
+					{
+						return static_mapping_execute<less_ope, equal_ope, ope, default_op, (s + o) / 2 + 1, o, input...>{}(std::forward<T>(t), std::forward<AP>(ap)...);
+					}
+				}
+			};
+
+			template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, size_t s, typename ...input>
+			struct static_mapping_execute<less_ope, equal_ope, ope, default_op, s, s, input...>
+			{
+				template<typename T, typename ...AP>
+				decltype(auto) operator()(T&& t, AP&&... ap)
+				{
+					return default_op{}(std::forward<AP>(ap)...);
+				}
+			};
+		}
+		template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op>
+		struct static_mapping
+		{
+			template<typename ...input> struct call
+			{
+				using type = Assistant::static_mapping_execute<less_ope, equal_ope, ope, default_op, 0, sizeof...(input), input...>;
+			};
+		};
+		
+		template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, typename ...input>
+		using static_mapping_t = Assistant::static_mapping_execute<less_ope, equal_ope, ope, default_op, 0, sizeof...(input), input...>;
+
+		namespace Assistant
+		{
+			template<size_t s, template<typename...> class output, typename output_type, typename other_type> struct add_serial_execute;
+			template<size_t s, template<typename...> class output, typename ...output_type, typename this_type, typename ...other_type> 
+			struct add_serial_execute<s, output, type_container<output_type...>, type_container<this_type, other_type...>>
+			{
+				using type = typename add_serial_execute<s + 1, output, type_container<output_type..., serial_type<s, this_type> >, type_container<other_type...>>::type;
+			};
+			template<size_t s, template<typename...> class output, typename ...output_type>
+			struct add_serial_execute<s, output, type_container<output_type...>, type_container<>>
+			{
+				using type = output<output_type...>;
+			};
+		}
+
+		template<size_t s, template<typename...> class output> struct add_serial
+		{
+			template<typename ...input> struct call
+			{
+				using type = typename Assistant::add_serial_execute<s, output, type_container<>, type_container<input...>>::type;
+			};
+		};
+		template<size_t s, template<typename...> class output, typename ...input> using add_serial_t = typename Assistant::add_serial_execute<s, output, type_container<>, type_container<input...>>::type;
+		
+		template<typename T> struct less_serial { bool operator()(size_t i) { return i < T::value; } };
+		template<typename T> struct equal_serial { bool operator()(size_t i) { return i == T::value; } };
 	}
 }
