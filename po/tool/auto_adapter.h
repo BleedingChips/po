@@ -3,9 +3,56 @@
 #include "tool.h"
 namespace PO
 {
-	namespace Adapter
+	namespace Tool
 	{
 
+
+
+
+		template<typename adapter_type, typename func_object, typename ...input>
+		decltype(auto) auto_adapter(func_object&& fo, input&&... in)
+		{
+			return statement_if<Tmp::is_callable<func_object, input...>::value>
+				(
+					[](auto&& fot, auto&& ...ini) { return std::invoke(std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...); },
+					[](auto&& fot, auto&& ...ini)
+			{
+				using index = analyzer_t<adapter_type, decltype(fot) && , decltype(ini) && ...>;
+				return Assistant::auto_adapter_execute(index(), std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...);
+			},
+					std::forward<func_object>(fo), std::forward<input>(in)...
+				);
+		}
+
+		template<typename target, typename adapter_type, typename fun_obj, typename ...input> decltype(auto) auto_adapt_bind_function(fun_obj&& fo, input&&... in)
+		{
+			static_assert(!std::is_member_function_pointer<fun_obj>::value || sizeof...(input) >= 1, "PO::Mail::Assistant::mail_create_funtion_ptr_execute need a ref of the owner of the member function");
+
+			return statement_if<!std::is_member_function_pointer<fun_obj>::value && sizeof...(input) == 0 && is_callable<fun_obj, input...>::value >
+				(
+					[](auto&& fun_obj)
+			{
+				return std::forward<decltype(fun_obj) && >(fun_obj);
+			}).elseif_ < std::is_member_function_pointer<fun_obj>::value>(
+				[](auto&& fun_objt, auto&& owner, auto&& ...inputt)
+			{
+				return[fun_objt, &owner, inputt...](auto&& ...intt) mutable { return auto_adapter<adapter_type>(fun_objt, owner, inputt..., std::forward<decltype(intt) && >(intt)...); };
+			}
+				).else_(
+					[](auto&& fun_objt, auto&& ...inputt)
+			{
+				return[fun_objt, inputt...](auto&& ...intt) mutable { return auto_adapter<adapter_type>(fun_objt, inputt..., std::forward<decltype(intt) && >(intt)...); };
+			}
+				)(
+					std::forward<fun_obj>(fo), std::forward<input>(in)...
+					);
+		}
+
+
+
+
+
+		/*
 		class unorder_adapt
 		{
 			template<size_t ...oi> struct find_index1 { static_assert(sizeof...(oi) != 0, "adapter_unorder meet empty index"); };
@@ -59,7 +106,6 @@ namespace PO
 		};
 
 
-		/*----- auto_adapter -----*/
 		namespace Assistant
 		{
 
@@ -186,6 +232,6 @@ namespace PO
 				std::forward<fun_obj>(fo), std::forward<input>(in)...
 				);
 		}
-
+		*/
 	}
 }

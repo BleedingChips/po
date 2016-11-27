@@ -44,14 +44,14 @@
     <ClInclude Include="..\dxgi\dxgi.h">
       <Filter>dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="..\dxgi\dxgi_define.h">
-      <Filter>dxgi</Filter>
-    </ClInclude>
     <ClInclude Include="..\dx11\dx11_implement.h">
       <Filter>dx11</Filter>
     </ClInclude>
     <ClInclude Include="..\dx11\dx11_interface.h">
       <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\po_expand.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -125,7 +125,7 @@
     <ClInclude Include="..\dx11\dx11_implement.h" />
     <ClInclude Include="..\dx11\dx11_interface.h" />
     <ClInclude Include="..\dxgi\dxgi.h" />
-    <ClInclude Include="..\dxgi\dxgi_define.h" />
+    <ClInclude Include="..\po_expand.h" />
     <ClInclude Include="..\win32\win32_implement.h" />
     <ClInclude Include="..\win32\win32_interface.h" />
   </ItemGroup>

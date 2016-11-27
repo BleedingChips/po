@@ -1,6 +1,7 @@
 #pragma once
 #include "tool.h"
 #include <atomic>
+#include <mutex>
 namespace PO
 {
 	namespace Tool
@@ -191,7 +192,8 @@ namespace PO
 			{
 				if (operator bool() && data->add_read_ref())
 				{
-					Tool::destructor de([this]() {data->del_read_ref(); });
+					//Tool::destructor de([this]() {data->del_read_ref(); });
+					at_scope_exit ase([this]() {data->del_read_ref(); });
 					fun();
 					return true;
 				}
@@ -202,7 +204,8 @@ namespace PO
 			{
 				if (operator bool() && data->try_add_read_ref())
 				{
-					Tool::destructor de([this]() {data->del_read_ref(); });
+					//Tool::destructor de([this]() {data->del_read_ref(); });
+					at_scope_exit ase([this]() {data->del_read_ref(); });
 					fun();
 					return true;
 				}

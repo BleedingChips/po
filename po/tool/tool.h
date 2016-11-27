@@ -1,43 +1,47 @@
 #pragma once
+#include "tmp.h"
+#include <exception>
+#include <string>
 #include <functional>
-#include <mutex>
-#include <thread>
-#include "type_tool.h"
-#include <memory>
+#include <unordered_map>
 namespace PO
 {
-	namespace Error
-	{
-		struct tool_exeception : public std::exception
-		{
-			std::string scription;
-		public:
-			tool_exeception(std::string&& s) : scription(std::move(s)) {}
-			tool_exeception(const std::string& s) : scription(s) {}
-			tool_exeception(const tool_exeception&) = default;
-			tool_exeception(tool_exeception&&) = default;
-			tool_exeception() {}
-			operator std::string& () { return scription; }
-			operator const std::string& () const { return scription; }
-			operator const char*() const { return scription.c_str(); }
-			const char* what() const override { return *this; }
-		};
-	}
-
 	namespace Tool
 	{
-		/*----- destructor -----*/
-		class destructor
+		namespace Error
+		{
+			struct tool_exeception : public std::exception
+			{
+				std::string scription;
+			public:
+				tool_exeception(std::string&& s) : scription(std::move(s)) {}
+				tool_exeception(const std::string& s) : scription(s) {}
+				tool_exeception(const tool_exeception&) = default;
+				tool_exeception(tool_exeception&&) = default;
+				tool_exeception() {}
+				operator std::string& () { return scription; }
+				operator const std::string& () const { return scription; }
+				operator const char*() const { return scription.c_str(); }
+				const char* what() const override { return *this; }
+			};
+		}
+
+		//TODO - add a is_nothrow_callable
+		class at_scope_exit
 		{
 			std::function<void(void) noexcept> func;
 		public:
-			template<typename T>  destructor(T&& t) :func(std::forward<T>(t)) {}
-			~destructor() { func(); }
+			template<typename T>
+			at_scope_exit(T&& t) : func(std::forward<T>(t)) {}
+			~at_scope_exit() 
+			{
+				if (func)
+					func();
+			}
 		};
 
-
-		/*----- statement_if -----*/
-		namespace Assistant
+		/* statement_if */
+		namespace Implement
 		{
 			template<bool> struct statement_if_struct
 			{
@@ -49,266 +53,380 @@ namespace PO
 				template<typename T, typename P, typename ...AT> static decltype(auto) run(T&& t, P&& p, AT&&... at) { return std::forward<P>(p)(std::forward<AT>(at)...); }
 			};
 
-			template<bool s, typename T = int> struct statement_if_execute
+			template<bool s, typename T = int> struct statement_if_implement
 			{
 				T t;
 				template<typename ...AT> decltype(auto) operator()(AT&&... at) { return t(std::forward<AT>(at)...); }
-				template<bool other_s, typename K> statement_if_execute& elseif_(K&& k) {
+				template<bool other_s, typename K> statement_if_implement& elseif_(K&& k) {
 					return *this;
 				}
-				template<typename K> statement_if_execute& else_(K&& k) {
+				template<typename K> statement_if_implement& else_(K&& k) {
 					return *this;
 				}
 			};
 
-			template<typename T> struct statement_if_execute<false, T>
+			template<typename T> struct statement_if_implement<false, T>
 			{
 				T t;
 				template<typename ...AT> decltype(auto) operator()(AT&&... at) { }
 				template<bool other_s, typename K> decltype(auto) elseif_(K&& k) {
-					return statement_if_execute<other_s, K&&>{std::forward<K>(k)};
+					return statement_if_implement<other_s, K&&>{std::forward<K>(k)};
 				}
 				template<typename K> decltype(auto) else_(K&& k) {
-					return statement_if_execute<true, K&&>{std::forward<K>(k)};
+					return statement_if_implement<true, K&&>{std::forward<K>(k)};
 				}
 			};
 		}
 
-		template<bool s, typename T, typename P, typename ...AK> decltype(auto) statement_if(T&& t, P&& p, AK&& ...ak) { return Assistant::statement_if_struct<s>::run(std::forward<T>(t), std::forward<P>(p), std::forward<AK>(ak)...); }
-		template<bool s, typename T> decltype(auto) statement_if(T&& t) { return Assistant::statement_if_execute<s, T&&>{std::forward<T>(t)}; }
+		template<bool s, typename T, typename P, typename ...AK> decltype(auto) statement_if(T&& t, P&& p, AK&& ...ak) { return Implement::statement_if_struct<s>::run(std::forward<T>(t), std::forward<P>(p), std::forward<AK>(ak)...); }
+		template<bool s, typename T> decltype(auto) statement_if(T&& t) { return Implement::statement_if_implement<s, T&&>{std::forward<T>(t)}; }
 
 
-
-		/*----- pick_parameter -----*/
-		template<size_t i> struct pick_parameter
-		{
-			template<typename this_parameter, typename ...parameter>
-			static decltype(auto) in(this_parameter&& tp, parameter&& ... pa)
-			{
-				static_assert(i <= sizeof...(pa), "pick_parameter overflow");
-				return pick_parameter<i - 1>::in(std::forward<parameter>(pa)...);
-			}
-		};
-
-		template<> struct pick_parameter<0>
-		{
-			template<typename this_parameter, typename ...parameter>
-			static decltype(auto) in(this_parameter&& tp, parameter&& ... pa) { return std::forward<this_parameter>(tp); }
-		};
-
-		namespace Assistant
-		{
-			template<typename T, typename P> struct auto_cast_able_dynamic_cast
-			{
-				template<typename K, typename I> static std::true_type fun(decltype(dynamic_cast<K>(std::declval<I>()))*);
-				template<typename K, typename I> static std::false_type fun(...);
-				using type = decltype(fun<T, P>(nullptr));
-			};
-		}
-
-		/*----- auto_cast -----*/
-		template<typename T, typename P> T auto_dynamic_cast(P&& data)
-		{
-#ifdef _DEBUG
-			return statement_if<Assistant::auto_cast_able_dynamic_cast<T, P>::type::value>
-				(
-					[](auto&& u) { return dynamic_cast<T>(std::forward<decltype(u) && >(u)); },
-					[](auto&& u) { return static_cast<T>(std::forward<decltype(u) && >(u)); },
-					std::forward<P>(data)
-					);
-#else
-			return static_cast<T>(std::forward<decltype(data) && >(data));
-#endif // DEBUG
-		}
-
+		/* adapter */
 		template<typename ...T> struct adapter
 		{
 			template<typename K>  adapter(K&& k) {}
 		};
 
-		template<typename P, typename ...T> struct adapter<P,T...> : adapter<T...>
+		template<typename P, typename ...T> struct adapter<P, T...> : adapter<T...>
 		{
 			P data;
 			template<typename K>  adapter(K&& k) : adapter<T...>(std::forward<K>(k)), data(std::forward<K>(k)) {}
 			template<typename D>
 			decltype(auto) get()
 			{
-				static_assert(is_one_of<D, P, T...>::value, "what you get is not exist");
+				static_assert(Tmp::is_one_of<D, P, T...>::value, "what you get is not exist");
 				return Tool::statement_if< std::is_same<D, P>::value >
 					(
-						[](auto& it) { return it.adapter<P,T...>::data;  },
+						[](auto& it) { return it.adapter<P, T...>::data;  },
 						[](auto& it) { return it.adapter<T...>::template get<D>(); },
 						*this
 						);
 			}
 		};
 
-
-
-		namespace Assistant
+		/* static_mapping */
+		namespace Implement
 		{
-			struct mail_receiption_base
+			template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, size_t s, size_t o, typename ...input>
+			struct static_mapping_implement
 			{
-				virtual operator bool() const = 0;
-				virtual ~mail_receiption_base() {}
+				template<typename T, typename ...AP>
+				decltype(auto) operator()(T&& t, AP&&... ap) const 
+				{
+					using pick_type = TmpCall::call<TmpCall::in_t<input...>, TmpCall::pick_single_t<(s + o) / 2>, TmpCall::self_t>;
+					if (equal_ope<pick_type>{}(std::forward<T>(t)))
+					{
+						return ope<pick_type>{}(std::forward<AP>(ap)...);
+					}
+					else if (less_ope<pick_type>{}(std::forward<T>(t)))
+					{
+						return static_mapping_implement<less_ope, equal_ope, ope, default_op, s, (s + o) / 2, input...>{}(std::forward<T>(t), std::forward<AP>(ap)...);
+					}
+					else
+					{
+						return static_mapping_implement<less_ope, equal_ope, ope, default_op, (s + o) / 2 + 1, o, input...>{}(std::forward<T>(t), std::forward<AP>(ap)...);
+					}
+				}
+			};
+
+			template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, size_t s, typename ...input>
+			struct static_mapping_implement<less_ope, equal_ope, ope, default_op, s, s, input...>
+			{
+				template<typename T, typename ...AP>
+				decltype(auto) operator()(T&& t, AP&&... ap) const
+				{
+					return default_op{}(std::forward<AP>(ap)...);
+				}
 			};
 		}
-		
-		struct receiption
-		{
-			std::unique_ptr<Assistant::mail_receiption_base> ptr;
-		public:
-			operator bool() const { return static_cast<bool>(ptr) && *ptr; }
-			void cancle() { ptr.reset(); }
-			receiption() {}
-			receiption(std::unique_ptr<Assistant::mail_receiption_base>&& p) :ptr(std::move(p)) {}
-			receiption(const receiption&) = delete;
-			receiption(receiption&&) = default;
-			receiption& operator=(receiption&&) = default;
-			receiption& operator=(std::unique_ptr<Assistant::mail_receiption_base>&& p)
-			{
-				ptr = std::move(p);
-				return *this;
-			}
-		};
 
-		template<typename T> struct mail
+		template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op>
+		struct make_static_mapping
 		{
-			struct control {};
-			std::weak_ptr<std::function<T>> func;
-			std::shared_ptr<control> ref;
-			struct receiption : Assistant::mail_receiption_base
+			template<typename ...input> struct in
 			{
-				std::shared_ptr<std::function<T>> func;
-				std::weak_ptr<control> ref;
-				operator bool() const { return static_cast<bool>(func) && !ref.expired(); }
-				operator Tool::receiption() && { return Tool::receiption(std::make_unique<receiption>(*this)); }
-				receiption(std::shared_ptr<std::function<T>>&& sp, const std::weak_ptr<control>& wp) :func(std::move(sp)), ref(wp) {}
-				receiption(const receiption&) = default;
-				receiption(receiption&&) = default;
-				receiption& operator=(const receiption&) = default;
-				receiption& operator=(receiption&&) = default;
+				using type = Implement::static_mapping_implement<less_ope, equal_ope, ope, default_op, 0, sizeof...(input), input...>;
 			};
-			operator bool() const { return !func.expired(); }
-			template<typename ...AT>
-			decltype(auto) operator()(AT&& ...at) { return (*(func.lock()))(std::forward<AT>(at)...); }
-			template<typename K>
-			decltype(auto) bind(K&& t)
-			{
-				if (!ref)
-					ref = std::make_shared<control>();
-				auto fun = std::make_shared<std::function<T>>(std::forward<K>(t));
-				func = fun;
-				return receiption{ std::move(fun), ref };
-			}
 		};
 
-		template<size_t ...i> struct find_first
-		{
-			static_assert(sizeof...(i) > 0, "empty index in find_first");
-		};
+		template<template<typename...> class less_ope, template<typename ...> class equal_ope, template<typename...> class ope, typename default_op, typename ...input>
+		using static_mapping_t = Implement::static_mapping_implement<less_ope, equal_ope, ope, default_op, 0, sizeof...(input), input...>;
 
-		template<size_t i, size_t ...o> struct find_first<i, o...> : index_container<i> {};
 
-		template<typename ...T> class variant
+
+		/* variant */
+		namespace Implement
 		{
-			template<typename O> struct des 
+			template<typename O> struct variant_dest_ope
 			{
-				using type = typename O::type;
+				using type = typename O::original_t;
 				void operator() (char* da) noexcept
 				{
 					reinterpret_cast<type*>(da)->~type();
 				}
 			};
-			struct default_des
+
+			template<typename O> struct variant_cons_ope
 			{
-				void operator() (char* da) { throw Error::tool_exeception("variant find unknow type"); }
+				using type = typename O::original_t;
+				template<typename AT>
+				void operator() (char* da, AT&& at)
+				{
+					new (da) type(std::forward<AT>(at).cast<type>());
+				}
 			};
-			using dest_mapping = typename add_serial_t<1, call<static_mapping<less_serial, equal_serial, des, default_des>>::template in_t, T...>;
 
+			template<typename O> struct variant_equal_ope_ope
+			{
+				using type = typename O::original_t;
+				template<typename AT>
+				void operator() (char* da, AT&& at)
+				{
+					reinterpret_cast<type*>(da)->operator=( std::forward<AT>(at).cast<type>());
+				}
+			};
 
-			static_assert(!is_repeat<T...>::value, "type of variant can not repeat");
-			char data[compare<value_bigger_t>::template in_t<index_container<sizeof(T)>...>::value];
+			struct default_ope
+			{
+				template<typename ...AT>
+				void operator() (AT&& ...)
+				{
+					throw Error::tool_exeception("unmatch mapping");
+				}
+			};
+
+			template<typename T> struct variant_less_ope
+			{
+				bool operator()(int i) { return i < T::label_t::value; }
+			};
+
+			template<typename T> struct variant_equal_ope
+			{
+				bool operator()(int i) 
+				{ 
+					int now = T::label_t::value;
+					return now == i;
+				}
+			};
+		}
+
+		template<typename ...T> class variant
+		{
+			static_assert(!Tmp::is_repeat<T...>::value, "type of variant can not repeat");
+
+			using dest_mapping =
+				TmpCall::call< TmpCall::in_t<T...>, TmpCall::label_serial_t<1>, make_static_mapping<
+					Implement::variant_less_ope, Implement::variant_equal_ope, Implement::variant_dest_ope, Implement::default_ope
+				> >;
+
+			using cons_mapping =
+				TmpCall::call< TmpCall::in_t<T...>, TmpCall::label_serial_t<1>, make_static_mapping<
+					Implement::variant_less_ope, Implement::variant_equal_ope, Implement::variant_cons_ope, Implement::default_ope
+				> >;
+
+			using equal_mapping =
+				TmpCall::call< TmpCall::in_t<T...>, TmpCall::label_serial_t<1>, make_static_mapping<
+				Implement::variant_less_ope, Implement::variant_equal_ope, Implement::variant_equal_ope_ope, Implement::default_ope
+				> >;
+
+			using size_index = 
+				TmpCall::call<
+					TmpCall::in_t<T...>, TmpCall::label_size_t, TmpCall::replace_by_label_t,
+					TmpCall::combine_t<Tmp::bigger_value>, TmpCall::self_t
+				>;
+
+			template<typename ...in> struct construction_type
+			{
+				using type = TmpCall::call<
+					TmpCall::in_t<T...>, TmpCall::localizer_t<1, Tmp::instant<std::is_constructible, in...>::template front_in_t>, TmpCall::sperate_value_i<Tmp::set_i>,
+					TmpCall::append_t<Tmp::set_i<0>>, TmpCall::pick_single_t<0>, TmpCall::self_t
+				>;
+			};
+
+			template<typename in> struct same_type
+			{
+				using type = TmpCall::call <
+					TmpCall::in_t<T...>, TmpCall::localizer_t<1, Tmp::instant<std::is_same, in>::template front_in_t>, TmpCall::sperate_value_i<Tmp::set_i>,
+					TmpCall::append_t<Tmp::set_i<0>>, TmpCall::pick_single_t<0>, TmpCall::self_t
+				>;
+			};
+
+			char data[size_index::value];
+
 			std::conditional_t<
 				(sizeof...(T)+1 <= 255),
 				uint8_t,
 				std::conditional_t<
-					(sizeof...(T)+1 <= 65535),
-					uint16_t,
-					std::conditional_t<
-						(sizeof...(T)+1 <= 4294967295),
-						uint32_t,
-						uint64_t
-					>
+				(sizeof...(T)+1 <= 65535),
+				uint16_t,
+				std::conditional_t<
+				(sizeof...(T)+1 <= 4294967295),
+				uint32_t,
+				uint64_t
+				>
 				>
 			> index;
+
 		public:
 			operator bool() const noexcept { return index != 0; }
-			template<typename ...K>
-			variant(K&& ...t) : index( localizer_t<0, instant<std::is_constructible, K...>::template front_in_t, find_first, T...>::value + 1)
-			{
-				using type = picker_t<
-					localizer_t<0, instant<std::is_constructible, K...>::template front_in_t, find_first, T...>::value,
-					T...
-				>;
-				new (data) type(std::forward<K>(t)...);
-			}
-			variant() : index(0) {}
-			~variant()
+
+			template<typename K, typename = std::enable_if_t<std::is_same<std::remove_const_t<std::remove_reference_t<K>>, variant>::value >>
+			variant(K&& v) : index(v.index)
 			{
 				if (index != 0)
-				{
-					dest_mapping()(index, data);
-				}
+					cons_mapping{}(index, data, std::forward<K>(v));
 			}
-			template<typename K>
+
+			template<typename ...K>
+			variant(K&& ...t) : index(
+				construction_type<K...>::type::value
+			)
+			{
+				static_assert(construction_type<K...>::type::value != 0, "not avalible type construct form this");
+				statement_if<construction_type<K...>::type::value != 0>
+					(
+						[&, this](auto ind, auto&& ...input)
+				{
+					using type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<decltype(ind)::value - 1>, TmpCall::self_t>;
+					new (data) type{ std::forward<decltype(input)&&>(input)... };
+				}
+						)(
+							typename construction_type<K...>::type{}, std::forward<K>(t)...
+							);
+			}
+			variant() : index(0) { }
+
+			size_t get_index() const { return index; }
+
+			~variant()
+			{
+				if( index!=0 )
+					dest_mapping()(index, data);
+			}
+
+			template<typename K, typename = std::enable_if_t<std::is_same<std::remove_const_t<std::remove_reference_t<K>>, variant>::value >>
 			variant& operator= (K&& k)
 			{
 				using pure_type = std::remove_reference_t<std::remove_const_t<K>>;
-				static_assert(is_one_of<pure_type, T...>::value, "variant can not cast to unbinded type.");
-				using type = localizer_t<0, instant<std::is_same, pure_type>::template front_in_t, find_first, T...>;
-				if (index == type::value + 1)
+				statement_if<std::is_same<pure_type, variant>::value>
+					(
+						[this](auto&& op) 
 				{
-					reinterpret_cast<K*>(data)->operator=(std::forward<K>(k));
-					return *this;
-				}
-				else {
 					if (index != 0)
+					{
+						if (index == op.index)
+						{
+							equal_mapping{}(index, data, std::forward<decltype(op)&&>(op));
+							return;
+						}
+
+						dest_mapping{}(index, data);
+						index = 0;
+					}
+					if (op.index != 0)
+					{
+						cons_mapping{}(op.index, data, std::forward<decltype(op) && >(op));
+						index = op.index;
+					}
+					return;
+				},
+						[this](auto&& op) 
+				{
+					
+					using type = typename construction_type<decltype(op)&&>::type;
+					static_assert(type::value != 0, "variant can not cast to unbinded type.");
+					using target_type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<type::value - 1>, TmpCall::self_t>;
+					if (index == type::value)
+					{
+						reinterpret_cast<target_type*>(data)->operator=(std::forward<decltype(op) && >(op));
+						return ;
+					}
+					else {
 						dest_mapping()(index, data);
-					new (data) picker_t<type::value, T...>(std::forward<K>(k));
-					index = type::value + 1;
-					return *this;
-				}
+						new (data) target_type(std::forward<decltype(op) && >(op));
+						index = type::value;
+						return;
+					}
+				},
+						std::forward<K>(k)
+						);
+				return *this;
 			}
+
 			template<typename P> bool able_cast() const noexcept
 			{
-				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
-				return index == value;
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				return index == same_type<P>::type::value;
 			}
-			template<typename P> P& cast()
+
+			template<typename P> P& cast() &
 			{
-				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = same_type<P>::type::value;
 				if (value != index)
 				{
-					throw Error::tool_exeception( "variant now are not this type" );
+					throw Error::tool_exeception("variant now are not this type");
 				}
 				return *reinterpret_cast<P*>(data);
 			}
-			template<typename P> P* cast_pointer()
+
+			
+			template<typename P> const P& cast() const&
 			{
-				static_assert(is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = localizer_t<0, instant<std::is_same, P>::template front_in_t, find_first, T...>::value + 1;
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = same_type<P>::type::value;
+				if (value != index)
+				{
+					throw Error::tool_exeception("variant now are not this type");
+				}
+				return *reinterpret_cast<const P*>(data);
+			}
+
+			template<typename P> P&& cast() &&
+			{
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = same_type<P>::type::value;
+				if (value != index)
+				{
+					throw Error::tool_exeception("variant now are not this type");
+				}
+				return std::move(*reinterpret_cast<P*>(data));
+			}
+
+
+			template<typename P> P* cast_pointer() noexcept
+			{
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = same_type<P>::type::value;
 				if (value != index)
 				{
 					return nullptr;
 				}
 				return reinterpret_cast<P*>(data);
 			}
-		};
 
-		//[](void* ptr) { static_cast<T>(ptr)->~T(); }
+			template<typename P> const P* cast_pointer() const noexcept
+			{
+				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
+				constexpr size_t value = same_type<P>::type::value;
+				if (value != index)
+				{
+					return nullptr;
+				}
+				return reinterpret_cast<const P*>(data);
+			}
+		};
+		
+		template<> class variant<>
+		{
+		public:
+			variant() {}
+			variant(const variant&) {}
+			~variant() {}
+			size_t get_index() const { return 0; }
+			operator bool() const noexcept { return false; }
+		};
 
 		template<typename T> class optional : variant<T>
 		{
@@ -318,6 +436,10 @@ namespace PO
 			const T& operator*() const { return cast<T>(); }
 			const T* operator->() const noexcept { return cast_pointer<T>(); }
 			operator bool() const noexcept { return able_cast<T>(); }
+
+			template<typename K>
+			optional& operator= (K&& ap) { variant<T>::operator=(std::forward<K>(ap)); return *this; }
+
 			using variant<T>::variant;
 
 			T& value_or(T& or_data) &
@@ -335,7 +457,7 @@ namespace PO
 				else
 					return or_data;
 			}
-			
+
 			T&& value_or(T&& or_data) &&
 			{
 				if (able_cast<T>())
@@ -343,6 +465,12 @@ namespace PO
 				else
 					return std::move(or_data);
 			}
+		};
+
+		template<typename state_type, typename fun> struct enum_state_machina
+		{
+			std::unordered_map<state_type, std::unordered_map<state_type, std::function<fun>>> data;
+
 		};
 
 	}

@@ -3,7 +3,8 @@
 #include <vector>
 #include <map>
 #include <functional>
-#include "dxgi_define.h"
+#include <dxgi.h>
+#pragma comment(lib,"DXGI.lib")
 
 namespace PO
 {
@@ -18,6 +19,15 @@ namespace PO
 					const char* what() const override { return "dxgi init error"; }
 				};
 			}
+
+			struct dxgi_scription
+			{
+
+			};
+
+
+
+
 
 			struct mode_desc : DXGI_MODE_DESC
 			{

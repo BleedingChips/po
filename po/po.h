@@ -1,4 +1,9 @@
 #pragma once
+#ifdef _DEBUG
+	#pragma comment(lib,"po_d.lib")
+#else
+	#pragma comment(lib,"po.lib")
+#endif
 #include "tool\thread_tool.h"
 #include <thread>
 #include <iostream>
@@ -8,6 +13,9 @@
 #include <memory>
 #include <list>
 #include "frame\frame.h"
+
+
+
 /*
 
 struct event

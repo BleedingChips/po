@@ -1,5 +1,6 @@
 #pragma once
 #include "../../po/frame/define.h"
+#include "../po_expand.h"
 #include <atomic>
 namespace PO
 {

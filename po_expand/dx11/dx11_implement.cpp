@@ -1,4 +1,14 @@
 #include "dx11_implement.h"
+
+
+
+
+
+
+
+
+
+
 namespace PO
 {
 	namespace Interface
@@ -101,6 +111,45 @@ namespace PO
 		void swap_dx11_form(dx11_form_implement* dfi) noexcept
 		{
 			dfi->swap->Present(0, 0);
+		}
+
+		Tool::optional<std::string> init_dx11_renderer_from_from(dx11_renderer_implement*& dri, dx11_form_implement* dfi) noexcept
+		{
+			try
+			{
+				dri = new dx11_renderer_implement();
+				dri->dc = dfi->dc;
+				dri->dev = dfi->dev;
+				dri->swap = dfi->swap;
+				dri->pView = dfi->pView;
+				return{};
+			}
+			catch (std::exception& ex)
+			{
+				return{ std::string(__FUNCDNAME__) + " : " + ex.what() };
+			}
+			catch (...)
+			{
+				return{ std::string(__FUNCDNAME__) + " Unknow " };
+			}
+		}
+
+		void dest_dx11_renderer(dx11_renderer_implement*& dri) noexcept
+		{
+			delete dri;
+			dri = nullptr;
+		}
+
+		void tick_dx11_renderer(dx11_renderer_implement* dri, duration da) noexcept
+		{
+			static float all_time = 0.0f;
+			all_time += da.count();
+			float a = abs(sin(all_time * 0.001f));
+			float a2 = abs(sin(all_time * 0.001f * 2));
+			float a3 = abs(sin(all_time * 0.001f * 3));
+			float color[4] = { a,a2,a3,1.0f };
+			dri->dc->ClearRenderTargetView(dri->pView, color);
+			dri->swap->Present(0, 0);
 		}
 	}
 }

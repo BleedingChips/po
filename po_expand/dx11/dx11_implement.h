@@ -3,6 +3,7 @@
 #include "../dxgi/dxgi.h"
 #include <d3d11.h>
 #pragma comment(lib,"d3d11.lib")
+
 namespace PO
 {
 	namespace Interface
@@ -29,6 +30,7 @@ namespace PO
 			CComPtr<ID3D11Device> dev;
 			CComPtr<ID3D11DeviceContext> dc;
 			CComPtr<IDXGISwapChain> swap;
+			CComPtr<ID3D11RenderTargetView> pView;
 		};
 
 		struct dx11_scene_implement

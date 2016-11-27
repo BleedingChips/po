@@ -6,10 +6,18 @@ namespace PO
 	{
 		struct dx11_form_implement;
 		struct dx11_initial_implement;
+		struct dx11_renderer_implement;
+
 		Tool::optional<std::string> init_dx11_initial_form_win32_initial(dx11_initial_implement*&, win32_initial_implement*) noexcept;
 		void dest_dx11_initial(dx11_initial_implement*&) noexcept;
 		Tool::optional<std::string> init_dx11_form_form_win32_form(dx11_form_implement*&, dx11_initial_implement*, win32_form_implement*) noexcept;
 		void dest_dx11_form(dx11_form_implement*&) noexcept;
+
+		Tool::optional<std::string> init_dx11_renderer_from_from(dx11_renderer_implement*&, dx11_form_implement*) noexcept;
+		void dest_dx11_renderer(dx11_renderer_implement*&) noexcept;
+
+		void tick_dx11_renderer(dx11_renderer_implement*, duration da) noexcept;
+		
 		void clean_dx11_form(dx11_form_implement*, float, float, float, float) noexcept;
 		void swap_dx11_form(dx11_form_implement*) noexcept;
 	}
@@ -29,6 +37,7 @@ namespace PO
 			Interface::dx11_form_implement* form;
 			friend class dx11_interface;
 			friend class dx11_viewer;
+			friend class dx11_renderer;
 		public:
 			dx11_form(Tool::completeness_ref cr, const dx11_initial& di = dx11_initial()) :Win32::win32_form(std::move(cr), di){ init_dx11_form_form_win32_form(form, di.initial, Win32::win32_form::wfi); }
 			~dx11_form() { dest_dx11_form(form); }
@@ -65,13 +74,27 @@ namespace PO
 		
 		class dx11_renderer
 		{
-			dx11_interface inter;
+			Interface::dx11_renderer_implement* dri;
 			time_calculator tc;
 			float all_time;
 		public:
-			dx11_renderer(const dx11_interface& di) : inter(di) {}
+			dx11_renderer(dx11_form& di) ///: inter(di)
+			{
+				Interface::init_dx11_renderer_from_from(dri, di.form);
+			}
 			void tick(time_point to)
 			{
+
+				tc.tick(
+					to,
+					[this](duration da)
+				{
+					Interface::tick_dx11_renderer(dri, da);
+				}
+				);
+
+				//Interface::tick_dx11_renderer(dri, );
+				/*
 				tc.tick(to,
 					[this](duration da) 
 				{
@@ -83,6 +106,11 @@ namespace PO
 					inter.swap();
 				}
 				);
+				*/
+			}
+			~dx11_renderer()
+			{
+				Interface::dest_dx11_renderer(dri);
 			}
 		};
 
