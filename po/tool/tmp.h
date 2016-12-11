@@ -29,6 +29,11 @@ namespace PO
 		template<typename T, typename ...AT>
 		struct is_repeat <T, AT...> : std::conditional< is_one_of<T, AT...>::value, std::true_type, is_repeat < AT...>  >::type {};
 
+		template<typename T> struct itself
+		{
+			using type = T;
+		};
+
 
 		/* instant */
 		namespace Implement
@@ -201,7 +206,7 @@ namespace PO
 			decltype(auto) operator()(this_parameter&& tp, parameter&& ... pa) const noexcept
 			{
 				static_assert(i <= sizeof...(pa), "pick_parameter overflow");
-				return pick_parameter<i - 1>::in(std::forward<parameter>(pa)...);
+				return pick_parameter<i - 1>{}(std::forward<parameter>(pa)...);
 			}
 		};
 
@@ -302,6 +307,20 @@ namespace PO
 
 		template<template<typename...>class o> using bind_t = func_t<o>;
 
+		template<template<size_t ...> class f> struct func_i
+		{
+			template<size_t ...i> struct in
+			{
+				using type = f<i...>;
+				template<template<typename ...> class o> struct out
+				{
+					using type = o<f<i...>>;
+				};
+			};
+		};
+
+		template<template<size_t...>class o> using bind_i = func_i<o>;
+
 		template<typename ...T> struct in_t
 		{
 			template<template<typename...> class o> struct out
@@ -355,8 +374,6 @@ namespace PO
 				};
 			};
 		};
-
-		
 
 		struct self_t
 		{
@@ -538,6 +555,33 @@ namespace PO
 			template<typename s, typename state> struct in_statement
 			{
 				using type = typename Implement::process_statement<s, state, sperate_call_t<typename Implement::pick_func_if_implement<s, func...>>, Implement::pick_func_if_t_filter_implemenmt >::type;
+				using stack = s;
+			};
+		};
+
+		template<typename index> struct push_stack
+		{
+			template<typename s, typename state> struct in_statement
+			{
+				using type = state;
+				using stack = Tmp::set_static_map<s, index, state>;
+			};
+		};
+
+		template<typename index> struct pop_stack
+		{
+			template<typename s, typename state> struct in_statement
+			{
+				using type = Tmp::find_static_map<s, index>;
+				using stack = s;
+			};
+		};
+
+		template<typename sta> struct replace_register
+		{
+			template<typename s, typename state> struct in_statement
+			{
+				using type = sta;
 				using stack = s;
 			};
 		};

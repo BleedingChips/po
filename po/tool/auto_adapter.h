@@ -5,10 +5,93 @@ namespace PO
 {
 	namespace Tool
 	{
+		class unorder_adapt
+		{
+			template<typename T, typename K> struct combine_implement;//TODO static_assert
+			template<size_t ...s1, size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<s1...>, Tmp::set_i<s2, s2o...>>
+			{
+				using type = typename std::conditional_t<
+					Tmp::is_one_of<Tmp::set_i<s2>, Tmp::set_i<s1>...>::value,
+					combine_implement<Tmp::set_i<s1...>, Tmp::set_i<s2o...>>,
+					TmpCall::self_t::template in<Tmp::set_i<s1..., s2>>
+				>::type;
+			};
+
+			template<typename T, typename K> using combine_implement_t = typename combine_implement<T, K>::type;
+		public:
+			template<typename T, typename K> using match = std::is_convertible<T, K>;
+			template<typename ...T> struct combine
+			{
+				using type = TmpCall::call<TmpCall::in_t<Tmp::set_i<>, T...>, TmpCall::combine_t<combine_implement_t>, TmpCall::self_t>;
+			};
+		};
+
+		class order_adapt
+		{
+			template<typename out, typename in> struct reverser;
+			template<size_t ...out, size_t t, size_t... in> struct reverser<Tmp::set_i<out...>, Tmp::set_i<t, in...>>
+			{
+				using type = typename reverser<Tmp::set_i<t, out...>, Tmp::set_i<in...>>::type;
+			};
+			template<size_t ...out> struct reverser<Tmp::set_i<out...>, Tmp::set_i<>>
+			{
+				using type = Tmp::set_i<out...>;
+			};
+
+			template<typename T, typename K> struct combine_implement;//TODO static_assert
+			template<size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<>, Tmp::set_i<s2, s2o...>>
+			{
+				using type = Tmp::set_i<s2>;
+			};
+			template<size_t s1, size_t ...s1o, size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<s1, s1o...>, Tmp::set_i<s2, s2o...>>
+			{
+				using type = typename std::conditional_t<
+					Tmp::is_one_of<Tmp::set_i<s2>, Tmp::set_i<s1>, Tmp::set_i<s1o>...>::value || ( s1 > s2 ),
+					combine_implement<Tmp::set_i<s1, s1o...>, Tmp::set_i<s2o...>>,
+					TmpCall::self_t::template in<Tmp::set_i<s2, s1, s1o...>>
+				>::type;
+			};
+
+			template<typename T, typename K> using combine_implement_t = typename combine_implement<T, K>::type;
+		public:
+			template<typename T, typename K> using match = std::is_convertible<T, K>;
+			template<typename ...T> struct combine
+			{
+				using type = typename reverser<Tmp::set_i<>, TmpCall::call<TmpCall::in_t<Tmp::set_i<>, T...>, TmpCall::combine_t<combine_implement_t>, TmpCall::self_t>>::type;
+			};
+		};
 
 
+		namespace Implement
+		{
 
+			template<template<typename ...> class role> struct analyze_match_implement
+			{
+				template<typename T, typename ...AT> struct in
+				{
+					using type = TmpCall::call< TmpCall::in_t<AT...>, TmpCall::localizer_t<0, Tmp::instant<role, T>::template in_t>,  TmpCall::bind_i<Tmp::set_i>>;
+				};
+			};
 
+			template<typename adapt_type, typename func, typename ...par> struct analyze_implement
+			{
+				using func_para_append = typename Tmp::funtion_obejct_extract_t<func>::template parameter_out<TmpCall::append_t>;
+				
+				using type = typename TmpCall::call <func_para_append,
+					TmpCall::sperate_call_t<
+						TmpCall::append_t<par...>,
+						analyze_match_implement<adapt_type::template match>
+					>,
+					TmpCall::func_t<adapt_type::template combine>
+				>::type;
+			};
+
+			template<size_t ...i, typename fun, typename ...par> decltype(auto) auto_adapter_implement(Tmp::set_i<i...>, fun&& f, par&& ...pa)
+			{
+				return std::invoke(std::forward<fun>(f), Tmp::pick_parameter<i>{}(std::forward<par>(pa)...)...);
+			}
+		}
+		
 		template<typename adapter_type, typename func_object, typename ...input>
 		decltype(auto) auto_adapter(func_object&& fo, input&&... in)
 		{
@@ -17,18 +100,18 @@ namespace PO
 					[](auto&& fot, auto&& ...ini) { return std::invoke(std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...); },
 					[](auto&& fot, auto&& ...ini)
 			{
-				using index = analyzer_t<adapter_type, decltype(fot) && , decltype(ini) && ...>;
-				return Assistant::auto_adapter_execute(index(), std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...);
+				using index = typename Implement::analyze_implement<adapter_type, decltype(fot) && , decltype(ini) && ...>::type;
+				return Implement::auto_adapter_implement(index(), std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...);
 			},
 					std::forward<func_object>(fo), std::forward<input>(in)...
 				);
 		}
 
-		template<typename target, typename adapter_type, typename fun_obj, typename ...input> decltype(auto) auto_adapt_bind_function(fun_obj&& fo, input&&... in)
+		template<typename target, typename adapter_type, typename fun_obj, typename ...input> decltype(auto) auto_bind_function(fun_obj&& fo, input&&... in)
 		{
 			static_assert(!std::is_member_function_pointer<fun_obj>::value || sizeof...(input) >= 1, "PO::Mail::Assistant::mail_create_funtion_ptr_execute need a ref of the owner of the member function");
 
-			return statement_if<!std::is_member_function_pointer<fun_obj>::value && sizeof...(input) == 0 && is_callable<fun_obj, input...>::value >
+			return statement_if<!std::is_member_function_pointer<fun_obj>::value && sizeof...(input) == 0 && Tmp::is_callable<fun_obj, input...>::value >
 				(
 					[](auto&& fun_obj)
 			{
@@ -47,7 +130,6 @@ namespace PO
 					std::forward<fun_obj>(fo), std::forward<input>(in)...
 					);
 		}
-
 
 
 

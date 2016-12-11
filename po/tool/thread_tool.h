@@ -230,7 +230,7 @@ namespace PO
 
 				mail_ts_base(const completeness_ref& r) :self_ref(r) {}
 
-				struct receiption_implement : mail_receiption_base
+				struct receiption_implement //: mail_receiption_base
 				{
 					completeness_ref ref;
 					operator bool() const { return ref; }
