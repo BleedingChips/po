@@ -75,7 +75,7 @@ namespace PO
 				{
 					if (!( (event_function && event_function(*ev)) || t(*ev)))
 					{
-						if (ev->is_quit())
+						if ((*ev).is_quit())
 							available = false;
 						else
 							throw_win32_form_event(wfi, *ev);

@@ -383,15 +383,15 @@ namespace PO
 					mapping{}(index,
 						[&, this](auto ptr)
 				{
-					using type = typename decltype(ptr)::type;
+					using type = typename decltype(ptr)::type::original_t;
 					Implement::variant_destructor<type>(data);
 				}, []() {});
 				if (v.index != 0)
 					mapping{}(v.index,
 						[&, this](auto ptr)
 				{
-					using type = typename decltype(ptr)::type;
-					Implement::variant_constructor<type>(data, std::move(v).template cast<type>())
+					using type = typename decltype(ptr)::type::original_t;
+					Implement::variant_constructor<type>(data, std::move(v).template cast<type>());
 				}, []() {});
 				index = v.index;
 				return *this;
@@ -418,175 +418,6 @@ namespace PO
 				index = type_index::value;
 				return *this;
 			}
-			/*
-			template<typename K, typename = std::enable_if_t<std::is_same<std::remove_const_t<std::remove_reference_t<K>>, variant>::value >>
-			variant(K&& v) : index(v.index)
-			{
-				if (index != 0)
-					cons_mapping{}(index, data, std::forward<K>(v));
-			}
-
-			template<typename ...K>
-			variant(K&& ...t) : index(
-				construction_type<K...>::type::value
-			)
-			{
-				static_assert(construction_type<K...>::type::value != 0, "not avalible type construct form this");
-				statement_if<construction_type<K...>::type::value != 0>
-					(
-						[&, this](auto ind, auto&& ...input)
-				{
-					using type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<decltype(ind)::value - 1>, TmpCall::self_t>;
-					new (data) type{ std::forward<decltype(input)&&>(input)... };
-				}
-						)(
-							typename construction_type<K...>::type{}, std::forward<K>(t)...
-							);
-			}
-			variant() : index(0) { }
-
-			size_t get_index() const { return index; }
-
-			~variant()
-			{
-				if( index!=0 )
-					dest_mapping()(index, data);
-			}
-
-			variant& operator=(variant&& v)
-			{
-				if (index != 0)
-				{
-					if (index == v.index)
-					{
-						equal_mapping{}(index, data, std::move(v));
-						return *this;
-					}
-					dest_mapping{}(index, data);
-					index = 0;
-				}
-				if (v.index != 0)
-				{
-					cons_mapping{}(v.index, data, std::move(v));
-					index = v.index;
-				}
-				return *this;
-			}
-
-			variant& operator=(const variant& v)
-			{
-				if (index != 0)
-				{
-					if (index == v.index)
-					{
-						equal_mapping{}(index, data, v);
-						return *this;
-					}
-					dest_mapping{}(index, data);
-					index = 0;
-				}
-				if (v.index != 0)
-				{
-					cons_mapping{}(v.index, data, v);
-					index = v.index;
-				}
-				return *this;
-			}
-
-			template<typename K>
-			variant& operator= (K&& k)
-			{
-				using pure_type = std::remove_reference_t<std::remove_const_t<K>>;
-				using type = typename construction_type<pure_type>::type;
-				static_assert(type::value != 0, "variant can not cast to unbinded type.");
-				using target_type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<type::value - 1>, TmpCall::self_t>;
-				if (index == type::value)
-				{
-					statement_if<Implement::able_assignment<target_type, pure_type>::value>
-						(
-							[&,this](auto ptr) {
-						reinterpret_cast<decltype(ptr)>(data)->operator=(std::forward<K>(k));
-					},
-							[&,this](auto ptr) {
-						using ttype = decltype(*ptr);
-						reinterpret_cast<ttype*>(data)->~type();
-						new (data) ttype(std::forward<AT>(at).template cast<ttype>());
-					},
-						static_cast<target_type*>(nullptr);
-						);
-				}
-				else {
-					if(index != 0)
-						dest_mapping()(index, data);
-					new (data) target_type(std::forward<K>(k));
-					index = type::value;
-				}
-				return *this;
-			}
-
-			template<typename P> bool able_cast() const noexcept
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				return index == same_type<P>::type::value;
-			}
-
-			template<typename P> P& cast() &
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = same_type<P>::type::value;
-				if (value != index)
-				{
-					throw Error::tool_exeception("variant now are not this type");
-				}
-				return *reinterpret_cast<P*>(data);
-			}
-
-			
-			template<typename P> const P& cast() const&
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = same_type<P>::type::value;
-				if (value != index)
-				{
-					throw Error::tool_exeception("variant now are not this type");
-				}
-				return *reinterpret_cast<const P*>(data);
-			}
-
-			template<typename P> P&& cast() &&
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = same_type<P>::type::value;
-				if (value != index)
-				{
-					throw Error::tool_exeception("variant now are not this type");
-				}
-				return std::move(*reinterpret_cast<P*>(data));
-			}
-
-
-			template<typename P> P* cast_pointer() noexcept
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = same_type<P>::type::value;
-				if (value != index)
-				{
-					return nullptr;
-				}
-				return reinterpret_cast<P*>(data);
-			}
-
-			template<typename P> const P* cast_pointer() const noexcept
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				constexpr size_t value = same_type<P>::type::value;
-				if (value != index)
-				{
-					return nullptr;
-				}
-				return reinterpret_cast<const P*>(data);
-			}
-			*/
 		};
 		
 		template<> class variant<>
@@ -605,7 +436,6 @@ namespace PO
 		{
 		public:
 			T& operator*() { return variant<T>::template cast<T>(); }
-			T* operator->() noexcept { return variant<T>::template cast_pointer<T>(); }
 			const T& operator*() const { return variant<T>::template cast<T>(); }
 			const T* operator->() const noexcept { return variant<T>::template cast_pointer<T>(); }
 			operator bool() const noexcept { return variant<T>::template able_cast<T>(); }
@@ -640,10 +470,58 @@ namespace PO
 			}
 		};
 
-		template<typename state_type, typename fun> struct enum_state_machina
+		namespace Implement
 		{
-			std::unordered_map<state_type, std::unordered_map<state_type, std::function<fun>>> data;
+			struct any_interface
+			{
+				virtual ~any_interface() {}
+				virtual const type_info& info() const = 0;
+			};
 
+			template<typename T>
+			struct any_implement : public T
+			{
+				template<typename ...AT> any_implement(AT&& ...at) : T(std::forward<AT>(at)...) {}
+				virtual const type_info& info() const
+				{
+					return typeid(T);
+				}
+			};
+
+			template<>
+			struct any_implement<void>
+			{
+				template<typename ...AT> any_implement(AT&& ...at) : T(std::forward<AT>(at)...) {}
+				virtual const type_info& info() const
+				{
+					return typeid(void);
+				}
+			};
+
+			template<typename T> void any_destruction(void* data) { reinterpret_cast<T*>(data)->~T(); }
+		}
+
+		
+		template<typename T = std::allocator<char>>
+		class any
+		{
+			std::vector<char, T> Data;
+			std::reference_wrapper<const type_info> info;
+			void(*destruct_func)(void*);
+		public:
+			any() : info(typeid(void)), destruct_func(nullptr) {}
+			operator bool() const { return info != typeid(void); }
+			~any()
+			{
+				if (destruct_func != nullptr)
+				{
+					destruct_func(Data.data());
+				}
+			}
+			/*
+			template<typename T>
+			any(T&& t) : info(typeid(std::remove_reference<T>))
+			*/
 		};
 
 	}

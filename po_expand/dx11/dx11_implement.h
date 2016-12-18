@@ -1,6 +1,8 @@
 #pragma once
 #include "../win32/win32_implement.h"
 #include "../dxgi/dxgi.h"
+#include <DirectXMath.h>
+#include <DirectXMathVector.inl>
 #include <d3d11.h>
 #pragma comment(lib,"d3d11.lib")
 

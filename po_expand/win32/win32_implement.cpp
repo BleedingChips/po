@@ -7,7 +7,7 @@
 namespace
 {
 	const char16_t static_class_name[] = u"po_frame_window_class2";
-
+	//WM_TOUCH
 	std::unordered_map<WPARAM, PO::KeyValue> virtual_key_map = 
 	{
 		{ VK_SPACE, PO::KeyValue::K_SPACE },
