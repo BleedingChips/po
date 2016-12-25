@@ -179,7 +179,7 @@ namespace PO
 			template<typename type, typename store>
 			void variant_destructor(store& s) noexcept
 			{
-				reinterpret_cast<type*>(s.data())->~type();
+				reinterpret_cast<type*>(&s)->~type();
 			}
 
 			template<typename type, typename store, typename ...AK>
@@ -190,7 +190,7 @@ namespace PO
 						[&](auto ptr, auto&& ...pa)
 				{
 					using type = typename decltype(ptr)::type;
-					new (s.data()) type{ std::forward<decltype(pa)&&>(pa)... };
+					new (&s) type{ std::forward<decltype(pa)&&>(pa)... };
 					return true;
 				},
 						[&](auto ptr, auto&& ...pa)
@@ -209,7 +209,7 @@ namespace PO
 						[&](auto ptr)
 				{
 					using type_t = typename decltype(ptr)::type;
-					reinterpret_cast<type_t*>(s.data())->operator=(std::forward<K>(k));
+					reinterpret_cast<type_t*>(&s)->operator=(std::forward<K>(k));
 					return true;
 				},
 						[&](auto ptr)
@@ -252,7 +252,7 @@ namespace PO
 				>;
 			};
 
-			std::array<char, size_index::value> data;
+			typename std::aligned_union<1, T...>::type data;
 
 			std::conditional_t< (sizeof...(T)+1 <= 255), uint8_t, std::conditional_t< (sizeof...(T)+1 <= 65535), uint16_t, std::conditional_t< (sizeof...(T)+1 <= 4294967295), uint32_t, uint64_t > > > index;
 
@@ -298,21 +298,21 @@ namespace PO
 			{
 				if (!this->template able_cast<P>())
 					throw Error::tool_exeception("variant now are not this type");
-				return *reinterpret_cast<P*>(data.data());
+				return *reinterpret_cast<P*>(&data);
 			}
 
 			template<typename P> const P& cast() const&
 			{
 				if (!this->template able_cast<P>())
 					throw Error::tool_exeception("variant now are not this type");
-				return *reinterpret_cast<const P*>(data.data());
+				return *reinterpret_cast<const P*>(&data);
 			}
 
 			template<typename P> P&& cast() &&
 			{
 				if (!this->template able_cast<P>())
 					throw Error::tool_exeception("variant now are not this type");
-				return std::move(*reinterpret_cast<P*>(data.data()));
+				return std::move(*reinterpret_cast<P*>(&data));
 			}
 
 			variant() noexcept : index(0){}
@@ -474,54 +474,96 @@ namespace PO
 		{
 			struct any_interface
 			{
+				const std::type_info& info;
 				virtual ~any_interface() {}
-				virtual const type_info& info() const = 0;
+				any_interface(const std::type_info& ti) :info(ti) {}
+			};
+
+			template<typename T> struct any_implement_without_aligned : public any_interface, public T
+			{
+				template<typename ...AT> any_implement_without_aligned(AT&& ...at) : any_interface(typeid(T)), T(std::forward<AT>(at)...) {}
 			};
 
 			template<typename T>
-			struct any_implement : public T
+			struct alignas(std::alignment_of<T>::value) any_implement_aligned : public any_interface, public T
 			{
-				template<typename ...AT> any_implement(AT&& ...at) : T(std::forward<AT>(at)...) {}
-				virtual const type_info& info() const
-				{
-					return typeid(T);
-				}
+				template<typename ...AT> any_implement_aligned(AT&& ...at) : any_interface(typeid(T)), T(std::forward<AT>(at)...) {}
 			};
 
-			template<>
-			struct any_implement<void>
-			{
-				template<typename ...AT> any_implement(AT&& ...at) : T(std::forward<AT>(at)...) {}
-				virtual const type_info& info() const
-				{
-					return typeid(void);
-				}
-			};
-
-			template<typename T> void any_destruction(void* data) { reinterpret_cast<T*>(data)->~T(); }
+			template<typename T> using any_implement = typename std::conditional_t< std::alignment_of<T>::value <= 4, Tmp::instant<any_implement_without_aligned>, Tmp::instant<any_implement_aligned>>::template in_t<T>;
 		}
 
-		
-		template<typename T = std::allocator<char>>
+		//to do in c++ 17 : may be change to std::aligned_alloc or operator new (size_t ,.aligned)
+
 		class any
 		{
-			std::vector<char, T> Data;
-			std::reference_wrapper<const type_info> info;
-			void(*destruct_func)(void*);
+			void* buffer = nullptr;
+			size_t buffer_size = 0;
+			Implement::any_interface* pointer = nullptr;
+
+			template<typename T> auto realloc()
+			{
+				if (pointer != nullptr)
+					pointer->~any_interface();
+				size_t require_size = std::alignment_of<T>::value + sizeof(T) - 1;
+				if (require_size > buffer_size)
+				{
+					std::free(buffer);
+					buffer = std::malloc(require_size);
+					if (buffer == nullptr)
+						throw std::bad_alloc{};
+					buffer_size = require_size;
+				}
+				T* ptr = reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(buffer) + std::alignment_of<T>::value - 1) & ~(std::alignment_of<T>::value - 1));
+				return ptr;
+			}
+
 		public:
-			any() : info(typeid(void)), destruct_func(nullptr) {}
-			operator bool() const { return info != typeid(void); }
 			~any()
 			{
-				if (destruct_func != nullptr)
-				{
-					destruct_func(Data.data());
-				}
+				if (pointer != nullptr)
+					pointer->~any_interface();
+				std::free(buffer);
 			}
-			/*
-			template<typename T>
-			any(T&& t) : info(typeid(std::remove_reference<T>))
-			*/
+			any() {}
+			any(any&& a) : buffer(a.buffer), buffer_size(a.buffer_size), pointer(a.pointer)
+			{
+				a.buffer = nullptr;
+				a.pointer = nullptr;
+				a.buffer_size = 0;
+			}
+			any(const any&) = delete;
+
+			template<typename T> any(T&& t)
+			{
+				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
+				any_type* ptr = realloc<any_type>();
+				new (ptr) any_type{ std::forward<T>(t) };
+			}
+
+			any& operator=(any&& a)
+			{
+				any Tem(std::move(a));
+				if (pointer != nullptr)
+					pointer->~any_interface();
+				std::free(buffer);
+				buffer = Tem.buffer;
+				pointer = Tem.pointer;
+				buffer_size = Tem.buffer_size;
+				Tem.buffer = nullptr;
+				Tem.buffer_size = 0;
+				Tem.pointer = nullptr;
+				return *this; 
+			}
+			any& operator=(const any&) = delete;
+			template<typename T> auto& operator=(T&& t)
+			{
+				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
+				any_type* ptr = realloc<any_type>();
+				new (ptr) any_type{ std::forward<T>(t) };
+				return *this;
+			}
+			
 		};
 
 	}

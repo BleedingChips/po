@@ -40,6 +40,18 @@ namespace PO
 		}
 	};
 
+	class event_touch
+	{
+	
+	public:
+	};
+
+
+
+
+
+
+
 	enum class EventType : std::int8_t
 	{
 		E_CLICK,

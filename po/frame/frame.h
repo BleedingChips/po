@@ -461,7 +461,7 @@ namespace PO
 			}
 		};
 
-		template<typename frame_type> class form_packet : public frame<frame_type>
+		template<typename frame_type> class alignas(std::alignment_of<frame<frame_type>>::value) form_packet : public frame<frame_type>
 		{
 			plugin_append all_plugin;
 
