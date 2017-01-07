@@ -117,17 +117,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\dx11\dx11_implement.cpp" />
+    <ClCompile Include="..\dx11\dx11_form.cpp" />
     <ClCompile Include="..\dxgi\dxgi.cpp" />
-    <ClCompile Include="..\win32\win32_implement.cpp" />
+    <ClCompile Include="..\win32\translate.cpp" />
+    <ClCompile Include="..\win32\win32_form.cpp" />
+    <ClCompile Include="..\win32\win32_log.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\dx11\dx11_implement.h" />
-    <ClInclude Include="..\dx11\dx11_interface.h" />
+    <ClInclude Include="..\dx11\dx11_form.h" />
     <ClInclude Include="..\dxgi\dxgi.h" />
     <ClInclude Include="..\po_expand.h" />
-    <ClInclude Include="..\win32\win32_implement.h" />
-    <ClInclude Include="..\win32\win32_interface.h" />
+    <ClInclude Include="..\win32\translate.h" />
+    <ClInclude Include="..\win32\win32_form.h" />
+    <ClInclude Include="..\win32\win32_log.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

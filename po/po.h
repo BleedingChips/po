@@ -67,9 +67,35 @@ viewer's life time is same as form.
 
 namespace PO
 {
+	class context
+	{
 
+		std::mutex this_form_mutex;
+		std::deque<std::unique_ptr<Implement::form_ptr>> this_form;
+
+	public:
+
+		void wait_all_form_close();
+
+		context();
+		~context();
+		void set_form(std::unique_ptr<Implement::form_ptr>&& fp)
+		{
+			std::lock_guard<decltype(this_form_mutex)> ld(this_form_mutex);
+			this_form.push_back(std::move(fp));
+		}
+		void detach();
+		template<typename frame_type, typename ...AK> auto create_window(AK&& ...ak)
+		{
+			using Ass = Implement::frame_assert<frame_type>;
+			std::unique_ptr<Implement::form_ptr> tem = std::make_unique<Implement::form_ptr>();
+			Implement::form_ptr& ptr = *tem;
+			set_form(std::move(tem));
+			return ptr.create_window<frame_type>(std::forward<AK>(ak)...);
+		}
+	};
 }
-
+/*
 namespace PO
 {
 	using self_control = Assistant::self_control;
@@ -123,4 +149,4 @@ namespace PO
 		}
 	};
 	
-}
+}*/

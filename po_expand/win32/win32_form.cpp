@@ -1,4 +1,4 @@
-#include "win32_implement.h"
+#include "win32_form.h"
 #include <future>
 #include <functional>
 #include <map>
@@ -8,7 +8,7 @@ namespace
 {
 	const char16_t static_class_name[] = u"po_frame_window_class2";
 	//WM_TOUCH
-	std::unordered_map<WPARAM, PO::KeyValue> virtual_key_map = 
+	std::unordered_map<WPARAM, PO::KeyValue> virtual_key_map =
 	{
 		{ VK_SPACE, PO::KeyValue::K_SPACE },
 		{ VK_F1, PO::KeyValue::K_F1 },
@@ -24,7 +24,7 @@ namespace
 		{ VK_F11, PO::KeyValue::K_F11 },
 		{ VK_F12, PO::KeyValue::K_F12 },
 		{ VK_BACK, PO::KeyValue::K_BACKSPACE },
-		{ VK_RETURN, PO::KeyValue::K_ENTER},
+		{ VK_RETURN, PO::KeyValue::K_ENTER },
 		{ VK_TAB, PO::KeyValue::K_TAP },
 		{ VK_LEFT, PO::KeyValue::K_ARROW_LEFT },
 		{ VK_UP, PO::KeyValue::K_ARROW_UP },
@@ -54,7 +54,7 @@ namespace
 #undef VK_RO_KV
 	};
 
-	PO::KeyValue translate_key_para_to_key_value(WPARAM w , LPARAM l)
+	PO::KeyValue translate_key_para_to_key_value(WPARAM w, LPARAM l)
 	{
 		auto ptr = virtual_key_map.find(w);
 		if (ptr != virtual_key_map.end())
@@ -91,7 +91,7 @@ namespace
 	{
 		std::function<PO::event(WPARAM wParam, LPARAM lParam)> translate_event;
 		std::function<HRESULT(WPARAM wParam, LPARAM lParam)> responded_event;
-		event_handle_struct(std::function<PO::event(WPARAM wParam, LPARAM lParam)>&& t) : translate_event(std::move(t)), responded_event(default_hande_event){}
+		event_handle_struct(std::function<PO::event(WPARAM wParam, LPARAM lParam)>&& t) : translate_event(std::move(t)), responded_event(default_hande_event) {}
 		event_handle_struct(std::function<PO::event(WPARAM wParam, LPARAM lParam)>&& t, std::function<HRESULT(WPARAM wParam, LPARAM lParam)>&& p) : translate_event(std::move(t)), responded_event(std::move(p)) {}
 		event_handle_struct(const event_handle_struct&) = default;
 		event_handle_struct(event_handle_struct&&) = default;
@@ -104,57 +104,57 @@ namespace
 
 	const std::unordered_map<UINT, event_handle_struct > handled_event_filter =
 	{
-		{ WM_CLOSE, 
+		{ WM_CLOSE,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
 		return PO::event{PO::EventType::E_CLOSE};
-	}}
+	} }
 		},
-		{ WM_MOUSEMOVE, 
+		{ WM_MOUSEMOVE,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
-		return PO::event{PO::move_type {PO::EventType::E_MOVE, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam))}};
-	}}
+		return PO::event{PO::move_type{ PO::EventType::E_MOVE, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
 		},
-		{ WM_LBUTTONUP, 
+		{ WM_LBUTTONUP,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
-		return PO::event{PO::click_type {PO::EventType::E_CLICK, PO::ButtonState::BS_UP,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_LBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam))}};
-	}}
+		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_UP,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_LBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
 		},
-		{ WM_MBUTTONUP, 
+		{ WM_MBUTTONUP,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
-		return PO::event{PO::click_type { PO::EventType::E_CLICK, PO::ButtonState::BS_UP,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_MBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
-	}} 
+		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_UP,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_MBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
 		},
-		{ WM_RBUTTONUP, 
-		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) { 
+		{ WM_RBUTTONUP,
+		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
 		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_UP,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_RBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
-	}} 
+	} }
 		},
-		{ WM_LBUTTONDOWN, 
-		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) { 
-		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_LBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
-	}}
-		},
-		{ WM_MBUTTONDOWN, 
-		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) { 
-		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_MBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
-	}}
-		},
-		{ WM_RBUTTONDOWN, 
+		{ WM_LBUTTONDOWN,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
-		return PO::event{PO::click_type { PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_RBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
-	}}
+		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_LBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
 		},
-		{ WM_KEYDOWN, 
-		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) { 
+		{ WM_MBUTTONDOWN,
+		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
+		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_MBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
+		},
+		{ WM_RBUTTONDOWN,
+		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
+		return PO::event{PO::click_type{ PO::EventType::E_CLICK, PO::ButtonState::BS_DOWN,  static_cast<PO::KeyState>((wParam & (MK_CONTROL | MK_SHIFT)) >> 2), PO::KeyValue::K_RBUTTON, static_cast<int16_t>(LOWORD(lParam)), static_cast<int16_t>(HIWORD(lParam)) }};
+	} }
+		},
+		{ WM_KEYDOWN,
+		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
 		auto kv = translate_key_para_to_key_value(wParam, lParam);
 		return PO::event{PO::key_type{ PO::EventType::E_KEY, PO::ButtonState::BS_DOWN,  kv, translate_key_value_to_asc_char_pair(kv, key_state_upper()) }};
-	}}
+	} }
 		},
-		{ WM_KEYUP, 
-		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) { 
+		{ WM_KEYUP,
+		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
 		auto kv = translate_key_para_to_key_value(wParam, lParam);
 		return PO::event{PO::key_type{ PO::EventType::E_KEY, PO::ButtonState::BS_UP,  kv, translate_key_value_to_asc_char_pair(kv, key_state_upper()) }};
-	}}
+	} }
 		},
 		{ WM_SYSKEYDOWN,
 		event_handle_struct{ [](WPARAM wParam, LPARAM lParam) {
@@ -181,7 +181,7 @@ namespace
 		{
 			return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
 		}
-		PO::Interface::win32_form_implement* ptr = reinterpret_cast<PO::Interface::win32_form_implement*> (GetWindowLongW(hWnd, GWL_USERDATA));
+		PO::Win32::win32_form* ptr = reinterpret_cast<PO::Win32::win32_form*> (GetWindowLongW(hWnd, GWL_USERDATA));
 		if (ptr != nullptr)
 		{
 			auto ite = handled_event_filter.find(msg);
@@ -216,8 +216,8 @@ namespace
 	};
 
 	HRESULT create_window(
-		const PO::Interface::win32_initial_implement& wi,
-		PO::Interface::win32_form_implement* ptr
+		const PO::Win32::win32_initial& wi,
+		PO::Win32::win32_form* ptr
 	)
 	{
 		static static_class_init_struct scis;
@@ -285,8 +285,8 @@ namespace
 		}
 
 		HRESULT create(
-			const PO::Interface::win32_initial_implement& wi,
-			PO::Interface::win32_form_implement* ptr)
+			const PO::Win32::win32_initial& wi,
+			PO::Win32::win32_form* ptr)
 		{
 			std::unique_lock<decltype(ref_mutex)> ul(ref_mutex);
 			++ref;
@@ -297,7 +297,7 @@ namespace
 					event_thread.join();
 				event_thread = std::thread([this]() {this->main_thread(); });
 			}
-			
+
 			cv.wait(ul, [this]() {return !static_cast<bool>(delegate_function); });
 			std::promise<HRESULT> pro;
 			auto fur = pro.get_future();
@@ -360,70 +360,35 @@ namespace
 
 namespace PO
 {
-
-	namespace Interface
+	namespace Win32
 	{
-		Tool::optional<std::string> init_win32_initial_implement(win32_initial_implement*& wfi) noexcept
+		win32_form::win32_form(form_self& fs, const win32_initial& wi)
 		{
-			try {
-				wfi = new win32_initial_implement;
-				return{};
-			}
-			catch (const std::exception& ec)
-			{
-				return{std::string(__FUNCTION__) + " : " + ec.what()};
-			}
-			catch (...)
-			{
-				return{ "unknow exception" };
-			}
+			Error::fail_throw(manager.create(wi, this));
 		}
-		void dest_win32_initial_implement(win32_initial_implement*& wfi) noexcept
+
+		win32_form::win32_form(const win32_initial& wi)
 		{
-			delete wfi;
-			wfi = nullptr;
+			Error::fail_throw(manager.create(wi, this));
 		}
-		Tool::optional<std::string> init_win32_form_implement(win32_form_implement*& wfi, win32_initial_implement* wii) noexcept
+
+		win32_form::~win32_form()
 		{
-			try
-			{
-				wfi = new win32_form_implement;
-				Error::fail_throw(manager.create(*wii, wfi), [&]() {delete wfi; });
-				return{};
-			}
-			catch (std::exception& ec)
-			{
-				return{ std::string(__FUNCTION__) + " : " + ec.what() };
-			}
-			//return SUCCEEDED(manager.create(*wii, wfi));
+			manager.destory(raw_handle);
 		}
-		void dest_win32_form_implement(win32_form_implement*& wfi) noexcept
+
+		void win32_form::form_tick_implement(form_self& fs)
 		{
-			manager.destory(wfi->raw_handle);
-		}
-		Tool::optional<event> pick_win32_form_event(win32_form_implement* wfi) noexcept
-		{
-			std::lock_guard<decltype(wfi->input_mutex)> lg(wfi->input_mutex);
-			if (!wfi->input_event.empty())
+			decltype(input_event) tem;
 			{
-				event ev = *(wfi->input_event.begin());
-				wfi->input_event.pop_front();
-				return{ev};
+				std::lock_guard<std::mutex> da(input_mutex);
+				std::swap(std::move(tem), std::move(input_event));
 			}
-			for (auto& po : wfi->output_event)
+			for (auto& iu : tem)
 			{
-				UINT msg; WPARAM wParam; LPARAM lParam;
-				if (translate_event_to_massage(po, msg, wParam, lParam))
-				{
-					SendMessageW(wfi->raw_handle, msg + WM_USER, wParam, lParam);
-				}
+				if (iu.is_quit())
+					fs.close();
 			}
-			wfi->output_event.clear();
-			return{};
-		}
-		void throw_win32_form_event(win32_form_implement* wfi, const event& ev) noexcept
-		{
-			wfi->output_event.push_back(ev);
 		}
 	}
 }

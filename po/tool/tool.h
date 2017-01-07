@@ -161,7 +161,7 @@ namespace PO
 			{
 				template<typename T, typename L> bool operator()(T t, L l)
 				{
-					return T::type::label_t::value == l;
+					return Tmp::type_extract_t<T>::label_t::value == l;
 				}
 			};
 
@@ -169,7 +169,7 @@ namespace PO
 			{
 				template<typename T, typename L> bool operator()(T t, L l)
 				{
-					return l < T::type::label_t::value;
+					return l < Tmp::type_extract_t<T>::label_t::value;
 				}
 			};
 
@@ -189,7 +189,7 @@ namespace PO
 					(
 						[&](auto ptr, auto&& ...pa)
 				{
-					using type = typename decltype(ptr)::type;
+					using type = Tmp::type_extract_t<decltype(ptr)>;
 					new (&s) type{ std::forward<decltype(pa)&&>(pa)... };
 					return true;
 				},
@@ -208,15 +208,15 @@ namespace PO
 					(
 						[&](auto ptr)
 				{
-					using type_t = typename decltype(ptr)::type;
-					reinterpret_cast<type_t*>(&s)->operator=(std::forward<K>(k));
+					using type = Tmp::type_extract_t<decltype(ptr)>;
+					reinterpret_cast<type*>(&s)->operator=(std::forward<K>(k));
 					return true;
 				},
 						[&](auto ptr)
 				{
-					using type_t = typename decltype(ptr)::type;
-					variant_destructor<type_t>(s);
-					return variant_constructor<type_t>(s, std::forward<K>(k));
+					using type = Tmp::type_extract_t<decltype(ptr)>;
+					variant_destructor<type>(s);
+					return variant_constructor<type>(s, std::forward<K>(k));
 				},
 					Tmp::itself<type>()
 					);
@@ -227,6 +227,8 @@ namespace PO
 		template<typename ...T> class variant
 		{
 			static_assert(!Tmp::is_repeat<T...>::value, "type of variant can not repeat");
+			using void_index = TmpCall::call<TmpCall::in_t<T...>, TmpCall::localizer_t<0, Tmp::instant<std::is_same, void>::template in_t>, TmpCall::bind_i<Tmp::set_i>, TmpCall::self_t>;
+			static_assert(std::is_same<void_index, Tmp::set_i<>>::value, "varient can not include void");
 
 			using mapping = TmpCall::call< TmpCall::in_t<T...>, TmpCall::label_serial_t<1>, make_static_mapping< Implement::variant_type_index_equal, Implement::variant_type_index_less > >;
 
@@ -264,7 +266,7 @@ namespace PO
 						v.index,
 						[&v, this](auto self)
 				{
-					using type = typename decltype(self)::type::original_t;
+					using type = typename Tmp::type_extract_t<decltype(self)>::original_t;
 					if(!Implement::variant_constructor<type>(data, std::forward<K>(v).template cast<type>()))
 						throw Error::tool_exeception("this kind of type can not construct form itself");
 				},
@@ -325,7 +327,7 @@ namespace PO
 			~variant()
 			{
 				if (index != 0)
-					mapping{}(index, [this](auto ptr) { using type = typename decltype(ptr)::type::original_t; Implement::variant_destructor<type>(data); }, []() {});
+					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t; Implement::variant_destructor<type>(data); }, []() {});
 			}
 
 			
@@ -337,7 +339,7 @@ namespace PO
 					mapping{}(index, 
 						[&, this](auto ptr)
 					{
-						using type = typename decltype(ptr)::type::original_t;
+						using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
 						if(!Implement::variant_assignment<type>(data, v.template cast<type>()))
 							throw Error::tool_exeception("unable to assignment");
 					},
@@ -357,7 +359,7 @@ namespace PO
 						[&, this](auto ptr) 
 				{ 
 					using type = typename decltype(ptr)::type;
-					Implement::variant_constructor<type>(data, v.template cast<type>())
+					Implement::variant_constructor<type>(data, v.template cast<type>());
 				}, []() {});
 				index = v.index;
 				return *this;
@@ -371,7 +373,7 @@ namespace PO
 					mapping{}(index,
 						[&, this](auto ptr)
 					{
-						using type = typename decltype(ptr)::type::original_t;
+						using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
 						if (!Implement::variant_assignment<type>(data, std::move(v).template cast<type>()))
 							throw Error::tool_exeception("unable to assignment");
 					},
@@ -383,14 +385,14 @@ namespace PO
 					mapping{}(index,
 						[&, this](auto ptr)
 				{
-					using type = typename decltype(ptr)::type::original_t;
+					using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
 					Implement::variant_destructor<type>(data);
 				}, []() {});
 				if (v.index != 0)
 					mapping{}(v.index,
 						[&, this](auto ptr)
 				{
-					using type = typename decltype(ptr)::type::original_t;
+					using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
 					Implement::variant_constructor<type>(data, std::move(v).template cast<type>());
 				}, []() {});
 				index = v.index;
@@ -413,7 +415,7 @@ namespace PO
 					return *this;
 				}
 				if (index != 0)
-					mapping{}(index, [this](auto ptr) {Implement::variant_destructor<typename decltype(ptr)::type>(data); }, []() {});
+					mapping{}(index, [this](auto ptr) {Implement::variant_destructor<Tmp::type_extract_t<decltype(ptr)>>(data); }, []() {});
 				Implement::variant_constructor<type>(data, std::forward<K>(k));
 				index = type_index::value;
 				return *this;
@@ -438,7 +440,7 @@ namespace PO
 			T& operator*() { return variant<T>::template cast<T>(); }
 			const T& operator*() const { return variant<T>::template cast<T>(); }
 			const T* operator->() const noexcept { return variant<T>::template cast_pointer<T>(); }
-			operator bool() const noexcept { return variant<T>::template able_cast<T>(); }
+			operator bool() const noexcept { return variant<T>::operator bool(); }
 
 			template<typename K>
 			optional& operator= (K&& ap) { variant<T>::operator=(std::forward<K>(ap)); return *this; }
@@ -519,6 +521,9 @@ namespace PO
 			}
 
 		public:
+			operator bool() const noexcept {
+				return pointer != nullptr;
+			}
 			~any()
 			{
 				if (pointer != nullptr)
@@ -532,6 +537,14 @@ namespace PO
 				a.pointer = nullptr;
 				a.buffer_size = 0;
 			}
+			template<typename T, typename ...AT>
+			any(Tmp::itself<T>, AT&&... at)
+			{
+				using any_type = Implement::any_implement<Tmp::pure_type<T>>;
+				any_type* ptr = realloc<any_type>();
+				new (ptr) any_type{ std::forward<AT>(at)... };
+				pointer = ptr;
+			}
 			any(const any&) = delete;
 
 			template<typename T> any(T&& t)
@@ -539,6 +552,20 @@ namespace PO
 				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
 				any_type* ptr = realloc<any_type>();
 				new (ptr) any_type{ std::forward<T>(t) };
+				pointer = ptr;
+			}
+
+			template<typename T> void reconstruct(T&& t)
+			{
+				this->operator=(std::forward<T>(t));
+			}
+
+			template<typename T, typename ...AT> void reconstruct(Tmp::itself<T>, AT&& ...at)
+			{
+				using any_type = Implement::any_implement<Tmp::pure_type<T>>;
+				any_type* ptr = realloc<any_type>();
+				new (ptr) any_type{ std::forward<AT>(at)... };
+				pointer = ptr;
 			}
 
 			any& operator=(any&& a)
@@ -555,16 +582,75 @@ namespace PO
 				Tem.pointer = nullptr;
 				return *this; 
 			}
+
 			any& operator=(const any&) = delete;
 			template<typename T> auto& operator=(T&& t)
 			{
 				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
 				any_type* ptr = realloc<any_type>();
 				new (ptr) any_type{ std::forward<T>(t) };
+				pointer = ptr;
 				return *this;
 			}
-			
+			template<typename T> bool able_cast() const noexcept
+			{
+				if (pointer != nullptr)
+					return pointer->info == typeid(T);
+				return false;
+			}
+			template<typename T> T& cast()& noexcept
+			{
+				return *(static_cast<Implement::any_implement<T>*>(pointer));
+			}
+			template<typename T> const T& cast() const& noexcept
+			{
+				return *(static_cast<Implement::any_implement<T>*>(pointer));
+			}
+			template<typename T> T&& cast() && noexcept
+			{
+				return *(static_cast<Implement::any_implement<T>*>(pointer));
+			}
 		};
 
-	}
+		template<typename T> class any_interface
+		{
+			any data;
+			Tmp::pure_type<T>* inter = nullptr;
+		public:
+			any_interface() {}
+			operator bool() const noexcept { return data; }
+			template<typename K> any_interface(K&& k) : data(std::forward<K>(k)), inter(&data.cast<Tmp::pure_type<K>>())
+			{
+				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
+			}
+			template<typename K, typename ...AT> any_interface(Tmp::itself<K> t, AT&& ...at) : data(t, std::forward<AT>(at)...), inter(&data.cast<Tmp::pure_type<K>>())
+			{
+				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
+			}
+			any_interface(any_interface&& ai) : data(std::move(ai.data)), inter(ai.inter)
+			{
+				ai.inter = nullptr;
+			}
+			template<typename K> any_interface(any_interface<K>&& ai) : data(std::move(ai.data)), inter(ai.inter)
+			{
+				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
+				ai.inter = nullptr;
+			}
+			Tmp::pure_type<T>* operator->() noexcept { return inter; }
+			Tmp::pure_type<T>& operator*() { return *inter; }
+			template<typename K, typename ...AT> void reconstruct(Tmp::itself<K> t, AT&& ...at)
+			{
+				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
+				data.reconstruct(t, std::forward<AT>(at)...);
+				inter = &data.cast<Tmp::pure_type<K>>();
+			}
+			template<typename K> void reconstruct(K&& k)
+			{
+				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
+				data.reconstruct(k);
+				inter = &data.cast<Tmp::pure_type<K>>();
+			}
+		};
+
+	} 
 }

@@ -188,28 +188,36 @@ namespace PO
 			}
 
 			template<typename T>
-			bool lock_if(T&& fun)
+			auto lock_if(T&& fun) -> Tool::optional<std::conditional_t<std::is_same<decltype(fun()),void>::value, Tmp::itself<void>, decltype(fun())>>
 			{
 				if (operator bool() && data->add_read_ref())
 				{
 					//Tool::destructor de([this]() {data->del_read_ref(); });
 					at_scope_exit ase([this]() {data->del_read_ref(); });
-					fun();
-					return true;
+					return statement_if<std::is_same<decltype(fun()), void>::value>
+						(
+							[](auto& f) { f(); return Tmp::itself<void>{}; },
+							[](auto& f) {return f(); },
+							fun
+							);
 				}
-				return false;
+				return {};
 			}
 			template<typename T>
-			bool try_lock_if(T&& fun)
+			auto try_lock_if(T&& fun) ->Tool::optional<std::conditional_t<std::is_same<decltype(fun()), void>::value, Tmp::itself<void>, decltype(fun())>>
 			{
 				if (operator bool() && data->try_add_read_ref())
 				{
 					//Tool::destructor de([this]() {data->del_read_ref(); });
 					at_scope_exit ase([this]() {data->del_read_ref(); });
-					fun();
-					return true;
+					return statement_if<std::is_same<decltype(fun()), void>::value>
+						(
+							[](auto& f) { f(); return Tmp::itself<void>{}; },
+							[](auto& f) {return f(); },
+							fun
+							);
 				}
-				return false;
+				return {};
 			}
 			~completeness_ref()
 			{

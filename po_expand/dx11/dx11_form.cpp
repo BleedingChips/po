@@ -1,4 +1,72 @@
-#include "dx11_implement.h"
+#include "dx11_form.h"
+
+namespace PO
+{
+	namespace Dx11
+	{
+		Dx11_form::Dx11_form(const Dx11_initial& di) : form()
+		{
+			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_0 };
+			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_0;
+			PO::Platform::Dxgi::swap_chain_desc swc(form.raw_handle);
+			HRESULT re = D3D11CreateDeviceAndSwapChain(
+				nullptr,
+				D3D_DRIVER_TYPE_HARDWARE,
+				nullptr,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT,
+				lel,
+				1,
+				D3D11_SDK_VERSION,
+				&swc,
+				&swap,
+				&dev,
+				&lel2,
+				&dc
+			);
+			Error::fail_throw(re);
+
+			Error::fail_throw(swap->GetBuffer(0,
+				__uuidof(ID3D11Texture2D),
+				(void **)&main_buffer));
+
+			D3D11_TEXTURE2D_DESC desc;
+			desc.Width = 1024;
+			desc.Height = 768;
+			desc.MipLevels = 1;
+			desc.ArraySize = 1;
+			desc.Format = DXGI_FORMAT_D32_FLOAT;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+			desc.Usage = D3D11_USAGE_DEFAULT;
+			desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = 0;
+			HRESULT hr = dev->CreateTexture2D(&desc,
+				0, &pDepthStencilBuffer);
+			hr = dev->CreateDepthStencilView(pDepthStencilBuffer,
+				0, &pDepthView);
+			dev->CreateRenderTargetView(main_buffer, 0, &pView);
+
+			ID3D11RenderTargetView* RenderTargetViews[1] = { pView };
+			ID3D11DepthStencilView* DepthTargetView = pDepthView;
+
+			dc->OMSetRenderTargets(1, RenderTargetViews, pDepthView);
+		}
+
+		void Dx11_form::form_tick_implement(duration da, form_self& fs) 
+		{ 
+			form.form_tick_implement(fs);
+			static float all_time = 0.0f;
+			all_time += da.count();
+			float a = abs(sin(all_time * 0.001f));
+			float a2 = abs(sin(all_time * 0.001f * 2));
+			float a3 = abs(sin(all_time * 0.001f * 3));
+			float color[4] = { a,a2,a3,1.0f };
+			dc->ClearRenderTargetView(pView, color);
+			swap->Present(0, 0);
+		}
+	}
+}
 
 
 
@@ -6,9 +74,7 @@
 
 
 
-
-
-
+/*
 namespace PO
 {
 	namespace Interface
@@ -153,3 +219,4 @@ namespace PO
 		}
 	}
 }
+*/

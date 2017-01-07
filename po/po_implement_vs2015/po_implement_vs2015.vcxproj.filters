@@ -56,14 +56,17 @@
     <ClInclude Include="..\tool\tool.h">
       <Filter>po\tool</Filter>
     </ClInclude>
-    <ClInclude Include="..\tool\type_tool.h">
-      <Filter>po\tool</Filter>
-    </ClInclude>
     <ClInclude Include="..\frame\define.h">
       <Filter>po\frame</Filter>
     </ClInclude>
     <ClInclude Include="..\frame\frame.h">
       <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\frame\event.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tool\tmp.h">
+      <Filter>po\tool</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

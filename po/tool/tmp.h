@@ -6,9 +6,19 @@ namespace PO
 {
 	namespace Tmp
 	{
-		template<typename ... t> struct set_t {};
-		template<size_t ... i> struct set_i {};
-		template<size_t i> struct set_i<i> : std::integral_constant<size_t, i> {};
+		template<typename T> T type_value();
+		template<typename ... t> struct set_t 
+		{
+			static constexpr size_t size = sizeof...(t);
+		};
+		template<size_t ... i> struct set_i 
+		{
+			static constexpr size_t size = sizeof...(i);
+		};
+		template<size_t i> struct set_i<i> : std::integral_constant<size_t, i> 
+		{
+			static constexpr size_t size = 1;
+		};
 		template<typename t, typename l> struct label
 		{
 			using label_t = l;
@@ -29,10 +39,26 @@ namespace PO
 		template<typename T, typename ...AT>
 		struct is_repeat <T, AT...> : std::conditional< is_one_of<T, AT...>::value, std::true_type, is_repeat < AT...>  >::type {};
 
-		template<typename T> struct itself
+		//to do std::in_place
+		template<typename T>
+		struct itself 
 		{
-			using type = T;
+			decltype(auto) operator() () { return *static_cast<T*>(nullptr); }
+			template<typename ...AT> struct in_t
+			{
+				using type = T;
+			};
 		};
+
+		namespace Implement
+		{
+			template<typename T> struct type_extract_implement;
+			template<typename T> struct type_extract_implement<itself<T>> { using type = T; };
+		}
+
+		template<typename T> using type_extract_t = typename Implement::type_extract_implement<T>::type;
+
+		template<typename T> using pure_type = std::remove_const_t<std::remove_reference_t<T>>;
 
 
 		/* instant */
@@ -81,7 +107,17 @@ namespace PO
 			template<typename ...i> using with = typename with_implement<i...>::type;
 		};
 
-		
+		namespace Implement
+		{
+			template<typename ...AT>
+			struct void_implement
+			{
+				using type = void;
+			};
+		}
+
+		template<typename ...AT> using void_t = typename Implement::void_implement<AT...>::type;
+
 		namespace Implement
 		{
 			struct static_map_illegal {};
@@ -124,6 +160,7 @@ namespace PO
 		
 
 		/*----- function_detect -----*/
+		/*
 		template<bool able_detect, typename ret, typename owner, typename ...parameter> struct funtion_type :std::integral_constant<bool, able_detect>
 		{
 			using return_type = ret;
@@ -184,7 +221,59 @@ namespace PO
 			using type = decltype(func<ft>(nullptr));
 		};
 		template<typename function_type> using funtion_obejct_extract_t = typename funtion_obejct_extract<function_type>::type;
+		*/
 
+		template<typename fun_type> struct pick_func;
+		template<typename ret, typename ...para> struct pick_func<ret(para...)>
+		{
+			using return_t = ret;
+			template<template<typename...> class o> using out = o<para...>;
+			static constexpr size_t size = sizeof...(para);
+		};
+
+		template<typename fun_obj> struct degenerate_func;
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...)> { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) &> { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) &&> { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) const > { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) const& > { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) const&& > { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) volatile> { using type = fun_ret(fun_para...); };
+		template<typename fun_ret, typename ...fun_para> struct degenerate_func<fun_ret(fun_para...) const volatile> { using type = fun_ret(fun_para...); };
+		template<typename fun> using degenerate_func_t = typename degenerate_func<fun>::type;
+
+
+		template<typename fun_obj> struct extract_func
+		{
+			using type = typename extract_func<decltype(&std::remove_reference_t<std::remove_const_t<fun_obj>>::operator())>::type;
+		};
+		template<typename fun_re, typename ...fun_para> struct extract_func<fun_re(fun_para...)>
+		{
+			using type = fun_re(fun_para...);
+		};
+		template<typename owner, typename func_type> struct extract_func<func_type owner::*>
+		{
+			using type = std::enable_if_t<std::is_function<func_type>::value, func_type>;
+		};
+		template<typename owner, typename func_type> struct extract_func<func_type owner::*&>
+		{
+			using type = std::enable_if_t<std::is_function<func_type>::value, func_type>;
+		};
+		template<typename owner, typename func_type> struct extract_func<func_type owner::*&&>
+		{
+			using type = std::enable_if_t<std::is_function<func_type>::value, func_type>;
+		};
+		template<typename owner, typename func_type> struct extract_func<func_type owner::* const &>
+		{
+			using type = std::enable_if_t<std::is_function<func_type>::value, func_type>;
+		};
+		template<typename fun> using extract_func_t = typename extract_func<fun>::type;
+
+		template<typename fun> struct is_member_function_pointer : std::false_type {};
+		template<typename fun, typename obj> struct is_member_function_pointer<fun obj::*> : std::true_type {};
+		template<typename fun, typename obj> struct is_member_function_pointer<fun obj::*&> : std::true_type {};
+		template<typename fun, typename obj> struct is_member_function_pointer<fun obj::*&&> : std::true_type {};
+		template<typename fun, typename obj> struct is_member_function_pointer<fun obj::*const &> : std::true_type {};
 
 		namespace Implement
 		{
@@ -195,7 +284,6 @@ namespace PO
 			public:
 				using type = decltype(fun<function, paramer...>(nullptr));
 			};
-
 		}
 		template<typename function, typename ...paramer> using is_callable = typename Implement::is_callable_execute<function, paramer...>::type;
 
@@ -337,6 +425,17 @@ namespace PO
 			};
 		};
 
+		template<typename T, T ...n> struct append_i
+		{
+			template<T... i> struct in
+			{
+				template<template<T ...> class o> struct out
+				{
+					using type = o<i..., n...>;
+				};
+			};
+		};
+
 		template<typename ...O> struct append_t
 		{
 			template<typename ...T> struct in
@@ -409,6 +508,33 @@ namespace PO
 			template<template<typename ...> class o> struct out
 			{
 				using type = typename Implement::make_range_set_t_implemenmt<o, Tmp::set_t<>, s, e>::type;
+			};
+		};
+
+		namespace Implement
+		{
+			template<typename result, template<size_t...> class o, typename ...out>
+			struct extract_value_t_implement;
+			template<size_t ... i, template<size_t...> class o>
+			struct extract_value_t_implement<Tmp::set_i<i...>, o>
+			{
+				using type = o<i...>;
+			};
+			template<size_t ...i, template<size_t...> class o, template<size_t ...> class this_tank, size_t ...ti, typename ...ot>
+			struct extract_value_t_implement<Tmp::set_i<i...>, o, this_tank<ti...>, ot...>
+			{
+				using type = typename extract_value_t_implement<Tmp::set_i<i..., ti...>, o, ot...>::type;
+			};
+		}
+
+		struct extract_value_t
+		{
+			template<typename ...T> struct in
+			{
+				template<template<size_t...> class o> struct out
+				{
+					using type = typename Implement::extract_value_t_implement<Tmp::set_i<>, o, T...>::type;
+				};
 			};
 		};
 

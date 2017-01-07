@@ -24,34 +24,40 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\win32\win32_implement.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\dxgi\dxgi.cpp">
       <Filter>dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="..\dx11\dx11_implement.cpp">
+    <ClCompile Include="..\win32\win32_form.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dx11\dx11_form.cpp">
       <Filter>dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32\translate.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32\win32_log.cpp">
+      <Filter>win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\win32\win32_implement.h">
-      <Filter>win32</Filter>
-    </ClInclude>
-    <ClInclude Include="..\win32\win32_interface.h">
-      <Filter>win32</Filter>
-    </ClInclude>
     <ClInclude Include="..\dxgi\dxgi.h">
       <Filter>dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="..\dx11\dx11_implement.h">
-      <Filter>dx11</Filter>
-    </ClInclude>
-    <ClInclude Include="..\dx11\dx11_interface.h">
-      <Filter>dx11</Filter>
-    </ClInclude>
     <ClInclude Include="..\po_expand.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win32\win32_form.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dx11\dx11_form.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win32\translate.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win32\win32_log.h">
+      <Filter>win32</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

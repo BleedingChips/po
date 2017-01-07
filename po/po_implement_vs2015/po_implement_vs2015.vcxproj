@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\frame\define.h" />
+    <ClInclude Include="..\frame\event.h" />
     <ClInclude Include="..\frame\frame.h" />
     <ClInclude Include="..\po.h" />
     <ClInclude Include="..\tool\any.h" />
@@ -32,8 +33,8 @@
     <ClInclude Include="..\tool\mail.h" />
     <ClInclude Include="..\tool\thread_tool.h" />
     <ClInclude Include="..\tool\thread_tool.hpp" />
+    <ClInclude Include="..\tool\tmp.h" />
     <ClInclude Include="..\tool\tool.h" />
-    <ClInclude Include="..\tool\type_tool.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5F463102-F469-4EBE-B40A-AD60A1795135}</ProjectGuid>

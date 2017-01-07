@@ -6,13 +6,13 @@ namespace
 	size_t init_count = 0;
 
 	std::recursive_mutex all_form_mutex;
-	std::deque<std::unique_ptr<PO::Assistant::form_ptr>> all_form;
+	std::deque<std::unique_ptr<PO::Implement::form_ptr>> all_form;
 }
 
 namespace PO
 {
 	
-	namespace Assistant
+	namespace Implement
 	{
 		form_ptr::~form_ptr()
 		{
