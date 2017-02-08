@@ -1,9 +1,4 @@
 #pragma once
-#ifdef _DEBUG
-	#pragma comment(lib,"po_d.lib")
-#else
-	#pragma comment(lib,"po.lib")
-#endif
 #include "tool\thread_tool.h"
 #include <thread>
 #include <iostream>
@@ -13,57 +8,6 @@
 #include <memory>
 #include <list>
 #include "frame\frame.h"
-
-
-
-/*
-
-struct event
-[must
-carry the event infomation from form or input
-
-should provide event().
-should provide opertor=(const event&).
-]
-
-
-
-struct form;
-[must
-
-should provide bool is_avalible() to show whether this form should close, call in same thread.
-should provide void bind_event(const PO::Tool::completeness_ref&, std::function<bool(event&)>&&) or bind_event(std::function<bool(event&)>&&)to get the event function from form_append.
-
-optional provide bool check_tick(duration) to return weather enter plugin tick and form tick function, call in same thread.
-optional provide void tick(duration) call in each tick, call in same thread.
-
-each form will be constructed in difference thread.
-should be close form in destruction.
-]
-
-
-
-struct view_outside;
-[optional
-
-should provide view_outside::view_outside(form&), this will call in the same thread of form.
-should provide view_outside::view_outside(const view_outside&) or view_outside::view_outside(view_outside&), this will call in diference thread, may call many time.
-
-viewer's life time is usually longer then form.
-usually call in diference thread.
-]
-
-struct view_inside;
-[optional
-
-should provide view_inside::view_inside(form&).
-should provide view_inside::view_inside(const view_inside&) or view_inside::view_inside(view_inside&).
-
-construct and use in the same thread of form.
-viewer's life time is same as form.
-]
-
-*/
 
 namespace PO
 {

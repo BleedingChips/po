@@ -47,11 +47,6 @@ namespace PO
 		operator bool() const { return avalible; }
 	};
 
-	struct default_viewer_or_ticker
-	{
-		template<typename T> default_viewer_or_ticker(T&& t) {}
-	};
-
 	namespace Implement
 	{
 		template<typename frame, typename = void> struct frame_have_form :std::false_type {};
@@ -80,6 +75,11 @@ namespace PO
 		template<typename frame> struct picker_viewer { using type = typename frame::viewer; };
 		template<typename frame> struct picker_ticker { using type = typename frame::ticker; };
 		//template<typename frame> struct picker_default { using type = default_viewer_or_ticker; };
+
+		struct default_viewer_or_ticker
+		{
+			template<typename T> default_viewer_or_ticker(T&& t) {}
+		};
 
 		template<typename frame> using frame_viewer= typename std::conditional_t<frame_have_viewer<frame>::value, Tmp::instant<picker_viewer>, Tmp::instant<Tmp::itself<default_viewer_or_ticker>::template in_t>>::template in_t<frame>::type;
 		template<typename frame> using frame_ticker = typename std::conditional_t<frame_have_ticker<frame>::value, Tmp::instant<picker_ticker>, Tmp::instant<Tmp::itself<default_viewer_or_ticker>::template in_t>>::template in_t<frame>::type;
@@ -136,6 +136,8 @@ namespace PO
 			);
 		}
 	};
+
+	using default_ticker = ticker<Implement::default_viewer_or_ticker>;
 
 	template<typename ticker_t>
 	class plugin_interface : public plugin_self
@@ -208,7 +210,7 @@ namespace PO
 			template<typename view_or_tick, typename ...AK>
 			plugin_implement(const Tool::completeness_ref& cpr, view_or_tick& t, AK&& ...ak) :
 				plugin_implement(
-					std::integral_constant<bool, std::is_constructible<plugin_t, plugin_self&, view_or_tick&, AK... >::value>{},
+					std::integral_constant<bool, std::is_constructible<plugin_t, plugin_interface<ticker_t>&, view_or_tick&, AK... >::value>{},
 					cpr, t, std::forward<AK>(ak)...
 				)
 			{

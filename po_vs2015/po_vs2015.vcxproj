@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{620A4357-0E79-4D65-AECF-1A71CCF11A75}</ProjectGuid>
-    <RootNamespace>po_expand_vs2015</RootNamespace>
+    <ProjectGuid>{76ED23F9-DE79-4C9E-8A98-50D6287D4EBA}</ProjectGuid>
+    <RootNamespace>po_vs2015</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -28,27 +28,27 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -68,13 +68,21 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <TargetName>po_expand_d</TargetName>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetExt>.lib</TargetExt>
+    <TargetName>po_d</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetExt>.lib</TargetExt>
+    <TargetName>po</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <TargetExt>.lib</TargetExt>
+    <TargetName>po_d</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <TargetName>po_expand</TargetName>
     <TargetExt>.lib</TargetExt>
+    <TargetName>po</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -117,19 +125,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\dx11\dx11_form.cpp" />
-    <ClCompile Include="..\dxgi\dxgi.cpp" />
-    <ClCompile Include="..\win32\translate.cpp" />
-    <ClCompile Include="..\win32\win32_form.cpp" />
-    <ClCompile Include="..\win32\win32_log.cpp" />
+    <ClCompile Include="..\frame\define.cpp" />
+    <ClCompile Include="..\po.cpp" />
+    <ClCompile Include="..\tool\thread_tool.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\dx11\dx11_form.h" />
-    <ClInclude Include="..\dxgi\dxgi.h" />
-    <ClInclude Include="..\po_expand.h" />
-    <ClInclude Include="..\win32\translate.h" />
-    <ClInclude Include="..\win32\win32_form.h" />
-    <ClInclude Include="..\win32\win32_log.h" />
+    <ClInclude Include="..\frame\define.h" />
+    <ClInclude Include="..\frame\event.h" />
+    <ClInclude Include="..\frame\frame.h" />
+    <ClInclude Include="..\po.h" />
+    <ClInclude Include="..\tool\auto_adapter.h" />
+    <ClInclude Include="..\tool\mail.h" />
+    <ClInclude Include="..\tool\thread_tool.h" />
+    <ClInclude Include="..\tool\thread_tool.hpp" />
+    <ClInclude Include="..\tool\tmp.h" />
+    <ClInclude Include="..\tool\tool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

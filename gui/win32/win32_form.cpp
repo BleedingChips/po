@@ -181,7 +181,7 @@ namespace
 		{
 			return DefWindowProcW(hWnd, msg - WM_USER, wParam, lParam);
 		}
-		PO::Win32::win32_form* ptr = reinterpret_cast<PO::Win32::win32_form*> (GetWindowLongW(hWnd, GWL_USERDATA));
+		PO::Win32::win32_form* ptr = reinterpret_cast<PO::Win32::win32_form*> (GetWindowLongPtrW(hWnd, GWLP_USERDATA));
 		if (ptr != nullptr)
 		{
 			auto ite = handled_event_filter.find(msg);
@@ -237,13 +237,13 @@ namespace
 			HRESULT ret = GetLastError();
 			return ret;
 		}
-		SetWindowLongW(ptr->raw_handle, GWL_USERDATA, reinterpret_cast<LONG>(ptr));
+		SetWindowLongPtrW(ptr->raw_handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ptr));
 		return S_OK;
 	}
 
 	void destory_window(HWND& handle)
 	{
-		SetWindowLongW(handle, GWL_USERDATA, reinterpret_cast<LONG>(nullptr));
+		SetWindowLongPtrW(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(nullptr));
 		DestroyWindow(handle);
 		handle = nullptr;
 	}

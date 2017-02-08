@@ -36,6 +36,13 @@ namespace PO
 			}
 
 		};
+
+		struct Dx11_ticker
+		{
+			CComPtr<ID3D11Device> dev;
+			CComPtr<ID3D11DeviceContext> dc;
+			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc) {}
+		};
 	}
 
 
