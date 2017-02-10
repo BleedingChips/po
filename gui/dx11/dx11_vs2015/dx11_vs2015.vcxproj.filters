@@ -22,11 +22,11 @@
     <Filter Include="dx11">
       <UniqueIdentifier>{75d21cb9-5504-4297-bba1-d6fa4946b775}</UniqueIdentifier>
     </Filter>
+    <Filter Include="dx11\shader">
+      <UniqueIdentifier>{c373250a-9b2d-439d-ba00-bd01f4546f82}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\win32\translate.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\win32\win32_form.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -42,11 +42,11 @@
     <ClCompile Include="..\..\dxgi\dxgi_log.cpp">
       <Filter>dxgi</Filter>
     </ClCompile>
+    <ClCompile Include="..\dx11_definecpp.cpp">
+      <Filter>dx11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\win32\translate.h">
-      <Filter>win32</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\win32\win32_form.h">
       <Filter>win32</Filter>
     </ClInclude>
@@ -65,14 +65,25 @@
     <ClInclude Include="..\..\dxgi\dxgi_log.h">
       <Filter>dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="..\dx11_define.h">
-      <Filter>dx11</Filter>
-    </ClInclude>
     <ClInclude Include="..\dx11_math.h">
       <Filter>dx11</Filter>
     </ClInclude>
     <ClInclude Include="..\dx11_shader.h">
       <Filter>dx11</Filter>
     </ClInclude>
+    <ClInclude Include="..\dx11_buffer.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dx11_define.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\win32\win32_define.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shader\base_vshader.hlsl">
+      <Filter>dx11\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

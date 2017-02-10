@@ -30,6 +30,12 @@
     <ClCompile Include="..\po.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\frame\resource_loader.cpp">
+      <Filter>frame</Filter>
+    </ClCompile>
+    <ClCompile Include="..\frame\framecpp.cpp">
+      <Filter>frame</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\frame\define.h">
@@ -61,6 +67,12 @@
     </ClInclude>
     <ClInclude Include="..\po.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\frame\error.h">
+      <Filter>frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\frame\resource_loader.h">
+      <Filter>frame</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

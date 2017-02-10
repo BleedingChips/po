@@ -111,6 +111,18 @@ namespace PO
 				);
 		}
 
+		template<typename func_object, typename ...input>
+		decltype(auto) auto_adapter_unorder(func_object&& fo, input&&... in)
+		{
+			return auto_adapter<unorder_adapt>(std::forward<func_object>(fo), std::forward<input>(in)...);
+		}
+
+		template<typename func_object, typename ...input>
+		decltype(auto) auto_adapter_order(func_object&& fo, input&&... in)
+		{
+			return auto_adapter<order_adapt>(std::forward<func_object>(fo), std::forward<input>(in)...);
+		}
+
 		namespace Implement
 		{
 

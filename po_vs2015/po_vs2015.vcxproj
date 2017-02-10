@@ -126,13 +126,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\frame\define.cpp" />
+    <ClCompile Include="..\frame\framecpp.cpp" />
+    <ClCompile Include="..\frame\resource_loader.cpp" />
     <ClCompile Include="..\po.cpp" />
     <ClCompile Include="..\tool\thread_tool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\frame\define.h" />
+    <ClInclude Include="..\frame\error.h" />
     <ClInclude Include="..\frame\event.h" />
     <ClInclude Include="..\frame\frame.h" />
+    <ClInclude Include="..\frame\resource_loader.h" />
     <ClInclude Include="..\po.h" />
     <ClInclude Include="..\tool\auto_adapter.h" />
     <ClInclude Include="..\tool\mail.h" />

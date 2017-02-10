@@ -23,9 +23,9 @@ namespace PO
 				&lel2,
 				&dc
 			);
-			Error::fail_throw(re);
+			Win32::Error::fail_throw(re);
 
-			Error::fail_throw(swap->GetBuffer(0,
+			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),
 				(void **)&main_buffer));
 

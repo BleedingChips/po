@@ -10,6 +10,36 @@ namespace PO
 	namespace Implement
 	{
 		template<typename frame> struct form_packet;
+		class thread_task_runer;
+	}
+
+	class thread_task
+	{
+		Tool::completeness_ref ref;
+		std::mutex task_mutex;
+		std::condition_variable cv;
+		friend class Implement::thread_task_runer;
+	public:
+		thread_task(Tool::completeness_ref r) : ref(r) {}
+		virtual bool operator()() = 0;
+	};
+
+	namespace Implement
+	{
+		class thread_task_runer
+		{
+			using set_type = std::vector<std::weak_ptr<thread_task>>;
+			std::mutex input_mutex;
+			set_type input;
+			set_type calling;
+			std::atomic_bool exit;
+			std::thread main;
+			void thread_funtion();
+		public:
+			thread_task_runer();
+			~thread_task_runer();
+			void push_task(std::weak_ptr<thread_task> task);
+		};
 	}
 
 	class form_self
@@ -18,6 +48,7 @@ namespace PO
 		time_calculator record;
 		Tool::completeness_ref cr;
 		std::atomic_bool available;
+		Implement::thread_task_runer ttr;
 		template<typename frame> friend struct Implement::form_packet;
 		Tool::optional<duration> tick(time_point tp)
 		{
@@ -29,6 +60,7 @@ namespace PO
 		}
 
 	public:
+		bool push_task(std::weak_ptr<thread_task> task) { ttr.push_task(std::move(task)); }
 		operator bool() const noexcept { return available; }
 		form_self(Tool::completeness_ref c) : cr(std::move(c)), available(true) {}
 		void close() { available = false; }
@@ -172,9 +204,6 @@ namespace PO
 		public:
 			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
 		};
-
-
-
 
 		template<typename plugin_t, typename ticker_t> class plugin_implement : public plugin_interface<ticker_t>
 		{

@@ -6,111 +6,33 @@ using namespace std;
 #include <random>
 #include "../../../po.h"
 #include "../../../gui/dx11/dx11_form.h"
-
-
-using namespace PO::Tool;
-using namespace PO::Tmp;
-using namespace PO::TmpCall;
-
-struct Test_Frame
-{
-	using form = PO::Dx11::Dx11_form;
-	using ticker = PO::Dx11::Dx11_ticker;
-};
-
-struct Test_plugin
-{
-	Test_plugin()
-	{
-
-	}
-
-	template<typename ...AT> void plug_init(AT&& ...at)
-	{
-		PO::Tool::auto_adapter<PO::Tool::unorder_adapt>(&Test_plugin::init, this, at...);
-	}
-
-	void tick(PO::ticker<PO::Dx11::Dx11_ticker>& op)
-	{
-	}
-	void init(PO::form_self& fs,PO::ticker<PO::Dx11::Dx11_ticker>& op)
-	{
-	}
-};
-
-struct da
-{
-	bool op;
-	void uio() const volatile
-	{
-
-	}
-	void operator()() {}
-};
-
-template<typename T> struct dad { void operator()() { cout << "null" << endl; } };
-template<typename T, typename U> struct dad<T U::*> { void operator()() { cout << typeid(T).name() << endl; } };
-template<typename T, typename ...U> struct dad<T(U...) const > { void operator()() { cout << typeid(T).name() << endl; } };
-
-void yuio(bool) noexcept {}
-
-template<typename Text> void uiii(Text&& t) { cout << typeid(PO::Tmp::extract_func<Text>::type).name() << endl; }
-
-
-struct IOP
-{
-	IOP() {}
-	//IOP(const IOP& i) { cout << "const iop&" << endl; }
-	template<typename T> IOP(T&& t) 
-	{ 
-		static_assert(!std::is_same < std::remove_reference_t<std::remove_const_t<T>>, IOP >::value , "");
-	};
-};
-
-template<typename T> void Data222(T t)
-{
-	
-}
-
-struct UIO 
-{ 
-	UIO() {}; 
-	//explicit UIO(const UIO&) {} 
-	template<typename T> UIO(T&& t)
-	{
-		static_assert(std::is_same <std::remove_reference_t<std::remove_const_t<T>>, IOP >::value, "");
-	};
-};
-struct UIO2 :UIO {};
-
-
+#include "form_define.h"
+#include "test_plugin.h"
+#include <fstream>
 
 int main()
 {
-
-
-	//UIO da(UIO2{});
-
-
-
-	//dad<decltype(&da::uio)>{}();
-	//IOP a{};
-	//Data222(a);
-	//cout << "========" << endl;
-	//auto po = []() {};
-	//uiii([]() {});
-	//cout << typeid(PO::Tmp::extract_func<decltype(po)>::type).name() << endl;
-	//cout << typeid(PO::Tmp::extract_func<decltype(yuio)>::type).name() << endl;
-	//cout << std::is_same<PO::Tmp::extract_func<decltype(po)>::type, PO::Tmp::extract_func<decltype(yuio)>::type>::value << endl;
-	//cout << typeid(std::remove_reference_t<PO::Tmp::extract_func<decltype(&da::uio)>::type>).name() << endl;
-
+	{
+		std::ofstream ti("Test.txt", std::ios::out);
+		ti << "12345678901234567890" << std::endl;
+	}
+	{
+		std::ifstream oip("Test.txt");
+		oip.seekg(0, std::ios_base::end);
+		auto po = oip.tellg();
+		oip.seekg(0, std::ios_base::beg);
+		auto po2 = oip.tellg();
+		size_t size = po - po2;
+		cout << size << endl;
+	}
 	
+
 	PO::context con;
-	auto fo = con.create_window<Test_Frame>();
+	auto fo = con.create_window<DX11_Test_Form>();
 	fo.lock_if(
 		[](auto& ui)
 	{
-		ui.create_plugin<Test_plugin>();
+		ui.create_plugin<test_plugin>();
 	}
 	);
 	con.wait_all_form_close();

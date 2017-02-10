@@ -1,5 +1,6 @@
 #pragma once
 #include "../win32/win32_form.h"
+#include "dx11_define.h"
 #include "../dxgi/dxgi.h"
 #include <DirectXMath.h>
 #include <DirectXMathVector.inl>
@@ -19,9 +20,9 @@ namespace PO
 		struct Dx11_form
 		{
 			Win32::win32_form form;
-			CComPtr<ID3D11Device> dev;
-			CComPtr<ID3D11DeviceContext> dc;
-			CComPtr<IDXGISwapChain> swap;
+			Implement::resource dev;
+			Implement::context dc;
+			Implement::chain swap;
 
 			CComPtr<ID3D11Texture2D> main_buffer;
 			CComPtr<ID3D11RenderTargetView> pView;
@@ -39,9 +40,10 @@ namespace PO
 
 		struct Dx11_ticker
 		{
-			CComPtr<ID3D11Device> dev;
-			CComPtr<ID3D11DeviceContext> dc;
+			Implement::resource dev;
+			Implement::context dc;
 			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc) {}
+			operator const Implement::resource& () const { return dev; }
 		};
 	}
 

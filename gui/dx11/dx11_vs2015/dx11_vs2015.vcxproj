@@ -127,22 +127,26 @@
   <ItemGroup>
     <ClCompile Include="..\..\dxgi\dxgi.cpp" />
     <ClCompile Include="..\..\dxgi\dxgi_log.cpp" />
-    <ClCompile Include="..\..\win32\translate.cpp" />
     <ClCompile Include="..\..\win32\win32_form.cpp" />
     <ClCompile Include="..\..\win32\win32_log.cpp" />
+    <ClCompile Include="..\dx11_definecpp.cpp" />
     <ClCompile Include="..\dx11_form.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dxgi\dxgi.h" />
     <ClInclude Include="..\..\dxgi\dxgi_define.h" />
     <ClInclude Include="..\..\dxgi\dxgi_log.h" />
-    <ClInclude Include="..\..\win32\translate.h" />
+    <ClInclude Include="..\..\win32\win32_define.h" />
     <ClInclude Include="..\..\win32\win32_form.h" />
     <ClInclude Include="..\..\win32\win32_log.h" />
+    <ClInclude Include="..\dx11_buffer.h" />
     <ClInclude Include="..\dx11_define.h" />
     <ClInclude Include="..\dx11_form.h" />
     <ClInclude Include="..\dx11_math.h" />
     <ClInclude Include="..\dx11_shader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shader\base_vshader.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
