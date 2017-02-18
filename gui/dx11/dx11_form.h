@@ -1,6 +1,7 @@
 #pragma once
 #include "../win32/win32_form.h"
 #include "dx11_define.h"
+#include "dx11_vertex.h"
 #include "../dxgi/dxgi.h"
 #include <DirectXMath.h>
 #include <DirectXMathVector.inl>
@@ -30,21 +31,61 @@ namespace PO
 			CComPtr<ID3D11DepthStencilView> pDepthView;
 			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() {};
-			void form_tick_implement(duration da, form_self& fs);
-			template<typename ...AT> void form_tick(AT&& ...at)
-			{
-				Tool::auto_adapter<Tool::unorder_adapt>(&Dx11_form::form_tick_implement, this, at...);
-			}
-
+			void tick(form_ticker& ft);
 		};
 
 		struct Dx11_ticker
 		{
 			Implement::resource dev;
 			Implement::context dc;
-			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc) {}
-			operator const Implement::resource& () const { return dev; }
+			Implement::chain swap;
+			CComPtr<ID3D11RenderTargetView> pView;
+			CComPtr<ID3D11DepthStencilView> pDepthView;
+			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc), pView(Df.pView), pDepthView(Df.pDepthView), swap(Df.swap){}
+			operator Implement::resource& () { return dev; }
 		};
+
+		class shader_loader
+		{
+			struct shader_loader_execute : thread_task
+			{
+				static std::map<std::u16string, Implement::data::weak_ref> all_shader;
+				std::u16string path;
+				Implement::data info;
+				shader_loader_execute(Tool::completeness_ref cr, std::u16string p) :thread_task(std::move(cr)), path(std::move(p)) {}
+				virtual bool operator()() override;
+			};
+			std::shared_ptr<Tool::completeness<shader_loader_execute>> request;
+		public:
+			operator bool() const { return request && request->is_finish(); }
+			void load(form_self& fs, std::u16string p) 
+			{
+				if (!request)
+					request = std::make_shared<Tool::completeness<shader_loader_execute>>(std::move(p));
+				else
+					request->path = std::move(p);
+				fs.push_task(request);
+			}
+			Tool::optional<Implement::data> get()
+			{
+				if (*this)
+					return{ std::move(request->info) };
+				else
+					return{};
+			}
+			Tool::optional<Implement::data> wait_get()
+			{
+				if (request)
+				{
+					request->wait_finish();
+					if (!request->is_bad() && request->info)
+						return{ std::move(request->info) };
+				}
+				return{};
+			}
+		};
+
+
 	}
 
 

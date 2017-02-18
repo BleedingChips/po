@@ -43,6 +43,7 @@ namespace PO
 		template<typename T>
 		struct itself 
 		{
+			using type = T;
 			decltype(auto) operator() () { return *static_cast<T*>(nullptr); }
 			template<typename ...AT> struct in_t
 			{

@@ -35,14 +35,7 @@ namespace PO
 			win32_form(form_self&, const win32_initial& = win32_initial{});
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
-
-			void form_tick_implement(form_self& fs);
-
-			template<typename ...AT>
-			void form_tick(AT&&... at)
-			{
-				Tool::auto_adapter<Tool::unorder_adapt>(&win32_form::form_tick_implement, this, at...);
-			}
+			void tick(form_ticker& ft);
 		};
 	}
 }

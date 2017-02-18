@@ -59,4 +59,5 @@ Temporary Items
 *.db
 *.opendb
 *.ilk
-
+*.cso
+sample/develop/develop/sdsd.txt

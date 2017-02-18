@@ -10,34 +10,25 @@ using namespace std;
 #include "test_plugin.h"
 #include <fstream>
 
+using namespace PO;
+using namespace PO::Implement;
+
 int main()
 {
-	{
-		std::ofstream ti("Test.txt", std::ios::out);
-		ti << "12345678901234567890" << std::endl;
-	}
-	{
-		std::ifstream oip("Test.txt");
-		oip.seekg(0, std::ios_base::end);
-		auto po = oip.tellg();
-		oip.seekg(0, std::ios_base::beg);
-		auto po2 = oip.tellg();
-		size_t size = po - po2;
-		cout << size << endl;
-	}
-	
-
+	//assert((__FILE__, false));
+	//cout << __FILE__ << endl;
+	//system("pause");
+	/*
 	PO::context con;
 	auto fo = con.create_window<DX11_Test_Form>();
 	fo.lock_if(
 		[](auto& ui)
 	{
-		ui.create_plugin<test_plugin>();
+		ui.create_plugin(PO::plugin_type<test_plugin>{});
 	}
 	);
 	con.wait_all_form_close();
-	
-	//system("pause");
+	*/
 }
 
 

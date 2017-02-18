@@ -24,7 +24,10 @@ namespace PO
 							std::lock_guard<std::mutex> lg(input_mutex);
 							input.push_back(task);
 						}
-						task_ptr->cv.notify_one();
+						else {
+							task_ptr->cv.notify_one();
+							task_ptr->task_state = thread_task::State::FINISH;
+						}	
 					}
 					);
 				}
@@ -44,10 +47,17 @@ namespace PO
 			main.join();
 		}
 
-		void thread_task_runer::push_task(std::weak_ptr<thread_task> task)
+		bool thread_task_runer::push_task(std::weak_ptr<thread_task> task)
 		{
-			std::lock_guard<std::mutex> lg(input_mutex);
-			input.push_back(std::move(task));
+			auto ta = task.lock();
+			if (ta && ta->task_state == thread_task::State::READY)
+			{
+				ta->task_state = thread_task::State::WAITING;
+				std::lock_guard<std::mutex> lg(input_mutex);
+				input.push_back(std::move(task));
+				return true;
+			}
+			return false;
 		}
 	}
 }

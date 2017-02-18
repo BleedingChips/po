@@ -1,5 +1,5 @@
 #include "dx11_form.h"
-
+#include <fstream>
 namespace PO
 {
 	namespace Dx11
@@ -51,20 +51,49 @@ namespace PO
 			ID3D11DepthStencilView* DepthTargetView = pDepthView;
 
 			dc->OMSetRenderTargets(1, RenderTargetViews, pDepthView);
+
+			D3D11_VIEWPORT viewport;     
+			viewport.Width = static_cast<float>(desc.Width);
+			viewport.Height = static_cast<float>(desc.Height);     
+			viewport.MinDepth = 0.0f;
+			viewport.MaxDepth = 1.0f;
+			viewport.TopLeftX = 0.0f;     
+			viewport.TopLeftY = 0.0f;
+
+			dc->RSSetViewports(1, &viewport);
 		}
 
-		void Dx11_form::form_tick_implement(duration da, form_self& fs) 
+		void Dx11_form::tick(form_ticker& ft)
 		{ 
-			form.form_tick_implement(fs);
+			form.tick(ft);
 			static float all_time = 0.0f;
-			all_time += da.count();
+			all_time += ft.time().count();
 			float a = abs(sin(all_time * 0.001f));
 			float a2 = abs(sin(all_time * 0.001f * 2));
 			float a3 = abs(sin(all_time * 0.001f * 3));
 			float color[4] = { a,a2,a3,1.0f };
-			dc->ClearRenderTargetView(pView, color);
-			swap->Present(0, 0);
+			//swap->Present(0, 0);
+			//swap->
+			//dc->ClearRenderTargetView(pView, color);
 		}
+
+		bool shader_loader::shader_loader_execute::operator()()
+		{
+			std::ifstream file(utf16_to_asc(path), std::ios::binary | std::ios::in);
+			if (file.good())
+			{
+				file.seekg(0, std::ios::end);
+				auto end_poi = file.tellg();
+				file.seekg(0, std::ios::beg);
+				auto sta_poi = file.tellg();
+				info = Implement::data{ static_cast<size_t>(end_poi - sta_poi) };
+				file.read(info, end_poi - sta_poi);
+			}
+			else
+				set_bad();
+			return false;
+		}
+
 	}
 }
 

@@ -3,6 +3,8 @@
 #include <string>
 #include "define.h"
 #include <iostream>
+#include "../tool/tool.h"
+#include <tuple>
 namespace PO
 {
 	namespace Error
@@ -21,6 +23,8 @@ namespace PO
 		{
 			return o << static_cast<std::string>(pe);
 		}
+
+		//using result = Tool::optional<std::tuple<std::string>>
 
 		template<typename T>
 		void unavalible_throw(T&& t)

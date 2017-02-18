@@ -9,19 +9,46 @@ namespace PO
 {
 	namespace Implement
 	{
+		template<typename T> class plugin_interface;
+		template<typename plugin_t, typename ticker_t> class plugin_implement;
 		template<typename frame> struct form_packet;
+		struct form_ptr;
 		class thread_task_runer;
+		struct ticker_init_type {};
+		template<typename frame> struct viewer_init_type {};
+		struct constor_init_type {};
 	}
 
 	class thread_task
 	{
+		enum class State :uint8_t
+		{
+			READY,
+			WAITING,
+			FINISH
+		};
+
 		Tool::completeness_ref ref;
 		std::mutex task_mutex;
 		std::condition_variable cv;
+
+		std::atomic_bool bad;
+		std::atomic<State> task_state;
+
 		friend class Implement::thread_task_runer;
+	protected:
+		void set_bad() { bad = true; }
 	public:
-		thread_task(Tool::completeness_ref r) : ref(r) {}
+		thread_task(Tool::completeness_ref r) : ref(r), bad(false) , task_state(State::READY) {}
 		virtual bool operator()() = 0;
+		bool is_bad() const { return bad; }
+		bool is_finish() { return task_state == State::FINISH; task_state = State::READY; }
+		void wait_finish()
+		{
+			std::unique_lock<std::mutex> lk(task_mutex);
+			cv.wait(lk, [this]() { return task_state == State::FINISH; });
+			task_state = State::READY;
+		}
 	};
 
 	namespace Implement
@@ -38,7 +65,7 @@ namespace PO
 		public:
 			thread_task_runer();
 			~thread_task_runer();
-			void push_task(std::weak_ptr<thread_task> task);
+			bool push_task(std::weak_ptr<thread_task> task);
 		};
 	}
 
@@ -59,28 +86,36 @@ namespace PO
 			return{};
 		}
 
-	public:
-		bool push_task(std::weak_ptr<thread_task> task) { ttr.push_task(std::move(task)); }
-		operator bool() const noexcept { return available; }
 		form_self(Tool::completeness_ref c) : cr(std::move(c)), available(true) {}
+		friend struct Implement::form_ptr;
+		template<typename T> friend struct Implement::form_packet;
+
+	public:
+
+		bool push_task(std::weak_ptr<thread_task> task) { return ttr.push_task(std::move(task)); }
+		operator bool() const noexcept { return available; }
+		operator const Tool::completeness_ref&() const { return cr; }
 		void close() { available = false; }
 	};
 
 	class plugin_self
 	{
 		Tool::completeness_ref cr;
-	protected:
 		plugin_self(const Tool::completeness_ref& c) :cr(c), avalible(true) {}
+		template<typename T> friend class Implement::plugin_interface;
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
 	public:
 		virtual ~plugin_self() {}
 		bool use_tick = true;
 		bool use_event = true;
 		std::atomic_bool avalible;
 		operator bool() const { return avalible; }
+		operator Tool::completeness_ref() const { return cr; };
 	};
 
 	namespace Implement
 	{
+
 		template<typename frame, typename = void> struct frame_have_form :std::false_type {};
 		template<typename frame> struct frame_have_form<frame, std::void_t<typename frame::form>> :std::true_type {};
 		
@@ -120,32 +155,205 @@ namespace PO
 		template<typename ticker_t> class plugin_append;
 	}
 
-	template<typename ticker_t> class ticker : public ticker_t
+	class constor;
+	class ticker_tl;
+
+	namespace Implement
 	{
-		form_self* form;
-		Implement::plugin_append<ticker_t>* data;
-	public:
-		template<typename form>
-		ticker(form& fv, form_self& fs, Implement::plugin_append<ticker_t>& pa) : ticker_t(fv), form(&fs), data(&pa) {}
-		ticker(ticker&& v) = default;
-		ticker(const ticker& v) = default;
-		template<typename plugin_t, typename ...AK> auto create_plugin(AK&& ...al)
+		struct plugin_tl_interface : public plugin_self
 		{
-			return data->template create_plugin<plugin_t>(*this, std::forward<AK>(al)...);
+			virtual void tick(ticker_tl& tt) = 0;
+			virtual void init(ticker_tl& tt) = 0;
+			virtual ~plugin_tl_interface() {}
+		};
+
+		template<typename plugin_t> class plugin_have_tick_tl
+		{
+			template<typename T, void (T::*)(ticker_tl&)> struct del;
+			template<typename T> static std::true_type fun(del<T, &T::tick>*);
+			template<typename T> static std::false_type fun(...);
+		public:
+			static constexpr bool value = decltype(fun<plugin_t>(nullptr))::value;
+		};
+
+		template<typename plugin_t> class plugin_have_init_tl
+		{
+			template<typename T, void (T::*)(ticker_tl&)> struct del;
+			template<typename T> static std::true_type fun(del<T, &T::init>*);
+			template<typename T> static std::false_type fun(...);
+		public:
+			static constexpr bool value = decltype(fun<plugin_t>(nullptr))::value;
+		};
+
+		template<typename plugin_t>
+		class plugin_t1_implement
+		{
+			plugin_t plugin_data;
+			template<typename ...AK> plugin_t1_implement(std::true_type, constor& oi, AK&& ...ak) :
+				plugin_data(oi, std::forward<AK>(ak)...) {}
+			template<typename ...AK> plugin_t1_implement(std::false_type, constor& oi, AK&& ...ak) :
+				plugin_data(std::forward<AK>(ak)...) {}
+		public:
+			virtual void tick(ticker_tl& tt)
+			{
+				Tool::statement_if<plugin_have_tick_tl<plugin_t>::value>
+					(
+						[](auto& plu, ticker_tl& t) {plu.tick(t); },
+						[](auto& plu, ticker_tl& t) {},
+						plugin_data, tt
+						);
+			}
+			virtual void init(ticker_tl& tt)
+			{
+				Tool::statement_if<plugin_have_init_tl<plugin_t>::value>
+					(
+						[](auto& plu, ticker_tl& t) {plu.init(t); },
+						[](auto& plu, ticker_tl& t) {},
+						plugin_data, tt
+						);
+			}
+
+			template<typename ...AK> plugin_t1_implement(constor& oi, AK&& ...ak) :
+				plugin_t1_implement(
+					std::integral_constant<bool, std::is_constructible<plugin_t, constor&, AK&&...>::value>{},
+					oi, std::forward<AK>(ak)...
+				) {}
+
+		};
+
+		class plugin_tl_holder
+		{
+			std::unique_ptr<plugin_tl_interface> inter;
+		public:
+			plugin_tl_holder(constor& cr, std::function<std::unique_ptr<Implement::plugin_tl_interface>(constor&)>&& up) : inter(up(cr)) {}
+			void tick(ticker_tl& tt) { inter->tick(tt); }
+			void init(ticker_tl& tt) { inter->init(tt); }
+		};
+
+		class plugin_append_tl
+		{
+			template<typename ticker_t> friend class plugin_append;
+			virtual void create_plugin_tl_execute(std::function<std::unique_ptr<Implement::plugin_tl_interface>(constor&)>&& up, form_self& fs) = 0;
+		public:
+			template<typename plugin_t, typename ...AK>
+			void create_plugin_tl(plugin_t t, form_self& fs, AK&& ...ak)
+			{
+				constor tem(form());
+				create_plugin_tl_execute(
+					[&](constor& c) {return std::make_unique<Implement::plugin_t1_implement<typename plugin_t::type>>(c, std::forward<AK>(ak)...); },
+					fs
+				);
+			}
+		};
+	}
+
+	class form_ticker
+	{
+		form_self& form_ref;
+		duration da;
+		form_ticker(form_self& fs, duration d) : form_ref(fs), da(d) {}
+		template<typename frame> friend struct Implement::form_packet;
+	public:
+		operator form_self& () { return form_ref; }
+		operator const form_self& () const { return form_ref; }
+		operator duration() const { return da; }
+		duration time() const { return da; }
+		form_self& self() { return form_ref; }
+	};
+
+	class constor
+	{
+		plugin_self& plugin_ref;
+		form_self& form_ref;
+		Implement::plugin_append_tl& plugin_append_tl_ref;
+		constor(plugin_self& p, form_self& fs, Implement::plugin_append_tl& pat) : form_ref(fs), plugin_ref(p), plugin_append_tl_ref(pat) {}
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+		friend class ticker_tl;
+		friend class form_tick;
+		template<typename frame> friend class constor_outside;
+		template<typename frame> friend class constor_inside;
+	public:
+		form_self& form() { return form_ref; }
+		plugin_self& self() { return plugin_ref; }
+		template<typename plugin_t, typename ...AK>
+		void create_plugin_tl(plugin_t t, AK&& ...ak)
+		{
+			plugin_append_tl_ref.create_plugin_tl(t, form_ref, std::forward<AK>(ak)...);
 		}
 	};
 
-	template<typename frame> class viewer : public Implement::frame_viewer<frame>
+	template<typename ticker_t> class constor_inside : public constor
 	{
-		form_self* form;
-		Implement::plugin_append<Implement::frame_ticker<frame>>* plugin;
+		Implement::plugin_append<ticker_t>& plugin_append_ref;
+		ticker_t& ticker_ref;
+		constor_inside(plugin_self& ps, form_self& fs, Implement::plugin_append<ticker_t>& ft, ticker_t& fv) : constor(ps, fs, ft), plugin_append_ref(ft), ticker_ref(fv) {}
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
 	public:
-		viewer(Implement::frame_form<frame>& ff, form_self& fs, Implement::plugin_append<Implement::frame_ticker<frame>>& pa) : Implement::frame_viewer<frame>(ff), form(&fs), plugin(&pa) {}
-		viewer(viewer&& v) = default;
-		viewer(const viewer& v) = default;
-		template<typename plugin_t, typename ...AK> auto create_plugin(AK&& ...al)
+		template<typename plugin_t, typename ...AK>
+		void create_plugin(plugin_t t, AK&& ...ak)
 		{
-			return plugin->template create_plugin<plugin_t>(*this, std::forward<AK>(al)...);
+			plugin.create_plugin(t, ticker_init_type{}, form(), ticker_, std::forward<AK>(ak)...);
+		}
+	};
+
+	template<typename frame> class constor_outside: public constor
+	{
+		Implement::plugin_append<Implement::frame_ticker<frame>>& plugin_append_ref;
+		Implement::frame_viewer<frame>& viewer_ref;
+		constor_outside(plugin_self& ps, form_self& fs, Implement::plugin_append<Implement::frame_ticker<frame>>& ft, Implement::frame_viewer<frame>& fv) : constor(ps, fs, ft), plugin_append_ref(ft), viewer_ref(fv) {}
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+	public:
+		Implement::frame_viewer<frame>& viewer() { return viewer_ref; }
+		template<typename plugin_t, typename ...AK>
+		void create_plugin(plugin_t t, AK&& ...ak)
+		{
+			plugin.create_plugin(t, Implement::viewer_init_type<frame>{}, form(), view_ref, std::forward<AK>(ak)...);
+		}
+	};
+
+	class ticker_tl : public constor
+	{
+		duration time_data;
+		ticker_tl(plugin_self& s,form_self& f, Implement::plugin_append_tl& pat, duration d) :constor(s, f, pat), time_data(d) {}
+		template<typename ticker_t> friend class ticker;
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+	public:
+		duration time() const { return time_data; }
+	};
+
+	template<typename ticker_t> class ticker : public ticker_tl
+	{
+		Implement::plugin_append<ticker_t>& plugin;
+		ticker_t& ticker_;
+		ticker(plugin_self& ps, form_self& fs, Implement::plugin_append<ticker_t>& ft, duration da, ticker_t& fv)
+			: ticker_tl(ps, fs, ft, da), plugin(ft), ticker_(fv) {}
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+	public:
+		ticker_t& tick() { return ticker_; }
+		template<typename plugin_t, typename ...AK>
+		void create_plugin(plugin_t t, AK&& ...ak)
+		{
+			plugin.create_plugin(t, ticker_init_type{}, form(), ticker_, std::forward<AK>(ak)...);
+		}
+	};
+
+	template<typename frame> class viewer
+	{
+		form_self& form_ref;
+		Implement::plugin_append<Implement::frame_ticker<frame>>& plugin;
+		Implement::frame_viewer<frame> view_ref;
+		friend struct Implement::form_ptr;
+		template<typename T> friend class viewer_packet;
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+	public:
+		Implement::frame_viewer<frame>& view() { return view_ref; }
+		viewer(form_self& fs, Implement::plugin_append<Implement::frame_ticker<frame>>& ft, Implement::frame_form<frame>& fv)
+			: form_ref(fs), plugin(ft), view_ref(fv) {}
+		viewer(const viewer&) = default;
+		template<typename plugin_t, typename ...AK>
+		void create_plugin(plugin_t t, AK&& ...ak)
+		{
+			plugin.create_plugin(t, Implement::viewer_init_type<frame>{}, form_ref, view_ref, std::forward<AK>(ak)...);
 		}
 	};
 
@@ -154,7 +362,8 @@ namespace PO
 		Tool::completeness_ref ref;
 		viewer<frame> view;
 	public:
-		viewer_packet(const Tool::completeness_ref& cr, Implement::frame_form<frame>& ff, form_self& fs, Implement::plugin_append<Implement::frame_ticker<frame>>& pa) : ref(cr), view(ff, fs, pa) {}
+		viewer_packet(const Tool::completeness_ref& cr, form_self& fs, Implement::plugin_append<Implement::frame_ticker<frame>>& pa, Implement::frame_form<frame>& ff) 
+			: ref(cr), view(fs, pa, ff) {}
 		viewer_packet(const viewer_packet&) = default;
 		viewer_packet(viewer_packet&&) = default;
 		template<typename T>
@@ -169,98 +378,157 @@ namespace PO
 		}
 	};
 
-	using default_ticker = ticker<Implement::default_viewer_or_ticker>;
-
-	template<typename ticker_t>
-	class plugin_interface : public plugin_self
-	{
-		template<typename ticker_t> friend  class Implement::plugin_append;
-		virtual void plug_init(form_self& fs, ticker<ticker_t>& t) = 0;
-		virtual void plug_tick(duration tp, form_self& fs, ticker<ticker_t>& t) = 0;
-	protected:
-		using plugin_self::plugin_self;
-	public:
-	};
-
 	namespace Implement
 	{
 
-		template<typename plugin_t, typename ticker_t> struct plugin_have_plug_init
+		template<typename ticker_t>
+		class plugin_interface : public plugin_self
 		{
+			template<typename ticker_t> friend  class Implement::plugin_append;
+			template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+			virtual void plug_init(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) = 0;
+			virtual void plug_tick(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) = 0;
+			using plugin_self::plugin_self;
+		public:
+		};
+		
+		template<typename plugin_t, typename ticker_t> struct plugin_have_init
+		{
+			template<typename T, void (T::*)(ticker<ticker_t>&)> struct del;
 			template<typename T>
-			static std::true_type func(decltype(Tmp::itself<T>{}().plug_init(Tmp::itself<form_self&>{}(), Tmp::itself<plugin_interface<ticker_t>&>{}(), Tmp::itself<ticker<ticker_t>&>{}()))*);
+			static std::true_type func(del<T, &T::init>*);
 			template<typename T>
 			static std::false_type func(...);
 		public:
 			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
 		};
 
-		template<typename plugin_t, typename ticker_t> struct plugin_have_plug_tick
+		template<typename plugin_t, typename ticker_t> struct plugin_have_tick
 		{
+			template<typename T, void (T::*)(ticker<ticker_t>&)> struct del;
 			template<typename T>
-			static std::true_type func(decltype(Tmp::itself<T>{}().plug_tick(Tmp::itself<duration>{}(), Tmp::itself<form_self&>{}(), Tmp::itself<plugin_interface<ticker_t>&>{}(), Tmp::itself<ticker<ticker_t>&>{}()))*);
+			static std::true_type func(del<T, &T::tick>*);
 			template<typename T>
 			static std::false_type func(...);
 		public:
 			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
 		};
+		
 
 		template<typename plugin_t, typename ticker_t> class plugin_implement : public plugin_interface<ticker_t>
 		{
-			plugin_t data;
-
-			template<typename view_or_tick, typename ...AK>
-			plugin_implement(std::true_type, const Tool::completeness_ref& cpr, view_or_tick& vt, AK&& ...ak) :
-				plugin_interface<ticker_t>(cpr), data(static_cast<plugin_interface<ticker_t>&>(*this), vt, std::forward<AK>(ak)...) {}
-
-			template<typename view_or_tick, typename ...AK>
-			plugin_implement(std::false_type, std::true_type, const Tool::completeness_ref& cpr, view_or_tick& t, AK&& ...ak) :
-				plugin_interface<ticker_t>(cpr), data(static_cast<plugin_interface<ticker_t>&>(*this), std::forward<AK>(ak)...)
+			typename std::aligned_union<1, plugin_t>::type data;
+			
+			template<typename ...AK>
+			plugin_implement(std::true_type, constor_init_type, const Tool::completeness_ref& cpr, form_self& f, plugin_append_tl& pa, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
 			{
-
+				constor tem(*this, f, pa);
+				new (&data) plugin_t(tem, std::forward<AK>(ak)...);
 			}
 
-			template<typename view_or_tick, typename ...AK>
-			plugin_implement(std::false_type, std::false_type, const Tool::completeness_ref& cpr, view_or_tick& t, AK&& ...ak) :
-				plugin_interface<ticker_t>(cpr), data(std::forward<AK>(ak)...)
+			template<typename ...AK>
+			plugin_implement( std::false_type, constor_init_type, const Tool::completeness_ref& cpr, form_self& f, plugin_append_tl& pa, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
 			{
-				static_assert(std::is_constructible<plugin_t, AK...>::value, "can not construct plugin form this");
+				new (&data) plugin_t(std::forward<AK>(ak)...);
 			}
 
-			template<typename view_or_tick, typename ...AK>
-			plugin_implement(std::false_type ft, const Tool::completeness_ref& cpr, view_or_tick& t, AK&& ...ak) :
-				plugin_implement(ft, std::integral_constant<bool, std::is_constructible<plugin_t, plugin_interface<ticker_t>&, AK...>::value>{}, cpr, t, std::forward<AK>(ak)...)
+			template<typename ...AK>
+			plugin_implement(std::true_type, ticker_init_type, const Tool::completeness_ref& cpr, form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
 			{
-				
+				constor_inside<ticker_t> tem(*this, fs, pa, t);
+				new (&data) plugin_t(tem, std::forward<AK>(ak)...);
 			}
+			template<typename ...AK>
+			plugin_implement(std::false_type, ticker_init_type, const Tool::completeness_ref& cpr, form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
+			{
+				new (&data) plugin_t(std::forward<AK>(ak)...);
+			}
+
+			template<typename frame, typename ...AK>
+			plugin_implement(std::true_type, viewer_init_type<frame>, const Tool::completeness_ref& cpr, form_self& fs, plugin_append<ticker_t>& pa, frame_viewer<frame>& t, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
+			{
+				constor_outside<frame> tem(*this, fs, pa, t);
+				new (&data) plugin_t(tem,std::forward<AK>(ak)...);
+			}
+			template<typename frame, typename ...AK>
+			plugin_implement(std::false_type, viewer_init_type<frame>, const Tool::completeness_ref& cpr, form_self& fs, plugin_append<ticker_t>& pa, frame_viewer<frame>& t, AK&& ...ak) :
+				plugin_interface<ticker_t>(cpr)
+			{
+				new (&data) plugin_t(std::forward<AK>(ak)...);
+			}
+			
 
 		public:
 
-			template<typename view_or_tick, typename ...AK>
-			plugin_implement(const Tool::completeness_ref& cpr, view_or_tick& t, AK&& ...ak) :
+			
+			template<typename ...AK>
+			plugin_implement(const Tool::completeness_ref& cpr, constor_init_type it, form_self& fs, plugin_append_tl& pa, AK&& ...ak) :
 				plugin_implement(
-					std::integral_constant<bool, std::is_constructible<plugin_t, plugin_interface<ticker_t>&, view_or_tick&, AK... >::value>{},
-					cpr, t, std::forward<AK>(ak)...
-				)
+					std::integral_constant<bool, std::is_constructible<plugin_t, constor&, AK&&... >::value>{},
+					it,
+					cpr, fs, pa, std::forward<AK>(ak)...
+				) {}
+			
+			template< typename ...AK>
+			plugin_implement(const Tool::completeness_ref& cpr, ticker_init_type it, form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, AK&& ...ak) :
+				plugin_implement(
+					std::integral_constant<bool, std::is_constructible<plugin_t, constor_inside<ticker_t>&, AK&&... >::value>{},
+					it,
+					cpr, fs, pa, t, std::forward<AK>(ak)...
+				) {}
+
+			template<typename frame, typename ...AK>
+			plugin_implement(const Tool::completeness_ref& cpr, viewer_init_type<frame> vit, form_self& fs, plugin_append<ticker_t>& pa, frame_viewer<frame>& t, AK&& ...ak) :
+				plugin_implement(
+					std::integral_constant<bool, std::is_constructible<plugin_t, constor_outside<frame>&, AK&&... >::value>{},
+					vit,
+					cpr, fs, pa, t, std::forward<AK>(ak)...
+				) {}
+
+			~plugin_implement()
 			{
+				reinterpret_cast<plugin_t*>(&data) -> ~plugin_t();
 			}
 
-			virtual void plug_init(form_self& fs, ticker<ticker_t>& t) override
+			virtual void plug_init(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) override
 			{
-				Tool::statement_if<plugin_have_plug_init<plugin_t, ticker_t>::value>
+				ticker<ticker_t> tem(*this, fs, pa, da, t);
+				Tool::statement_if<plugin_have_init<plugin_t, ticker_t>::value>
 					(
-						[&, this](auto& a) { a.plug_init(fs, *this, t); },
-						[](auto& a) {},
-						data
+						[](auto& a, ticker<ticker_t>& t) { a.init(t); },
+						[](auto& a, ticker<ticker_t>& t) 
+				{
+					Tool::statement_if<plugin_have_init_tl<plugin_t>::value>
+						(
+							[](auto& a, ticker<ticker_t>& t) { a.init(t); },
+							[](auto& a, ticker<ticker_t>& t) {},
+							a, t
+							);
+				},
+						*(reinterpret_cast<plugin_t*>(&data)), tem
 						);
 			}
-			virtual void plug_tick(duration da, form_self& fs, ticker<ticker_t>& t) override
+			virtual void plug_tick(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) override
 			{
-				Tool::statement_if<plugin_have_plug_tick<plugin_t, ticker_t>::value>
+				ticker<ticker_t> tem(*this, fs, pa, da, t);
+				Tool::statement_if<plugin_have_tick<plugin_t, ticker_t>::value>
 					(
-						[&, this](auto& a) { a.plug_tick(da, fs, *this, t); },
-						[](auto& a) {},
-						data
+						[](auto& a, ticker<ticker_t>& t) { a.tick(t); },
+						[](auto& a, ticker<ticker_t>& t) 
+				{
+					Tool::statement_if<plugin_have_tick_tl<plugin_t>::value>
+						(
+							[](auto& a, ticker<ticker_t>& t) { a.tick(t); },
+							[](auto& a, ticker<ticker_t>& t) {},
+							a, t
+							);
+				},
+						*(reinterpret_cast<plugin_t*>(&data)), tem
 						);
 			}
 
@@ -279,15 +547,30 @@ namespace PO
 
 		template<typename plugin_t, typename ticker_t> using plugin_final = Tool::completeness<plugin_implement<plugin_t, ticker_t>>;
 
-		template<typename ticker_t> class plugin_append
+		template<typename ticker_t> class plugin_append : public plugin_append_tl
 		{
 			std::mutex pim;
 			std::list<std::unique_ptr<plugin_interface<ticker_t>>> inilizered_plugin_list;
 			std::list<std::unique_ptr<plugin_interface<ticker_t>>> plugin_list;
-			ticker<ticker_t> tick;
+			ticker_t tick;
+
+			virtual void create_plugin_tl_execute(std::function<std::unique_ptr<Implement::plugin_tl_interface>(constor&)>&& up, form_self& fs)
+			{
+				this->create_plugin(Tmp::itself<plugin_tl_holder>{}, constor_init_type{}, fs, std::move(up));
+			}
+
 		public:
+
+			template<typename plugin_t, typename init_type, typename ...AK> auto create_plugin(plugin_t t, init_type it, form_self& fs, AK&&... ak)
+			{
+				auto ptr = std::make_unique<plugin_final<typename plugin_t::type, ticker_t>>(it, fs, *this, std::forward<AK>(ak)...);
+				{
+					std::lock_guard<decltype(pim)> lg(pim);
+					inilizered_plugin_list.push_back(std::move(ptr));
+				}
+			}
 			template<typename form>
-			plugin_append(form& fv, form_self& fs) : tick(fv, fs, *this) {}
+			plugin_append(form& fv) : tick(fv) {}
 			void plug_tick(duration da, form_self& fs)
 			{
 				decltype(inilizered_plugin_list) temporary_list;
@@ -302,37 +585,42 @@ namespace PO
 				if (!temporary_list.empty())
 				{
 					for (auto& ptr : temporary_list)
-						(ptr)->plug_init(fs, tick);
+						(ptr)->plug_init(fs, *this, tick , da);
 					plugin_list.splice(plugin_list.end(), std::move(temporary_list), temporary_list.begin(), temporary_list.end());
 				}
 				for (auto ptr = plugin_list.begin(); ptr != plugin_list.end();)
 				{
 					if ((*ptr) && (**ptr))
 					{
-						(*ptr++)->plug_tick(da, fs, tick);
+						(*ptr++)->plug_tick(fs, *this, tick, da);
 						continue;
 					}
 					plugin_list.erase(ptr++);
 				}
 			}
-			template<typename plugin_t, typename view_or_ticker, typename ...AK> auto create_plugin(view_or_ticker& vt, AK&&... ak)
+			
+		};
+
+		template<typename form, typename = void> struct form_call_pre_tick
+		{
+			void operator() (form& f, form_self& fs, duration da){}
+		};
+		template<typename form> struct form_call_pre_tick < form, std::void_t<decltype(Tmp::itself<form>{}().pre_tick(Tmp::itself<form_tick&>{}())) >>
+		{
+			void operator() (form& f, form_self& fs, duration da) 
 			{
-				auto ptr = std::make_unique<plugin_final<plugin_t, ticker_t>>(vt, std::forward<AK>(ak)...);
-				{
-					std::lock_guard<decltype(pim)> lg(pim);
-					inilizered_plugin_list.push_back(std::move(ptr));
-				}
+				form_ticker tem(fs, da);
+				f.pre_tick(tem);
 			}
 		};
 
-		template<typename form> struct form_have_form_tick
+		template<typename form> class form_have_tick
 		{
-			template<typename T>
-			static std::true_type func(decltype(Tmp::itself<T>{}().form_tick(Tmp::itself<duration>{}(), Tmp::itself<form_self&>{}()))*);
-			template<typename T>
-			static std::false_type func(...);
+			template<typename T, void (T::*)(form_ticker&)> struct del;
+			template<typename T> static std::true_type fun(del<T, &T::tick>*);
+			template<typename T> static std::false_type fun(...);
 		public:
-			static constexpr bool value = decltype(func<form>(nullptr))::value;
+			static constexpr bool value = decltype(fun<form>(nullptr))::value;
 		};
 
 		template<typename frame>
@@ -343,12 +631,12 @@ namespace PO
 			plugin_append<Implement::frame_ticker<frame>> plugin_data;
 
 			template<typename ...AT> form_packet(std::true_type, const Tool::completeness_ref& cr, AT&& ...at) :
-				self(cr), form_data(self, std::forward<AT>(at)...), plugin_data(form_data, self)
+				self(cr), form_data(self, std::forward<AT>(at)...), plugin_data(form_data)
 			{
 			}
 
 			template<typename ...AT> form_packet(std::false_type, const Tool::completeness_ref& cr, AT&& ...at) :
-				self(cr), form_data(std::forward<AT>(at)...), plugin_data(form_data, self)
+				self(cr), form_data(std::forward<AT>(at)...), plugin_data(form_data)
 			{
 			}
 
@@ -375,13 +663,18 @@ namespace PO
 				auto dua = self.tick(tp);
 				if (dua)
 				{
-					Tool::statement_if<form_have_form_tick<Implement::frame_form<frame>>::value>
-						(
-							[](auto& a, auto& fs, auto da) mutable {a.form_tick(da, fs); },
-							[](auto& a, auto& fs, auto da) {},
-							form_data, self, *dua
-							);
+					//form_call_pre_tick<Implement::frame_form<frame>>{}(form_data, self, *dua);
 					plugin_data.plug_tick(*dua, self);
+					Tool::statement_if<form_have_tick<Implement::frame_form<frame>>::value>
+						(
+							[](auto& p, duration da, form_self& fs)
+					{
+						form_ticker ft(fs, da);
+						p.tick(ft);
+					},
+							[](auto& p, duration da, form_self&) {},
+						form_data, *dua, self
+						);
 				}
 				/*
 				self.reored.tick(da,
@@ -463,7 +756,7 @@ namespace PO
 				{
 					form_final<frame> packet(std::forward<AK>(ak)...);
 					//viewer_packer(const Tool::completeness_ref& cr, frame_form<frame>& ff, form_self& fs, Implement::plugin_append<frame_ticker<frame>>& pa) : ref(cr), view(ff, fs, pa) {}
-					p.set_value(std::make_unique<viewer_packet<frame>>(packet,packet.form_data,packet.self, packet.plugin_data));
+					p.set_value(std::make_unique<viewer_packet<frame>>(packet, packet.self, packet.plugin_data, packet.form_data));
 					time_point start_loop = std::chrono::system_clock::now();
 					while (!force_exist_form  && packet)
 					{
@@ -481,6 +774,8 @@ namespace PO
 		};
 
 	}
+
+	template<typename plugin_t> using plugin_type = Tmp::itself<plugin_t>;
 
 }
 

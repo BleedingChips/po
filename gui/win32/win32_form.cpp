@@ -377,7 +377,7 @@ namespace PO
 			manager.destory(raw_handle);
 		}
 
-		void win32_form::form_tick_implement(form_self& fs)
+		void win32_form::tick(form_ticker& fs)
 		{
 			decltype(input_event) tem;
 			{
@@ -387,7 +387,7 @@ namespace PO
 			for (auto& iu : tem)
 			{
 				if (iu.is_quit())
-					fs.close();
+					fs.self().close();
 			}
 		}
 	}

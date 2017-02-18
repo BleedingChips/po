@@ -80,8 +80,14 @@
     <ClInclude Include="..\..\win32\win32_define.h">
       <Filter>win32</Filter>
     </ClInclude>
+    <ClInclude Include="..\dx11_vertex.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\shader\base_pshader.hlsl">
+      <Filter>dx11\shader</Filter>
+    </FxCompile>
     <FxCompile Include="..\shader\base_vshader.hlsl">
       <Filter>dx11\shader</Filter>
     </FxCompile>

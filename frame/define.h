@@ -8,26 +8,21 @@
 #include <Windows.h>
 namespace PO
 {
-	inline std::string utf16_to_asc(const std::u16string& data)
-	{
-		static thread_local std::vector<char>  translate_char_buffer;
-		if (data.size() * 2 + 1 > translate_char_buffer.size())
-			translate_char_buffer.resize(data.size() * 2 + 1);
-		WideCharToMultiByte(CP_ACP, 0, (wchar_t*)(data.c_str()), -1, &translate_char_buffer[0], static_cast<int>(translate_char_buffer.size()), NULL, NULL);
-		return std::string(&translate_char_buffer[0]);
-	}
+	std::string utf16_to_asc(const std::u16string& data);
 
-	inline std::u16string asc_to_utf16(const std::string& data)
-	{
-		static thread_local std::vector<wchar_t>  translate_char_buffer;
-		if (data.size() > translate_char_buffer.size())
-			translate_char_buffer.resize(data.size());
-		MultiByteToWideChar(CP_ACP, 0, data.c_str(), -1, &translate_char_buffer[0], static_cast<int>(translate_char_buffer.size()));
-		return std::u16string(reinterpret_cast<char16_t*>(&translate_char_buffer[0]));
-	}
+	std::u16string asc_to_utf16(const std::string& data);
+
 }
 #endif
 
+inline wchar_t const* operator"" _wc
+(
+	std::conditional_t<sizeof(wchar_t) == sizeof(char16_t), char16_t const *, char32_t const *> ca,
+	size_t l
+)
+{
+	return reinterpret_cast<wchar_t const*>(ca);
+}
 
 namespace PO
 {
