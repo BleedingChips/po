@@ -126,7 +126,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\frame\define.cpp" />
-    <ClCompile Include="..\frame\framecpp.cpp" />
+    <ClCompile Include="..\frame\frame.cpp" />
     <ClCompile Include="..\frame\resource_loader.cpp" />
     <ClCompile Include="..\po.cpp" />
     <ClCompile Include="..\tool\thread_tool.cpp" />

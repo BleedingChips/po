@@ -33,7 +33,7 @@
     <ClCompile Include="..\frame\resource_loader.cpp">
       <Filter>frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\frame\framecpp.cpp">
+    <ClCompile Include="..\frame\frame.cpp">
       <Filter>frame</Filter>
     </ClCompile>
   </ItemGroup>

@@ -76,7 +76,7 @@ namespace PO
 			//swap->
 			//dc->ClearRenderTargetView(pView, color);
 		}
-
+		
 		bool shader_loader::shader_loader_execute::operator()()
 		{
 			std::ifstream file(utf16_to_asc(path), std::ios::binary | std::ios::in);
@@ -86,13 +86,15 @@ namespace PO
 				auto end_poi = file.tellg();
 				file.seekg(0, std::ios::beg);
 				auto sta_poi = file.tellg();
-				info = Implement::data{ static_cast<size_t>(end_poi - sta_poi) };
+				info = binary{ static_cast<size_t>(end_poi - sta_poi) };
 				file.read(info, end_poi - sta_poi);
+				info.update();
 			}
 			else
 				set_bad();
 			return false;
 		}
+		
 
 	}
 }

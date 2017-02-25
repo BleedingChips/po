@@ -129,7 +129,7 @@
     <ClCompile Include="..\..\dxgi\dxgi_log.cpp" />
     <ClCompile Include="..\..\win32\win32_form.cpp" />
     <ClCompile Include="..\..\win32\win32_log.cpp" />
-    <ClCompile Include="..\dx11_definecpp.cpp" />
+    <ClCompile Include="..\dx11_define.cpp" />
     <ClCompile Include="..\dx11_form.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -147,6 +147,14 @@
     <ClInclude Include="..\dx11_vertex.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\shader\base_cshader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="..\shader\base_gshader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="..\shader\base_pshader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>

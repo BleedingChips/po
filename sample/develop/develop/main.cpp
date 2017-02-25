@@ -15,10 +15,6 @@ using namespace PO::Implement;
 
 int main()
 {
-	//assert((__FILE__, false));
-	//cout << __FILE__ << endl;
-	//system("pause");
-	/*
 	PO::context con;
 	auto fo = con.create_window<DX11_Test_Form>();
 	fo.lock_if(
@@ -28,7 +24,7 @@ int main()
 	}
 	);
 	con.wait_all_form_close();
-	*/
+	system("pause");
 }
 
 

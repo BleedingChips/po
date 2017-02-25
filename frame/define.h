@@ -204,4 +204,75 @@ namespace PO
 		bool is_key() { return type == EventType::E_KEY; }
 	};
 
+	class binary
+	{
+		std::shared_ptr<char> ptr;
+		static void deleter(char* d) { delete[](d); }
+		struct binary_control
+		{
+			size_t binary_size;
+			uint64_t binary_vision = 0;
+			binary_control(size_t s) :binary_size(s) {}
+			uint64_t update() { return ++binary_vision; }
+			size_t size() const { return binary_size; }
+			uint64_t vision() const { return binary_vision; }
+		};
+	public:
+		class weak_ref
+		{
+			std::weak_ptr<char> ptr;
+			friend class bindary;
+		public:
+			weak_ref() = default;
+			weak_ref(const binary& b) : ptr(b.ptr) {}
+			weak_ref(const weak_ref&) = default;
+			weak_ref(weak_ref&&) = default;
+			weak_ref& operator=(const weak_ref&) = default;
+			weak_ref& operator=(weak_ref&&) = default;
+			operator bool() const { return !ptr.expired(); }
+			binary lock() const { binary tem; tem.ptr = ptr.lock(); return tem; }
+			bool operator <(const weak_ref& b) const { return std::owner_less<std::weak_ptr<char>>{}(ptr, b.ptr); }
+			bool operator ==(const weak_ref& b) const { return ptr.owner_before(b.ptr); }
+		};
+
+		binary() {}
+		binary(size_t s) { alloc(s); }
+
+		bool operator <(const binary& b) const { return std::owner_less<std::shared_ptr<char>>{}(ptr, b.ptr); }
+		bool operator ==(const binary& b) const { return ptr == b.ptr; }
+
+		binary(const binary& b) = default;
+		binary(binary&& b) = default;
+		binary& operator=(binary&&) = default;
+		binary& operator=(const binary&) = default;
+		void alloc(size_t s)
+		{ 
+			ptr = std::shared_ptr<char>(new char[s+sizeof(binary_control)], deleter);
+			new (reinterpret_cast<binary_control*>(ptr.get())) binary_control(s);
+		}
+		void reset() { ptr.reset(); }
+		uint64_t size() const
+		{ 
+			return *this ? reinterpret_cast<binary_control*>(ptr.get())->size() : 0;
+		}
+		uint64_t vision() const
+		{
+			return *this ? reinterpret_cast<binary_control*>(ptr.get())->vision() : 0;
+		}
+		uint64_t update() { return *this ? reinterpret_cast<binary_control*>(ptr.get())->update() : 0; }
+		operator char* () const 
+		{
+			if (ptr)
+				return ptr .get() + sizeof(binary_control);
+			return nullptr; 
+		}
+		operator void* () const 
+		{ 
+			if (ptr)
+				return reinterpret_cast<void*>(ptr.get() + sizeof(binary_control));
+			return nullptr; 
+		}
+		operator bool() const { return static_cast<bool>(ptr); }
+	};
+
 }

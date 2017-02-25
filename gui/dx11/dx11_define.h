@@ -9,31 +9,256 @@
 #include <vector>
 #include <memory>
 #include <array>
-#include "../../tool/tmp.h"
+#include <map>
+#include "../../frame/define.h"
 namespace PO
 {
 	namespace Dx11
 	{
-
 		using float2 = DirectX::XMFLOAT2;
 		using float3 = DirectX::XMFLOAT3;
 		using float4 = DirectX::XMFLOAT4;
 		using matrix4 = DirectX::XMMATRIX;
+	}
+	namespace DXGI
+	{
+		template<typename T> struct data_format;
+		template<> struct data_format<Dx11::float2>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT;
+		};
+		template<> struct data_format<Dx11::float3>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
+		};
+		template<> struct data_format<Dx11::float4>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
+		};
+	}
 
+	namespace Dx11
+	{
 		namespace Implement
 		{
-			using resource = CComPtr<ID3D11Device>;
-			using context = CComPtr<ID3D11DeviceContext>;
-			using chain = CComPtr<IDXGISwapChain>;
-			using buffer = CComPtr<ID3D11Buffer>;
-			using vshader = CComPtr<ID3D11VertexShader>;
-			using pshader = CComPtr<ID3D11PixelShader>;
-			using layout = CComPtr<ID3D11InputLayout>;
-			using raterizer_state = CComPtr<ID3D11RasterizerState>;
-			using texture2D = CComPtr<ID3D11Texture2D>;
-			using resource_view = CComPtr<ID3D11ShaderResourceView>;
-			using sample_state = CComPtr<ID3D11SamplerState>;
+			using resource_ptr = CComPtr<ID3D11Device>;
+			using context_ptr = CComPtr<ID3D11DeviceContext>;
+			using chain_ptr = CComPtr<IDXGISwapChain>;
+			using buffer_ptr = CComPtr<ID3D11Buffer>;
+			using vshader_ptr = CComPtr<ID3D11VertexShader>;
+			using pshader_ptr = CComPtr<ID3D11PixelShader>;
+			using layout_ptr = CComPtr<ID3D11InputLayout>;
+			using raterizer_state_ptr = CComPtr<ID3D11RasterizerState>;
+			using texture2D_ptr = CComPtr<ID3D11Texture2D>;
+			using resource_view_ptr = CComPtr<ID3D11ShaderResourceView>;
+			using sample_state_ptr = CComPtr<ID3D11SamplerState>;
+			using cshader_ptr = CComPtr<ID3D11ComputeShader>;
+			using gshader_ptr = CComPtr<ID3D11GeometryShader>;
 
+			struct buffer
+			{
+				buffer_ptr ptr;
+				uint64_t buffer_vision;
+
+				uint64_t update() { return ++buffer_vision; }
+				bool check_update(uint64_t& i) const 
+				{ 
+					bool re = (i != buffer_vision);
+					i = buffer_vision;
+					return re;
+				}
+				uint64_t vision() const { return buffer_vision; }
+				buffer() : ptr(nullptr), buffer_vision(0) {}
+				buffer(const buffer_ptr& bp) : ptr(bp), buffer_vision(1) {}
+				buffer(buffer&& b) : ptr(b.ptr), buffer_vision(b.buffer_vision)
+				{
+					b.ptr.Release();
+					b.buffer_vision = 0;
+				}
+			};
+		}
+
+		struct vertex_buffer : Implement::buffer
+		{
+			size_t input_layout_count = 0;
+			size_t vertex_size;
+			void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt) = nullptr;
+			vertex_buffer() {}
+			vertex_buffer(
+				const Implement::buffer_ptr& bf, size_t ilc, size_t vs,
+				void(*scr)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+			) : Implement::buffer(bf), input_layout_count(ilc), vertex_size(vs), scription(scr) {}
+			vertex_buffer(vertex_buffer&& vd) : Implement::buffer(std::move(vd)), scription(vd.scription)
+			{
+				vd.scription = nullptr;
+			}
+		};
+
+		struct index_buffer : Implement::buffer
+		{
+			DXGI_FORMAT format;
+			UINT offset;
+			index_buffer(const Implement::buffer_ptr& bp, DXGI_FORMAT f, size_t o) :Implement::buffer(bp), format(f), offset(static_cast<UINT>(o)) {}
+		};
+
+		struct vertex_pool
+		{
+
+			struct element_data
+			{
+				using store_ref = std::shared_ptr<vertex_buffer>;
+				using weak_ref = std::weak_ptr<vertex_buffer>;
+
+				Tool::variant<store_ref, weak_ref> ptr;
+				uint64_t vision = 0;
+				bool need_change = false;
+				vertex_buffer& get_element() { return ptr.able_cast<store_ref>() ? *ptr.cast<store_ref>() : *(ptr.cast<weak_ref>().lock()); }
+				operator bool() const;
+				element_data& operator=(store_ref sr);
+				bool need_update();
+				void clear() 
+				{
+					vision = 0;
+					ptr = {};
+					need_change = true;
+				}
+			};
+
+			element_data element[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			Tool::variant<std::shared_ptr<index_buffer>, std::weak_ptr<index_buffer>> index_ptr;
+			std::map<binary::weak_ref, Implement::layout_ptr> layout_state;
+
+			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			
+
+			Implement::resource_ptr res_ptr;
+
+			struct range
+			{
+				size_t start;
+				size_t count;
+			};
+
+			range vertex;
+			range instance;
+			range index;
+
+			bool update(Implement::context_ptr& cp, binary& b);
+			void clear();
+			bool set_resource(const Implement::resource_ptr& rp) { clear(); res_ptr = rp; return res_ptr != nullptr; }
+			void set_vertex(size_t start, size_t count) { vertex = range{ start, count }; }
+			void set_instance(size_t start, size_t count) { instance = range{ start, count }; }
+			void set_index(size_t start, size_t count) { index = range{ start, count }; }
+
+			HRESULT create_vertex(size_t solt, void* data, size_t data_size, size_t vertex_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt));
+
+			void set_primitive(D3D11_PRIMITIVE_TOPOLOGY p) { primitive = p; }
+
+			template<typename type, typename inpu>
+			HRESULT create_vertex(size_t solt,  type* t, size_t s, inpu)
+			{
+				return create_vertex(solt, t, sizeof(type) * s, sizeof(type), inpu::value, &inpu::create_input_element_desc);
+			}
+
+			HRESULT create_index(void* data, size_t data_size, DXGI_FORMAT DF);
+		};
+
+		struct const_buffer
+		{
+
+		};
+
+		struct pipe_line
+		{
+			struct v
+			{
+				using store = Implement::vshader_ptr;
+				static HRESULT create(const Implement::resource_ptr& rp, store& s, const binary& b) { return rp->CreateVertexShader(b, b.size(),nullptr, &s); }
+			};
+
+			struct p
+			{
+				using store = Implement::pshader_ptr;
+				static HRESULT create(const Implement::resource_ptr& rp, store& s, const binary& b) { return rp->CreatePixelShader(b, b.size(), nullptr, &s); }
+			};
+
+			struct g
+			{
+				using store = Implement::gshader_ptr;
+				static HRESULT create(const Implement::resource_ptr& rp, store& s, const binary& b) { return rp->CreateGeometryShader(b, b.size(), nullptr, &s); }
+			};
+
+			template<typename T> struct shader_packet
+			{
+				binary buffer;
+				typename T::store ptr;
+			public:
+				HRESULT load(const Implement::resource_ptr& rp, binary&& b)
+				{
+					buffer = std::move(b);
+					return T::create(rp, ptr, buffer);
+				}
+				void clear() 
+				{
+					ptr.Release();
+				}
+			};
+
+			shader_packet<v> vshader;
+			shader_packet<p> pshader;
+			shader_packet<g> gshader;
+
+			Implement::resource_ptr res_ptr;
+			Implement::raterizer_state_ptr state_ptr;
+		public:
+			bool set_resource(const Implement::resource_ptr& rp) 
+			{ 
+				clear();
+				res_ptr = rp;
+				/*
+				if (shader_v_buffer)
+				{
+					binary tem = std::move(shader_v_buffer);
+					load_shader_v(std::move(tem));
+				}
+				if (shader_p_buffer)
+				{
+					binary tem = std::move(shader_p_buffer);
+					load_shader_p(std::move(tem));
+				}
+				*/
+				return res_ptr != nullptr; 
+			}
+			void clear()
+			{
+				res_ptr.Release();
+				vshader.clear();
+				pshader.clear();
+				gshader.clear();
+				state_ptr.Release();
+			}
+			bool draw(Implement::context_ptr& cp, /*const_buffer& cb,*/ vertex_pool& vp, size_t vertex_num);
+			HRESULT load_shader_v(binary&& b);
+			HRESULT load_shader_g(binary&& b);
+			HRESULT load_shader_p(binary&& b);
+		};
+
+		struct compute
+		{
+			Implement::resource_ptr res_ptr;
+			binary shader_c_buffer;
+			Implement::cshader_ptr  shader_c;
+			bool set_resource(Implement::resource_ptr ip) { res_ptr = ip; return res_ptr != nullptr; }
+			HRESULT load_shader_c(binary&& a)
+			{
+				shader_c_buffer = std::move(a);
+				HRESULT re = res_ptr->CreateComputeShader(shader_c_buffer, shader_c_buffer.size(), nullptr, &shader_c);
+				return re;
+			}
+		};
+
+
+		/*
 			class data
 			{
 				std::shared_ptr<void> steam;
@@ -83,6 +308,17 @@ namespace PO
 				}
 			};
 		}
+
+		struct buffer_state
+		{
+			bool change = false;
+		};
+
+		template<typename property, typename ...usetype> class buffer
+		{
+			bool change = false;
+		};
+		
 		
 		class vertex_buffer
 		{
@@ -133,7 +369,23 @@ namespace PO
 
 			struct shader
 			{
-				
+				struct vertex
+				{
+					using store_type = Implement::vshader;
+					static HRESULT LoadShader(store_type& s,Implement::resource& re, Implement::data& da)
+					{
+						return re->CreateVertexShader(da, da.size(), nullptr, &s);
+					}
+				};7
+
+				struct pixel
+				{
+					using store_type = Implement::pshader;
+					static HRESULT LoadShader(store_type& s, Implement::resource& re, Implement::data& da)
+					{
+						return re->CreatePixelShader(da, da.size(), nullptr, &s);
+					}
+				};
 			};
 
 			struct index
@@ -142,25 +394,15 @@ namespace PO
 			};
 		}
 
-		struct buffer_data
-		{
-			Implement::buffer ptr;
-			size_t size;
-		};
-
-		template<typename pro, typename bind_type> class buffer : public buffer_data
+		template<typename pro, typename ...bind_type> class buffer
 		{	
 			Implement::buffer ptr;
 			size_t size;
-			typename bind_type::scription scri;
+			std::tuple<typename bind_type::scription...> scr;
+			friend class pipe_line;
 		public:
 			buffer() {}
 			operator bool() const { return ptr != nullptr; }
-			template<typename ...AK>
-			HRESULT create_buffer(Implement::resource& re, size_t *,AK&& ... ak)
-			{
-				re->CreateBuffer()
-			}
 		};
 
 		namespace Implement
@@ -179,12 +421,7 @@ namespace PO
 				static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
 			};
 		}
-
 		
-
-
-		
-
 		template<typename Property_t> class vertex : public vertex_buffer
 		{
 			void(*layout_creater)(std::vector<D3D11_INPUT_ELEMENT_DESC>& v, size_t slot);
@@ -266,8 +503,8 @@ namespace PO
 
 		class pipe_line
 		{
-			using vs_t = shader<Components::vertex_s>;
-			using ps_t = shader<Components::pixel_s>;
+			using vs_t = shader<Component::shader<Component::shader::pixel>>;
+			using ps_t = shader<Component::pixel_s>;
 
 			vs_t vs;
 			ps_t ps;
@@ -287,7 +524,6 @@ namespace PO
 			vs_t& v_shader() { return vs; }
 			ps_t& p_shader() { return ps; }
 
-			/*
 			void draw(Implement::context& c, ID3D11RenderTargetView* pView, ID3D11DepthStencilView* pDepthView, const vertex_layout& vl, vertex_buffer& vb)
 			{
 				
@@ -309,8 +545,8 @@ namespace PO
 				c->Draw(6, 0);
 				last = GetLastError();
 			}
-			*/
+			
 		};
-
+		*/
 	}
 }

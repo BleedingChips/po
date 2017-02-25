@@ -755,7 +755,6 @@ namespace PO
 					[&, this]()
 				{
 					form_final<frame> packet(std::forward<AK>(ak)...);
-					//viewer_packer(const Tool::completeness_ref& cr, frame_form<frame>& ff, form_self& fs, Implement::plugin_append<frame_ticker<frame>>& pa) : ref(cr), view(ff, fs, pa) {}
 					p.set_value(std::make_unique<viewer_packet<frame>>(packet, packet.self, packet.plugin_data, packet.form_data));
 					time_point start_loop = std::chrono::system_clock::now();
 					while (!force_exist_form  && packet)
@@ -776,6 +775,24 @@ namespace PO
 	}
 
 	template<typename plugin_t> using plugin_type = Tmp::itself<plugin_t>;
+
+	namespace Implement
+	{
+		struct scense_data
+		{
+			//std::map<std::string, std::string> map;
+		};
+	}
+
+	struct scense
+	{
+
+	};
+
+	struct resource_loader
+	{
+
+	};
 
 }
 

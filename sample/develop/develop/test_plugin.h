@@ -11,11 +11,16 @@ struct test_plugin
 	//shader_v vs;
 	//shader_p ps;
 	//vertex_layout vl;
-	pipe_line pl;
+	//pipe_line pl;
 	DirectX::ScratchImage si;
-	Implement::texture2D t;
-	Implement::sample_state ss;
-	Implement::resource_view sv;
+	Implement::texture2D_ptr t;
+	Implement::sample_state_ptr ss;
+	Implement::resource_view_ptr sv;
+	pipe_line pl;
+	vertex_pool vp;
+	compute cp;
+	ID3D11Buffer* buf;
+	ID3D11Buffer* buf2;
 	test_plugin()
 	{
 

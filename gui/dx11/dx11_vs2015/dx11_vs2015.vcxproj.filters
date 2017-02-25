@@ -42,7 +42,7 @@
     <ClCompile Include="..\..\dxgi\dxgi_log.cpp">
       <Filter>dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="..\dx11_definecpp.cpp">
+    <ClCompile Include="..\dx11_define.cpp">
       <Filter>dx11</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,6 +89,12 @@
       <Filter>dx11\shader</Filter>
     </FxCompile>
     <FxCompile Include="..\shader\base_vshader.hlsl">
+      <Filter>dx11\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shader\base_gshader.hlsl">
+      <Filter>dx11\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shader\base_cshader.hlsl">
       <Filter>dx11\shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -95,4 +95,28 @@ namespace PO
 
 		}
 	}
+	namespace DXGI
+	{
+		template<typename T> struct data_format;
+		template<> struct data_format<uint32_t>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+		};
+		template<> struct data_format<int32_t>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
+		};
+		template<> struct data_format<uint16_t>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+		};
+		template<> struct data_format<int16_t>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
+		};
+		template<> struct data_format<float>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
+		};
+	}
 }

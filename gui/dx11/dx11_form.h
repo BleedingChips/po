@@ -21,9 +21,9 @@ namespace PO
 		struct Dx11_form
 		{
 			Win32::win32_form form;
-			Implement::resource dev;
-			Implement::context dc;
-			Implement::chain swap;
+			Implement::resource_ptr dev;
+			Implement::context_ptr dc;
+			Implement::chain_ptr swap;
 
 			CComPtr<ID3D11Texture2D> main_buffer;
 			CComPtr<ID3D11RenderTargetView> pView;
@@ -36,22 +36,22 @@ namespace PO
 
 		struct Dx11_ticker
 		{
-			Implement::resource dev;
-			Implement::context dc;
-			Implement::chain swap;
+			Implement::resource_ptr dev;
+			Implement::context_ptr dc;
+			Implement::chain_ptr swap;
 			CComPtr<ID3D11RenderTargetView> pView;
 			CComPtr<ID3D11DepthStencilView> pDepthView;
 			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc), pView(Df.pView), pDepthView(Df.pDepthView), swap(Df.swap){}
-			operator Implement::resource& () { return dev; }
+			operator Implement::resource_ptr& () { return dev; }
 		};
 
 		class shader_loader
 		{
 			struct shader_loader_execute : thread_task
 			{
-				static std::map<std::u16string, Implement::data::weak_ref> all_shader;
+				static std::map<std::u16string, binary::weak_ref> all_shader;
 				std::u16string path;
-				Implement::data info;
+				binary info;
 				shader_loader_execute(Tool::completeness_ref cr, std::u16string p) :thread_task(std::move(cr)), path(std::move(p)) {}
 				virtual bool operator()() override;
 			};
@@ -66,14 +66,14 @@ namespace PO
 					request->path = std::move(p);
 				fs.push_task(request);
 			}
-			Tool::optional<Implement::data> get()
+			Tool::optional<binary> get()
 			{
 				if (*this)
 					return{ std::move(request->info) };
 				else
 					return{};
 			}
-			Tool::optional<Implement::data> wait_get()
+			Tool::optional<binary> wait_get()
 			{
 				if (request)
 				{
