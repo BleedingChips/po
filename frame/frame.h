@@ -69,6 +69,16 @@ namespace PO
 		};
 	}
 
+	struct scene
+	{
+	public:
+	};
+
+	struct file_loader
+	{
+
+	};
+
 	class form_self
 	{
 		std::mutex record_mutex;

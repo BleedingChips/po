@@ -45,6 +45,32 @@ namespace PO
 				}
 			}
 		}
+
+		template<typename T>
+		struct com_obj
+		{
+			T* data;
+		public:
+			operator bool() const { return data != nullptr; }
+			com_obj(T* da) : data(da) {}
+			com_obj(com_obj&& co) : data(co.data) { co.data = nullptr; }
+			~com_obj()
+			{
+				if (data != nullptr)
+					data->Release();
+			}
+			void clear()
+			{
+				if (data != nullptr)
+				{
+					data->Release();
+					data = nullptr;
+				}
+			}
+			operator T*() { return data; }
+			operator T**() { clear(); return data; }
+		};
+
 	}
 
 }

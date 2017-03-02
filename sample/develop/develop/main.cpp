@@ -13,8 +13,16 @@ using namespace std;
 using namespace PO;
 using namespace PO::Implement;
 
+struct ui
+{
+
+};
+
 int main()
 {
+	std::shared_ptr<ui*> io;
+	
+
 	PO::context con;
 	auto fo = con.create_window<DX11_Test_Form>();
 	fo.lock_if(

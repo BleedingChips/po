@@ -80,7 +80,7 @@ std::ostream& operator<<(std::ostream& o, uint3 u)
 
 std::ostream& operator<<(std::ostream& o, int_detect& u)
 {
-	o << u.GroupID << "," << u.GroupThreadID << "," << u.GroupIndex << "," << u.DispatchGrounpIndex;
+	o << "<GroupID>"<<u.GroupID << ",<GroupThreadID>" << u.GroupThreadID << ",<GroupIndex>" << u.GroupIndex << ",<DispatchGrounpIndex>" << u.DispatchGrounpIndex;
 	return o;
 }
 
@@ -173,7 +173,7 @@ void test_plugin::init(ticker& op)
 		D3D11_SHADER_RESOURCE_VIEW_DESC ssk
 		{
 			TM.format,
-			D3D11_SRV_DIMENSION_TEXTURE2D
+			D3D11_SRV_DIMENSION_TEXTURE2D 
 		};
 		ssk.Texture2D.MipLevels = 1;
 		ssk.Texture2D.MostDetailedMip = 0;

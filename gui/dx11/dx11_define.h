@@ -41,6 +41,7 @@ namespace PO
 	{
 		namespace Implement
 		{
+			
 			using resource_ptr = CComPtr<ID3D11Device>;
 			using context_ptr = CComPtr<ID3D11DeviceContext>;
 			using chain_ptr = CComPtr<IDXGISwapChain>;
