@@ -142,9 +142,6 @@
     <ClInclude Include="simul_debug.h" />
     <ClInclude Include="test_plugin.h" />
   </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="simul_gpu_sky_generator_loss.hlsl" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

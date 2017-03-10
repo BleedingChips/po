@@ -23,20 +23,6 @@ struct texcoord
 	const char* operator()() { return "TEXCOORD"; }
 };
 
-void test_plugin::tick(ticker& op)
-{
-	
-	float color[4] = { 0.5,0.5,0.5,1.0 };
-	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
-	op.tick().dc->ClearDepthStencilView(op.tick().pDepthView, D3D11_CLEAR_FLAG::D3D11_CLEAR_DEPTH | D3D11_CLEAR_FLAG::D3D11_CLEAR_STENCIL, 1.0, 0);
-	ID3D11ShaderResourceView* t[] = { sv };
-	op.tick().dc->PSSetShaderResources(0, 1, t);
-	pl.draw(op.tick().dc, vp, 6);
-	op.tick().swap->Present(0, 0);
-	//op.tick().dc->CSSetConstantBuffers()
-	
-	//op.form().close();
-}
 
 struct vert
 {
@@ -72,6 +58,12 @@ struct int_detect
 	uint3 DispatchGrounpIndex;
 };
 
+struct ConstBuffer
+{
+	float4 color;
+	float4 input2;
+};
+
 std::ostream& operator<<(std::ostream& o, uint3 u)
 {
 	o << "(" << u.x << "," << u.y << "," << u.z << ")";
@@ -83,6 +75,43 @@ std::ostream& operator<<(std::ostream& o, int_detect& u)
 	o << "<GroupID>"<<u.GroupID << ",<GroupThreadID>" << u.GroupThreadID << ",<GroupIndex>" << u.GroupIndex << ",<DispatchGrounpIndex>" << u.DispatchGrounpIndex;
 	return o;
 }
+
+void test_plugin::tick(ticker& op)
+{
+
+	float color[4] = { 0.5,0.5,0.5,1.0 };
+	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
+	op.tick().dc->ClearDepthStencilView(op.tick().pDepthView, D3D11_CLEAR_FLAG::D3D11_CLEAR_DEPTH | D3D11_CLEAR_FLAG::D3D11_CLEAR_STENCIL, 1.0, 0);
+	ID3D11ShaderResourceView* t[] = { sv };
+	op.tick().dc->PSSetShaderResources(0, 1, t);
+	D3D11_BUFFER_DESC BD
+	{
+		sizeof(ConstBuffer),
+		D3D11_USAGE_DYNAMIC,
+		D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER,
+		D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE,
+		0,// D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+		0//sizeof(ConstBuffer)
+	};
+	ID3D11Buffer* IB;
+	ConstBuffer opc{ {1.0,0.0,1.0,1.0},{0.0,1.0,1.0,1.0} };
+	D3D11_SUBRESOURCE_DATA SD{static_cast<void*>(&opc), 0 ,0};
+	try {
+		PO::Win32::Error::fail_throw(op.tick().dev->CreateBuffer(&BD, &SD, &IB));
+		op.tick().dc->PSSetConstantBuffers(1, 1, &IB);
+	}
+	catch (...)
+	{
+		__debugbreak();
+	}
+	
+		pl.draw(op.tick().dc, vp, 6);
+	op.tick().swap->Present(0, 0);
+	//op.tick().dc->CSSetConstantBuffers()
+
+	//op.form().close();
+}
+
 
 void test_plugin::init(ticker& op)
 {
@@ -201,7 +230,6 @@ void test_plugin::init(ticker& op)
 			sizeof(int_detect)
 		};
 		PO::Win32::Error::fail_throw(op.tick().dev->CreateBuffer(&des2, nullptr, &buf2));
-
 
 		sl.load(op.form(), u"base_cshader.cso");
 		fin = sl.wait_get();

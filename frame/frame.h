@@ -69,6 +69,12 @@ namespace PO
 		};
 	}
 
+	struct require
+	{
+		std::u16string path;
+		//std::function<void func()> 
+	};
+
 	struct scene
 	{
 	public:
@@ -785,6 +791,10 @@ namespace PO
 	}
 
 	template<typename plugin_t> using plugin_type = Tmp::itself<plugin_t>;
+
+	//resource_loader
+
+
 
 	namespace Implement
 	{

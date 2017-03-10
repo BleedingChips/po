@@ -20,6 +20,7 @@ namespace PO
 		using float4 = DirectX::XMFLOAT4;
 		using matrix4 = DirectX::XMMATRIX;
 	}
+
 	namespace DXGI
 	{
 		template<typename T> struct data_format;
@@ -77,7 +78,101 @@ namespace PO
 					b.buffer_vision = 0;
 				}
 			};
+
+
+			struct const_buffer
+			{
+
+			};
+
+			struct pipe_line_data;
+
+			struct resource_data
+			{
+				resource_ptr ptr;
+				std::weak_ptr<pipe_line_data> last_calling;
+			};
+
+
 		}
+
+		namespace Property
+		{
+			struct input 
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_DYNAMIC;
+				static constexpr UINT cpu_flag = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE;
+				static constexpr UINT additional_bind = 0;
+			};
+			struct constant 
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_IMMUTABLE;
+				static constexpr UINT cpu_flag = 0;
+				static constexpr UINT additional_bind = 0;
+			};
+			struct transfer
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+				static constexpr UINT cpu_flag = UINT(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ) | (UINT)(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE);
+				static constexpr UINT additional_bind = 0;
+			};
+			struct output
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_DEFAULT;
+				static constexpr UINT cpu_flag = 0;
+				static constexpr UINT additional_bind = D3D11_BIND_FLAG::D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS;
+			};
+		}
+
+		namespace Purpose
+		{
+			struct vertex 
+			{
+				struct scription
+				{
+
+				};
+
+			};
+			struct index {};
+			struct value {};
+			struct transfer {};
+		}
+
+		template<typename purpose, typename property = Property::constant>
+		struct buffer : purpose::scription
+		{
+			Implement::buffer_ptr ptr;
+			typename purpose::scription scr;
+		public:
+			template<typename T, typename K, typename L>
+			auto create(Implement::resource_ptr& rp, const T* data, size_t s, L l)->std::void_t<decltype(purpose{}(scr, static_cast<T*>(nullptr), static_cast<size_t>(0), l))>
+			{
+				D3D11_BUFFER_DESC DBD
+				{
+					static_cast<UINT>(sizeof(T) * p.size()),
+					property::usage,
+					purpose::bind_flag | purpose::additional_bind,
+					property::cpu_flag,
+					std::is_same<purpose, Purpose::value>::value ? D3D11_RESOURCE_MISC_BUFFER_STRUCTURED : 0,
+					static_cast<UINT>(sizeof(T))
+				};
+				D3D11_SUBRESOURCE_DATA DSD { static_cast<void>(data), 0, 0 };
+				ptr = nullptr;
+				HRESULT re = rp->CreateBuffer(&DBD, &DSD, ptr);
+				if (re == S_OK)
+					purpose{}(scr, p.data(), p.size(), l);
+				else
+					throw re;
+			}
+			template<typename T, typename K, typename L>
+			auto create(const std::vector<T, K>& p, L l)->std::enable_if_t<Tmp::is_one_of<purpose, Purpose::buff>>
+			{
+				create(p.data(), p.size(), l);
+			}
+			template<typename T, typename L>
+			auto create(const std::vector<>)
+		};
 
 		struct vertex_buffer : Implement::buffer
 		{
@@ -242,6 +337,11 @@ namespace PO
 			HRESULT load_shader_v(binary&& b);
 			HRESULT load_shader_g(binary&& b);
 			HRESULT load_shader_p(binary&& b);
+			void Set_Con(Implement::context_ptr& cp)
+			{
+				//cp->VSSetConstantBuffers
+
+			}
 		};
 
 		struct compute
@@ -256,6 +356,12 @@ namespace PO
 				HRESULT re = res_ptr->CreateComputeShader(shader_c_buffer, shader_c_buffer.size(), nullptr, &shader_c);
 				return re;
 			}
+		};
+
+		struct scene
+		{
+			Implement::resource_ptr res_ptr;
+		public:
 		};
 
 

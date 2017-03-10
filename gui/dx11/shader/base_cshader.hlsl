@@ -6,6 +6,13 @@ struct int_detect
 	uint3 dgi;
 };
 
+struct inputdata
+{
+	float yu;
+};
+
+inputdata da : register(b0);
+
 RWStructuredBuffer<int_detect> BufferOut : register(u0);
 
 [numthreads(8,8,1)]

@@ -9,20 +9,30 @@ using namespace std;
 #include "form_define.h"
 #include "test_plugin.h"
 #include <fstream>
+#include <algorithm>
 
-using namespace PO;
-using namespace PO::Implement;
+std::vector<int> fa = { 0,1,2,34,5,50,0,0,2,3 };
 
-struct ui
+
+struct io
 {
-
+	int o;
+	void operator()() {}
 };
+
+/*T single;
+
+template<typename T> T& get()
+{
+	static T single;
+	return single;
+}
+*/
 
 int main()
 {
-	std::shared_ptr<ui*> io;
+	std::function<void()> io2 = io{};
 	
-
 	PO::context con;
 	auto fo = con.create_window<DX11_Test_Form>();
 	fo.lock_if(
@@ -32,6 +42,7 @@ int main()
 	}
 	);
 	con.wait_all_form_close();
+	
 	system("pause");
 }
 
