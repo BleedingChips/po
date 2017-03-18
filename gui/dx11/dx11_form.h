@@ -43,6 +43,7 @@ namespace PO
 			CComPtr<ID3D11DepthStencilView> pDepthView;
 			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc), pView(Df.pView), pDepthView(Df.pDepthView), swap(Df.swap){}
 			operator Implement::resource_ptr& () { return dev; }
+			operator Implement::context_ptr& () { return dc; }
 		};
 
 		class shader_loader

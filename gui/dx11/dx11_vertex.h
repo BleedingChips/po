@@ -47,7 +47,15 @@ namespace PO
 			template<typename input, size_t last, typename ...AT> struct make_layout_execute;
 			template<typename ...input, size_t last, typename its, typename ...AT> struct make_layout_execute<Tmp::set_t<input...>, last, its, AT...>
 			{
-				using type = typename make_layout_execute<Tmp::set_t<input..., layout_element<last, its>>, last + its::size, AT...>::type;
+				using type = typename make_layout_execute<
+					Tmp::set_t<input..., layout_element<last, its>>, 
+#ifdef _WIN64 //处理因内存对齐引发的数据空洞。
+					((( last + its::size ) % 4) == 0 ? (last + its::size) : ((last /4 +1 )*4)),
+#else
+					last + its::size, 
+#endif
+					AT...
+				>::type;
 			};
 
 			template<typename ...input, size_t last> struct make_layout_execute<Tmp::set_t<input...>, last>
@@ -65,22 +73,17 @@ namespace PO
 			{
 				type::create_input_element_desc(v, solt);
 			}
+			using funtion_type = void(*)(D3D11_INPUT_ELEMENT_DESC*, size_t);
+			operator funtion_type () const { return &layout_type<T, AT...>::create_input_element_desc; }
+			operator std::vector<D3D11_INPUT_ELEMENT_DESC>() const 
+			{
+				std::vector<D3D11_INPUT_ELEMENT_DESC> tem;
+				tem.resize(value);
+				create_input_element_desc(tem.data(), 0);
+				return std::move(tem);
+			}
 		};
 
-		namespace Components
-		{
-			template<typename T> struct is_component;
-			struct vertex
-			{
-				static constexpr D3D11_BIND_FLAG bind_flag = D3D11_BIND_FLAG::D3D11_BIND_VERTEX_BUFFER;
-				struct scription
-				{
-					size_t element_size;
-					void(*layout_creater)(std::vector<D3D11_INPUT_ELEMENT_DESC>& v, size_t slot);
-				};
-			};
-			template<> struct is_component<vertex> :std::true_type {};
-		}
-		
+		//template<typename T, >
 	}
 }

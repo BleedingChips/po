@@ -4,7 +4,7 @@
 struct simul_debug
 {
 	shader_loader sl;
-	compute com;
+	//compute com;
 	simul_debug() {}
 	void init(ticker& t);
 	void tick(ticker& t);

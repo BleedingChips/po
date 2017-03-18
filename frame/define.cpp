@@ -1,5 +1,6 @@
 #include "define.h"
 #include <unordered_map>
+#include <fstream>
 namespace
 {
 	std::unordered_map<PO::KeyValue, std::pair<char, char>> key_value_map =
@@ -63,6 +64,24 @@ namespace PO
 			translate_char_buffer.resize(data.size());
 		MultiByteToWideChar(CP_ACP, 0, data.c_str(), -1, &translate_char_buffer[0], static_cast<int>(translate_char_buffer.size()));
 		return std::u16string(reinterpret_cast<char16_t*>(&translate_char_buffer[0]));
+	}
+
+	bool binary::load_file(std::u16string path)
+	{
+		ptr.reset();
+		std::ifstream file(utf16_to_asc(path), std::ios::binary | std::ios::in);
+		if (file.good())
+		{
+			file.seekg(0, std::ios::end);
+			auto end_poi = file.tellg();
+			file.seekg(0, std::ios::beg);
+			auto sta_poi = file.tellg();
+			alloc(static_cast<size_t>(end_poi - sta_poi));
+			file.read(*this, end_poi - sta_poi);
+			update();
+			return true;
+		}
+		return false;
 	}
 
 }

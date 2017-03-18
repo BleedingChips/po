@@ -241,6 +241,8 @@ namespace PO
 		bool operator <(const binary& b) const { return std::owner_less<std::shared_ptr<char>>{}(ptr, b.ptr); }
 		bool operator ==(const binary& b) const { return ptr == b.ptr; }
 
+		bool load_file(std::u16string u16);
+
 		binary(const binary& b) = default;
 		binary(binary&& b) = default;
 		binary& operator=(binary&&) = default;

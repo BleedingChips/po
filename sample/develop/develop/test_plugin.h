@@ -6,21 +6,13 @@ using ticker = PO::ticker<PO::Dx11::Dx11_ticker>;
 using namespace PO::Dx11;
 struct test_plugin
 {
-	//vertex_const ver;
-	shader_loader sl;
-	//shader_v vs;
-	//shader_p ps;
-	//vertex_layout vl;
-	//pipe_line pl;
-	DirectX::ScratchImage si;
-	Implement::texture2D_ptr t;
+	pixel_creater pc;
+	material ma;
+	Implement::texture2D_ptr tp;
+	Implement::resource_view_ptr rvp;
 	Implement::sample_state_ptr ss;
-	Implement::resource_view_ptr sv;
-	pipe_line pl;
-	vertex_pool vp;
-	compute cp;
-	ID3D11Buffer* buf;
-	ID3D11Buffer* buf2;
+
+
 	test_plugin()
 	{
 

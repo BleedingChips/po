@@ -14,6 +14,7 @@ using namespace std;
 std::vector<int> fa = { 0,1,2,34,5,50,0,0,2,3 };
 
 
+
 struct io
 {
 	int o;
@@ -21,7 +22,6 @@ struct io
 };
 
 /*T single;
-
 template<typename T> T& get()
 {
 	static T single;
@@ -29,9 +29,11 @@ template<typename T> T& get()
 }
 */
 
+
+
 int main()
 {
-	std::function<void()> io2 = io{};
+
 	
 	PO::context con;
 	auto fo = con.create_window<DX11_Test_Form>();

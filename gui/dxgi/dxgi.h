@@ -112,7 +112,7 @@ namespace PO
 		};
 		template<> struct data_format<int16_t>
 		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R16_SINT;
 		};
 		template<> struct data_format<float>
 		{

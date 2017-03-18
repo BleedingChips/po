@@ -19,6 +19,34 @@ namespace PO
 		using float3 = DirectX::XMFLOAT3;
 		using float4 = DirectX::XMFLOAT4;
 		using matrix4 = DirectX::XMMATRIX;
+
+		template<typename store> struct store2
+		{
+			store x;
+			store y;
+		};
+
+		template<typename store> struct store3
+		{
+			store x;
+			store y;
+			store z;
+		};
+		template<typename store> struct store4
+		{
+			store x;
+			store y;
+			store z;
+			store w;
+		};
+
+		using int2 = store2<int32_t>;
+		using int3 = store3<int32_t>;
+		using int4 = store4<int32_t>;
+
+		using uint2 = store2<uint32_t>;
+		using uint3 = store3<uint32_t>;
+		using uint4 = store4<uint32_t>;
 	}
 
 	namespace DXGI
@@ -36,13 +64,20 @@ namespace PO
 		{
 			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
 		};
+		template<> struct data_format<Dx11::int2>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32_SINT;
+		};
+		template<> struct data_format<Dx11::int3>
+		{
+			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_SINT;
+		};
 	}
 
 	namespace Dx11
 	{
 		namespace Implement
 		{
-			
 			using resource_ptr = CComPtr<ID3D11Device>;
 			using context_ptr = CComPtr<ID3D11DeviceContext>;
 			using chain_ptr = CComPtr<IDXGISwapChain>;
@@ -52,49 +87,396 @@ namespace PO
 			using layout_ptr = CComPtr<ID3D11InputLayout>;
 			using raterizer_state_ptr = CComPtr<ID3D11RasterizerState>;
 			using texture2D_ptr = CComPtr<ID3D11Texture2D>;
+			using texture1D_ptr = CComPtr<ID3D11Texture1D>;
+			using texture3D_ptr = CComPtr<ID3D11Texture3D>;
 			using resource_view_ptr = CComPtr<ID3D11ShaderResourceView>;
 			using sample_state_ptr = CComPtr<ID3D11SamplerState>;
 			using cshader_ptr = CComPtr<ID3D11ComputeShader>;
 			using gshader_ptr = CComPtr<ID3D11GeometryShader>;
-
-			struct buffer
-			{
-				buffer_ptr ptr;
-				uint64_t buffer_vision;
-
-				uint64_t update() { return ++buffer_vision; }
-				bool check_update(uint64_t& i) const 
-				{ 
-					bool re = (i != buffer_vision);
-					i = buffer_vision;
-					return re;
-				}
-				uint64_t vision() const { return buffer_vision; }
-				buffer() : ptr(nullptr), buffer_vision(0) {}
-				buffer(const buffer_ptr& bp) : ptr(bp), buffer_vision(1) {}
-				buffer(buffer&& b) : ptr(b.ptr), buffer_vision(b.buffer_vision)
-				{
-					b.ptr.Release();
-					b.buffer_vision = 0;
-				}
-			};
-
-
-			struct const_buffer
-			{
-
-			};
-
-			struct pipe_line_data;
-
-			struct resource_data
-			{
-				resource_ptr ptr;
-				std::weak_ptr<pipe_line_data> last_calling;
-			};
-
-
 		}
+
+		namespace Purpose
+		{
+			struct buffer_purpose
+			{
+				D3D11_USAGE usage;
+				UINT cpu_flag;
+				UINT additional_bind;
+			};
+			extern buffer_purpose input;
+			extern buffer_purpose output;
+			extern buffer_purpose constant;
+			extern buffer_purpose transfer;
+		}
+
+		struct buffer
+		{
+			Implement::buffer_ptr ptr;
+			//uint64_t vision;
+			size_t buffer_size;
+			buffer& operator= (const buffer& b)
+			{
+				ptr = b.ptr;
+				buffer_size = b.buffer_size;
+				return *this;
+			}
+			bool create(Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStride);
+			template<typename T> auto write(Implement::context_ptr& cp, T& t) -> Tool::optional<decltype(t(static_cast<void*>(nullptr), static_cast<size_t>(0)))>
+			{
+				if (ptr != nullptr)
+				{
+					D3D11_BUFFER_DESC DBD;
+					ptr->GetDesc(&DBD);
+					if (
+						(DBD.Usage == D3D11_USAGE::D3D11_USAGE_DYNAMIC || DBD.Usage == D3D11_USAGE::D3D11_USAGE_STAGING)
+						&& (DBD.CPUAccessFlags & D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE == D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE)
+						)
+					{
+						D3D11_MAPPED_SUBRESOURCE DMS;
+						if (cp->Map(ptr, 0, D3D11_MAP_WRITE, &DMS) != S_OK)
+							return{};
+						Tool::at_scope_exit tem([&,this]()
+						{
+							cp->Unmap(ptr, 0);
+						});
+						return{ t(DMS.pData, DBD.ByteWidth) };
+					}
+				}
+				return{};
+			}
+			operator bool() const { return ptr != nullptr; }
+		};
+
+		struct index : buffer
+		{
+			size_t offset;
+			DXGI_FORMAT format;
+			bool create_index(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, const void* data, size_t buffer_size, DXGI_FORMAT DF)
+			{
+				if (buffer::create(rp, bp.usage, bp.cpu_flag, bp.additional_bind | D3D11_BIND_FLAG::D3D11_BIND_INDEX_BUFFER, data, buffer_size, 0, 0))
+				{
+					offset = 0;
+					format = DF;
+					return true;
+				}
+				return false;
+			}
+			template<typename T>
+			bool create_index(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, T* data, size_t size)
+			{
+				return create_index(rp, bp, data, sizeof(T)*size, DXGI::data_format<T>::format);
+			}
+		};
+
+		struct vertex : buffer
+		{
+			size_t offset;
+			size_t element_size;
+			std::vector<D3D11_INPUT_ELEMENT_DESC> desc;
+			bool create_vertex(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, const void* data, size_t element_size, size_t buffer_size, std::vector<D3D11_INPUT_ELEMENT_DESC> des)
+			{
+				if (buffer::create(rp, bp.usage, bp.cpu_flag, bp.additional_bind | D3D11_BIND_FLAG::D3D11_BIND_VERTEX_BUFFER, data, buffer_size, 0, 0))
+				{
+					offset = 0;
+					this->element_size = element_size;
+					desc = std::move(des);
+					return true;
+				}
+				return false;
+			}
+
+			template<typename T>
+			bool create_vertex(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, T* data, size_t size, std::vector<D3D11_INPUT_ELEMENT_DESC> des)
+			{
+				return create_vertex(rp, bp, data, sizeof(T), sizeof(T) * size, std::move(des));
+			}
+		};
+
+		bool create_index_vertex_buffer(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, 
+			const void* data,  size_t buffer_size,
+			index& ind, vertex& ver,
+			size_t index_offset, DXGI_FORMAT format,
+			size_t vertex_offset, size_t element_size, std::vector<D3D11_INPUT_ELEMENT_DESC> layout
+		);
+
+		struct constant_value : buffer
+		{
+			bool create_value(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, const void* data, size_t buffer_size)
+			{
+				return buffer::create(rp, bp.usage, bp.cpu_flag, bp.additional_bind | D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER, data, buffer_size, 0, 0);
+			}
+			template<typename T>
+			bool create_value(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, T* data)
+			{
+				return create_value(rp, bp, data, sizeof(T));
+			}
+		};
+
+		struct structured_value : buffer
+		{
+			bool create_value(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, const void* data,  size_t element_size, size_t buffer_size)
+			{
+				return buffer::create(rp, bp.usage, bp.cpu_flag, bp.additional_bind | D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS, data, buffer_size, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size);
+			}
+			template<typename T>
+			bool create_value(Implement::resource_ptr& rp, Purpose::buffer_purpose bp, T* data, size_t size)
+			{
+				return create_value(rp, bp, data, sizeof(T), sizeof(T) * size);
+			}
+		};
+
+		struct input_layout
+		{
+			Implement::layout_ptr ptr;
+			bool create_input_layout(Implement::resource_ptr& rp, const binary& b, vertex* ver, size_t index);
+		};
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt);
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture1D_ptr& pt);
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture3D_ptr& pt);
+
+
+		struct pixel_creater
+		{
+			vertex vec[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			index ind;
+			input_layout il;
+			binary vshader_binary;
+			Implement::vshader_ptr vshader;
+			Implement::gshader_ptr gshader;
+			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			vertex& operator [](size_t ind) 
+			{
+				return vec[ind]; 
+			}
+			bool load_vshader(Implement::resource_ptr& rp, std::u16string path) 
+			{
+				vshader = nullptr;
+				if (vshader_binary.load_file(path))
+					return rp->CreateVertexShader(vshader_binary, vshader_binary.size(), nullptr, &vshader) == S_OK;
+				return false;
+			}
+			bool load_gshader(Implement::resource_ptr& rp, std::u16string path)
+			{
+				gshader = nullptr;
+				binary tem;
+				if (tem.load_file(path))
+					return rp->CreateGeometryShader(tem, tem.size(), nullptr, &gshader) == S_OK;
+				return false;
+			}
+			bool update(Implement::resource_ptr& rp)
+			{
+				return il.create_input_layout(rp, vshader_binary, vec, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+			}
+			bool create_index_vertex(size_t count, Implement::resource_ptr& rp, Purpose::buffer_purpose bp,
+				const void* data, size_t buffer_size,
+				size_t index_offset, DXGI_FORMAT format,
+				size_t vertex_offset, size_t element_size, std::vector<D3D11_INPUT_ELEMENT_DESC> layout
+			)
+			{
+				return create_index_vertex_buffer(rp, bp, data, buffer_size, ind, vec[count], index_offset, format, vertex_offset, element_size, std::move(layout));
+			}
+			struct range { UINT start, count; }index_r, vertex_r, instance_r;
+			void set_index_range(UINT s, UINT e) { index_r = range{ s, e }; }
+			void set_vertex_range(UINT s, UINT e) { vertex_r = range{ s, e }; }
+			void set_instance_range(UINT s, UINT e) { instance_r = range{ s, e }; }
+			void draw(Implement::context_ptr& cp);
+		};
+
+		struct material
+		{
+			Implement::pshader_ptr pshader;
+		public:
+			bool load_p(Implement::resource_ptr& rp, std::u16string path)
+			{
+				pshader = nullptr;
+				binary tem;
+				if (tem.load_file(path))
+					return rp->CreatePixelShader(tem, tem.size(), nullptr, &pshader) == S_OK;
+				return false;
+			}
+			void draw(Implement::context_ptr& cp)
+			{
+				cp->PSSetShader(pshader, nullptr, 0);
+			}
+		};
+
+
+		//Implement::layout_ptr create_input_layout(Implement::resource_ptr& rp, const binary& b, const std::vector<vertex>& ver);
+
+		struct p
+		{
+			D3D11_USAGE usage;
+			UINT cpu_flag;
+			UINT additional_bind;
+		};
+
+		namespace Property
+		{
+			struct input
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_DYNAMIC;
+				static constexpr UINT cpu_flag = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE;
+				static constexpr UINT additional_bind = 0;
+			};
+			struct constant
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_IMMUTABLE;
+				static constexpr UINT cpu_flag = 0;
+				static constexpr UINT additional_bind = 0;
+			};
+			struct transfer
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+				static constexpr UINT cpu_flag = UINT(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ) | (UINT)(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE);
+				static constexpr UINT additional_bind = 0;
+			};
+			struct output
+			{
+				static constexpr D3D11_USAGE usage = D3D11_USAGE::D3D11_USAGE_DEFAULT;
+				static constexpr UINT cpu_flag = 0;
+				static constexpr UINT additional_bind = D3D11_BIND_FLAG::D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS;
+			};
+		}
+
+		struct layout_scription
+		{
+			size_t layout_count;
+			using fun_type = void(*)(D3D11_INPUT_ELEMENT_DESC*, size_t solt);
+			fun_type scription;
+		};
+
+		struct geometry : buffer
+		{
+
+			struct index_range
+			{
+				size_t offset;
+				size_t size;
+				DXGI_FORMAT DF;
+				index_range& operator=(const index_range&) = default;
+				index_range(size_t o, size_t s, DXGI_FORMAT D) :offset(o), size(s), DF(D) {}
+				index_range() {}
+			}index;
+
+			struct vertex_range
+			{
+				size_t offset;
+				size_t size;
+				size_t count;
+				size_t step;
+				using fun_type = void(*)(D3D11_INPUT_ELEMENT_DESC*, size_t solt);
+				fun_type scription;
+				vertex_range& operator=(const vertex_range&) = default;
+				vertex_range(size_t o, size_t s, size_t c, size_t p, fun_type f) :offset(o), size(s), count(c), step(p), scription(f){}
+				vertex_range() {}
+			}vertex;
+
+			D3D11_PRIMITIVE_TOPOLOGY primitive;
+
+			bool create_implement(
+				Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag,
+				void* index_data, size_t index_size, DXGI_FORMAT DF,
+				void* vertex_data, size_t setp, size_t vertex_size, size_t count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+			);
+
+			template<typename property, typename index_type, typename vertex_type, typename layout_type>
+			bool create(Implement::resource_ptr& rp, property p, index_type* index_data, size_t index_size, vertex_type* vertex_data, size_t vertex_size, layout_type layout)
+			{
+				return geometry::create_implement(
+					rp, property::usage, property::cpu_flag, property::additional_bind,
+					index_data, sizeof(index_type) * index_size, DXGI::data_format<index_type>::format,
+					vertex_data, sizeof(vertex_type), sizeof(vertex_type) * vertex_size, layout_type::value, layout
+				);
+			}
+
+		};
+
+		using geometry_ptr = std::shared_ptr<geometry>;
+		using geometry_weak_ptr = std::weak_ptr<geometry>;
+
+		struct instance : buffer
+		{
+			struct vertex_range
+			{
+				size_t size;
+				size_t count;
+				size_t step;
+				using fun_type = void(*)(D3D11_INPUT_ELEMENT_DESC*, size_t solt);
+				fun_type scription;
+				vertex_range& operator=(const vertex_range&) = default;
+				vertex_range(size_t s, size_t c, size_t p, fun_type f) : size(s), count(c), step(p), scription(f) {}
+				vertex_range() {}
+			}vertex;
+			bool create_implement(
+				Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag,
+				void* vertex_data, size_t setp, size_t vertex_size, size_t count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+			);
+			template<typename property, typename vertex_type, typename layout_type>
+			bool create(Implement::resource_ptr& rp, property p,vertex_type* vertex_data, size_t vertex_size, layout_type layout)
+			{
+				return instance::create_implement(
+					rp, property::usage, property::cpu_flag, property::additional_bind,
+					vertex_data, sizeof(vertex_type), sizeof(vertex_type) * vertex_size, layout_type::value, layout
+				);
+			}
+		};
+
+		using instance_ptr = std::shared_ptr<instance>;
+		using instance_weak_ptr = std::weak_ptr<instance>;
+
+
+
+		
+
+
+		/*
+		struct draw_data
+		{
+			Tool::variant<geometry_ptr, geometry_weak_ptr> geo;
+			Tool::variant<instance_ptr, instance_weak_ptr> ins[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - 1];
+			struct range { size_t start, count; } index, vertex, instance;
+		public:
+			bool draw(Implement::context_ptr& cp, Implement::resource_ptr& rp, void* vshader_data, size_t vshader_size);
+			void set_index_range(size_t s, size_t e) { index = range{ s, e }; }
+			void set_vertex_range(size_t s, size_t e) { vertex = range{ s, e }; }
+		};
+		*/
+
+
+
+
+
+
+
+
+
+
+
+		/*
+		struct buffer
+		{
+			buffer_ptr ptr;
+			uint64_t buffer_vision;
+
+			uint64_t update() { return ++buffer_vision; }
+			bool check_update(uint64_t& i) const
+			{
+				bool re = (i != buffer_vision);
+				i = buffer_vision;
+				return re;
+			}
+			uint64_t vision() const { return buffer_vision; }
+			buffer() : ptr(nullptr), buffer_vision(0) {}
+			buffer(const buffer_ptr& bp) : ptr(bp), buffer_vision(1) {}
+			buffer(buffer&& b) : ptr(b.ptr), buffer_vision(b.buffer_vision)
+			{
+				b.ptr.Release();
+				b.buffer_vision = 0;
+			}
+		};
 
 		namespace Property
 		{
@@ -130,13 +512,148 @@ namespace PO
 			{
 				struct scription
 				{
+					//void 
+				};
+			};
+			struct index 
+			{
+				struct scription
+				{
 
 				};
-
 			};
-			struct index {};
+
 			struct value {};
 			struct transfer {};
+		}
+
+		namespace Implement
+		{
+			struct vertex_data
+			{
+				Implement::buffer_ptr ptr;
+				size_t input_layout_count;
+				int64_t vision;
+				void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt) = nullptr;
+				operator bool() const { return ptr != nullptr; }
+				bool create_buffer_implement
+				(
+					Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT additional_bind,
+					const void* data, size_t vertex_size, size_t vertex_count, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+				);
+			};
+		}
+
+		namespace Implement
+		{
+			struct layout_scription
+			{
+				size_t layout_count;
+				void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt) = nullptr;
+			};
+
+
+			struct geometry_store
+			{
+				Implement::buffer_ptr ptr;
+				D3D11_PRIMITIVE_TOPOLOGY primitive;
+
+				struct index_scription
+				{
+					size_t offset;
+					size_t size;
+					DXGI_FORMAT format;
+				} index_scr;
+
+				struct vertex_scription
+				{
+					size_t offset;
+					size_t size;
+					layout_scription layout;
+				} vertex_scr;
+
+				int64_t vision;
+				
+				operator bool() const { return ptr != nullptr; }
+
+				bool create_buffer_implement
+				(
+					Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT additional_bind,
+					const void* data, size_t index_offset, size_t index_size, DXGI_FORMAT index_format,
+					size_t vertex_offset, size_t vertex_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+				);
+
+				bool create_buffer_implement
+				(
+					Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT additional_bind,
+					const void* index_data, size_t index_size, DXGI_FORMAT index_format,
+					const void* vertex_data, size_t vertex_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+				);
+			};
+		}
+
+		template<typename property = Property::constant> struct geometry : Implement::geometry_store
+		{
+		public:
+			template<typename T, typename K, typename L>
+			bool create(Implement::resource_ptr& rp, T* index_data, size_t index_size, K* vertex_data, size_t vertex_size, L l)
+			{
+				return Implement::geometry_store::create_buffer_implement(
+					rp, property::usage, property::cpu_flag, property::additional_bind,
+					index_data, sizeof(T) * index_size, DXGI::data_format<T>::format,
+					vertex_data, sizeof(K) * vertex_size, L::value, l
+				);
+			}
+		};
+
+		template<typename property = Property::constant>
+		using geometry_ptr = std::shared_ptr<geometry<property>>;
+
+		template<typename property = Property::constant>
+		using geometry_weak_ptr = std::weak_ptr<geometry<property>>;
+
+		namespace Implement
+		{
+			struct instance_store
+			{
+				Implement::buffer_ptr ptr;
+				layout_scription ls;
+				operator bool() const { return ptr != nullptr; }
+				bool create_buffer_implement
+				(
+					resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT additional_bind,
+					const void* instance_data, size_t instance_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
+				);
+				//void create_input_element(D3D11_INPUT_ELEMENT_DESC*, size_t solt) {return ls.}
+			};
+		}
+
+		template<typename property = Property::constant> struct instance : Implement::instance_store
+		{
+		public:
+			template<typename T, typename K>
+			bool create(Implement::resource_ptr& rp, T* data, size_t s, K k)
+			{
+				return Implement::instance_store::create_buffer_implement(
+					rp, property::usage, property::cpu_flag, property::additional_bind,
+					data, sizeof(T)*s, K::value, k
+				);
+			}
+		};
+
+		template<typename property = Property::constant>
+		using instance_ptr = std::shared_ptr<instance<property>>;
+
+		template<typename property = Property::constant>
+		using instance_weak_ptr = std::weak_ptr<instance<property>>;
+
+		namespace Implement
+		{
+			struct index_data
+			{
+				Implement::buffer_ptr ptr;
+				DXGI_FORMAT format;
+			};
 		}
 
 		template<typename purpose, typename property = Property::constant>
@@ -145,8 +662,9 @@ namespace PO
 			Implement::buffer_ptr ptr;
 			typename purpose::scription scr;
 		public:
+			operator bool() const { return ptr != nullptr; }
 			template<typename T, typename K, typename L>
-			auto create(Implement::resource_ptr& rp, const T* data, size_t s, L l)->std::void_t<decltype(purpose{}(scr, static_cast<T*>(nullptr), static_cast<size_t>(0), l))>
+			bool create_array(Implement::resource_ptr& rp, const T* data, size_t s, L l)
 			{
 				D3D11_BUFFER_DESC DBD
 				{
@@ -154,17 +672,22 @@ namespace PO
 					property::usage,
 					purpose::bind_flag | purpose::additional_bind,
 					property::cpu_flag,
-					std::is_same<purpose, Purpose::value>::value ? D3D11_RESOURCE_MISC_BUFFER_STRUCTURED : 0,
-					static_cast<UINT>(sizeof(T))
+					std::is_same<purpose, Purpose::vertex>::value ? 0 : D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+					std::is_same<purpose, Purpose::vertex>::value ? 0 : static_cast<UINT>(sizeof(T))
 				};
 				D3D11_SUBRESOURCE_DATA DSD { static_cast<void>(data), 0, 0 };
 				ptr = nullptr;
 				HRESULT re = rp->CreateBuffer(&DBD, &DSD, ptr);
 				if (re == S_OK)
+				{
 					purpose{}(scr, p.data(), p.size(), l);
-				else
-					throw re;
-			}
+					return true;
+				}
+				return false;
+			}*/
+
+			//bool create_array
+			/*
 			template<typename T, typename K, typename L>
 			auto create(const std::vector<T, K>& p, L l)->std::enable_if_t<Tmp::is_one_of<purpose, Purpose::buff>>
 			{
@@ -172,8 +695,10 @@ namespace PO
 			}
 			template<typename T, typename L>
 			auto create(const std::vector<>)
-		};
+			*/
+		//};
 
+/*
 		struct vertex_buffer : Implement::buffer
 		{
 			size_t input_layout_count = 0;
@@ -246,14 +771,14 @@ namespace PO
 			void set_instance(size_t start, size_t count) { instance = range{ start, count }; }
 			void set_index(size_t start, size_t count) { index = range{ start, count }; }
 
-			HRESULT create_vertex(size_t solt, void* data, size_t data_size, size_t vertex_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt));
+			HRESULT create_vertex(size_t solt, void* data, size_t type_size, size_t data_size, size_t vertex_size, size_t layout_count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt));
 
 			void set_primitive(D3D11_PRIMITIVE_TOPOLOGY p) { primitive = p; }
 
 			template<typename type, typename inpu>
 			HRESULT create_vertex(size_t solt,  type* t, size_t s, inpu)
 			{
-				return create_vertex(solt, t, sizeof(type) * s, sizeof(type), inpu::value, &inpu::create_input_element_desc);
+				return create_vertex(solt, t, sizeof(type), sizeof(type) * s, sizeof(type), inpu::value, &inpu::create_input_element_desc);
 			}
 
 			HRESULT create_index(void* data, size_t data_size, DXGI_FORMAT DF);
@@ -322,7 +847,6 @@ namespace PO
 					binary tem = std::move(shader_p_buffer);
 					load_shader_p(std::move(tem));
 				}
-				*/
 				return res_ptr != nullptr; 
 			}
 			void clear()
@@ -333,7 +857,7 @@ namespace PO
 				gshader.clear();
 				state_ptr.Release();
 			}
-			bool draw(Implement::context_ptr& cp, /*const_buffer& cb,*/ vertex_pool& vp, size_t vertex_num);
+			bool draw(Implement::context_ptr& cp, /*const_buffer& cb, vertex_pool& vp, size_t vertex_num);
 			HRESULT load_shader_v(binary&& b);
 			HRESULT load_shader_g(binary&& b);
 			HRESULT load_shader_p(binary&& b);
@@ -365,7 +889,6 @@ namespace PO
 		};
 
 
-		/*
 			class data
 			{
 				std::shared_ptr<void> steam;
