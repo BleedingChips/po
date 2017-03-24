@@ -225,110 +225,120 @@ namespace PO
 			}
 		};
 
-		namespace Assistant
+		template<typename T, typename mutex = std::mutex> struct scope_lock
 		{
-			template<typename T> struct mail_ts_base
+			T data;
+			mutex lock_mutex;
+		public:
+			template<typename fun> auto lock(fun&& f) -> decltype(f(data))
 			{
-				std::mutex mutex;
-				completeness_ref self_ref;
-				completeness_ref func_ref;
-				std::function<T> func;
-
-			public:
-
-				mail_ts_base(const completeness_ref& r) :self_ref(r) {}
-
-				struct receiption_implement //: mail_receiption_base
+				std::lock_guard<mutex> lg(lock_mutex);
+				return f(data);
+			}
+			template<typename fun> auto try_lock(fun&& f) -> Tool::optional<decltype(f(data))>
+			{
+				if (lock_mutex.try_lock())
 				{
-					completeness_ref ref;
-					operator bool() const { return ref; }
-					operator bool() { return ref; }
-					receiption_implement() {}
-					receiption_implement(const completeness_ref& wp) : ref(wp) {}
-					//receiption_implement(const receiption&) = default;
-					//receiption_implement(receiption&&) = default;
-					//receiption_implement& operator=(const receiption_implement&) = default;
-					//receiption_implement& operator=(receiption_implement&&) = default;
-				};
-
-				template<typename K>
-				decltype(auto) bind(const completeness_ref& ref, K&& k)
-				{
-					/*
-					std::lock_guard<decltype(mutex)> lg(mutex);
-					static_assert(std::is_constructible<std::function<T>, K&&>::value, "mail unable bind this fun.");
-					//std::unique_ptr<completeness<receiption_implement>> rec_ptr = std::make_unique<completeness<receiption_implement>>();
-					func = std::forward<K>(k);
-					func_ref = ref;
-					return receiption{ self_ref };
-					*/
+					Tool::at_scope_exit ase({ &}() { lock_mutex.unlock(); })
+					return{ f(data) };
 				}
+				return{};
+			}
+			template<typename ...AT> scope_lock(AT&&... at) :data(std::forward<AT>(at)...) {}
+		};
 
-				template<typename K, typename ...AT>
-				bool lock_if_capture(K&& k, AT&&... at)
+		namespace Implement
+		{
+
+			struct mail_control
+			{
+				bool avalible = true;
+			};
+
+			template<typename T> struct mail_element;
+			template<typename ret, typename ...para>
+			struct mail_element<ret(para...)>
+			{
+				std::function<ret(para...)> func;
+				std::shared_ptr<scope_lock<mail_control>> cont;
+				completeness_ref cr;
+				mail_element(std::function<ret(para...)> f, std::shared_ptr<scope_lock<mail_control>> s, completeness_ref c)
+					: func(std::move(f)), cont(std::move(s)), cr(std::move(c)) {}
+				operator bool() const { return cont && cont->lock([](mail_control& mc) {return mc.avalible; }); }
+				auto operator()(para... pa) 
 				{
-					/*
-					std::lock_guard<decltype(mutex)> lg(mutex);
-					return func_ref.lock_if(
-						[&, this]() {
-						Tool::statement_if < std::is_same<typename std::function<T>::result_type, void >::value  >
-							(
-								[](auto&& f, auto& a, auto&& ...para) {a(std::forward<decltype(para) && >(para)...); std::forward<decltype(f)&&>(f)(); },
-								[](auto&& f, auto& a, auto&& ...para) {std::forward<decltype(f) && >(f)(a(std::forward<decltype(para) && >(para)...)); },
-								std::forward<K>(k), *func, std::forward<AT>(at)...
-								);
+					auto op = cr.lock_if(
+						[&, this]() 
+					{
+						return func(pa...);
 					}
 					);
-					*/
-					return true;
+					if (!op)
+						cont->lock([](mail_control& i) {i.avalible = false; });
+					return op;
 				}
-
-				template<typename ...AT>
-				bool lock_if(AT&&... at)
-				{
-					/*
-					std::lock_guard<decltype(mutex)> lg(mutex);
-					return func_ref.lock_if(
-						[&, this]() {
-						(*func)(std::forward<AT>(at)...);
-					}
-					);
-					*/
-				}
-
-				template<typename K, typename ...AT>
-				bool try_lock_if_capture(K&& k, AT&&... at)
-				{
-					/*
-					std::lock_guard<decltype(mutex)> lg(mutex);
-					return func_ref.try_lock_if(
-						[&, this]() {
-						Tool::statement_if < std::is_same<typename std::function<T>::result_type, void >::value  >
-							(
-								[](auto&& f, auto& a, auto&& ...para) {a(std::forward<decltype(para) && >(para)...); std::forward<decltype(f)>(f)(); },
-								[](auto&& f, auto& a, auto&& ...para) {std::forward<decltype(f) && >(f)(a(std::forward<decltype(para) && >(para)...)); },
-								std::forward<K>(k), *func, std::forward<AT>(at)...
-								);
-					}
-					);
-					*/
-				}
-				template<typename ...AT>
-				bool try_lock_if(AT&&... at)
-				{
-					/*
-					std::lock_guard<decltype(mutex)> lg(mutex);
-					return func_ref.try_lock_if(
-						[&, this]() {
-						(*func)(std::forward<AT>(at)...);
-					}
-					);
-					*/
-				}
+				
+				//mail_element(std::function<ret(para)> pa, ) :func(std::move(pa)), vision(0) {}
+				//mail_element(mail_element&& m) : func(std::move(m.func)), vision(0) {}
 			};
 		}
+		struct receiption
+		{
+			std::shared_ptr<scope_lock<Implement::mail_control>> cont;
+		};
+
+		template<typename fun, typename ...vector_para> struct mail;
+		template<typename ret, typename ...para, typename ...vector_para>
+		struct mail<ret(para...), vector_para...>
+		{
+			using tank_type = std::vector<Implement::mail_element<ret(para...)>, vector_para...>;
+			scope_lock<tank_type> input;
+			scope_lock<tank_type> store;
+			receiption bind(completeness_ref cr, std::function<ret(para...)> pa)
+			{
+				auto con = std::make_shared<scope_lock<Implement::mail_control>>();
+				input.lock(
+					[&](auto& i) {i.emplace_back(std::move(pa), con, std::move(cr)); }
+				);
+				return{con};
+			}
+			template<typename ask>
+			void operator()(ask&& ak, para... pa)
+			{
+				store.lock(
+					[&, this](tank_type& da)
+				{
+					da.erase(std::remove_if(da.begin(), da.end(), [](auto& u) {return !u; }), da.end());
+					bool need_break = false;
+					for (Implement::mail_element<ret(para...)>& ptr : da)
+					{
+						auto op = ptr(pa...);
+						if (op && (need_break = !ak(*op)))
+							break;
+					}
+					auto start = input.lock(
+						[&da](tank_type& aa)
+					{
+						aa.erase(std::remove_if(aa.begin(), aa.end(), [](auto& u) {return !u; }), aa.end());
+						auto insert =  da.insert(da.end(), std::make_move_iterator(aa.begin()), std::make_move_iterator(aa.end()));
+						aa.clear();
+						return insert;
+					}
+					);
+					cout << "66666 " << da.end() - start << endl;
+					if(!need_break)
+						for (; start != da.end(); ++start)
+						{
+							auto op = (*start)(pa...);
+							if (op && !ak(*op))
+								break;
+						}
+				}
+				);
+			}
+		};
 		
-		template<typename T> using mail_ts = completeness<Assistant::mail_ts_base<T>>;
+
 
 	}
 }

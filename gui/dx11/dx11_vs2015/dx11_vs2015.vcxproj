@@ -145,6 +145,7 @@
     <ClInclude Include="..\dx11_math.h" />
     <ClInclude Include="..\dx11_shader.h" />
     <ClInclude Include="..\dx11_vertex.h" />
+    <ClInclude Include="..\dx_math.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shader\base_cshader.hlsl">

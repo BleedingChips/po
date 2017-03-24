@@ -29,7 +29,7 @@ struct texcoord
 };
 
 PO::Tool::variant<Implement::texture1D_ptr, Implement::texture2D_ptr, Implement::texture3D_ptr> 
-load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::buffer_purpose bp = PO::Dx11::Purpose::constant)
+load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::purpose bp)
 {
 	DirectX::TexMetadata TM;
 	DirectX::ScratchImage si;
@@ -54,7 +54,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::bu
 			static_cast<UINT>(TM.width),
 			static_cast<UINT>(TM.mipLevels),
 			static_cast<UINT>(TM.arraySize),
-			TM.format,
+			adjust_texture_format(TM.format),
 			bp.usage,
 			bp.additional_bind | D3D11_BIND_SHADER_RESOURCE,
 			bp.cpu_flag,
@@ -73,7 +73,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::bu
 			static_cast<UINT>(TM.height),
 			static_cast<UINT>(TM.mipLevels),
 			static_cast<UINT>(TM.arraySize),
-			TM.format,
+			adjust_texture_format(TM.format),
 			DXGI_SAMPLE_DESC{ 1, 0 },
 			bp.usage,
 			bp.additional_bind | D3D11_BIND_SHADER_RESOURCE,
@@ -92,7 +92,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::bu
 			static_cast<UINT>(TM.height),
 			static_cast<UINT>(TM.depth),
 			static_cast<UINT>(TM.mipLevels),
-			TM.format,
+			adjust_texture_format(TM.format),
 			bp.usage,
 			bp.additional_bind | D3D11_BIND_SHADER_RESOURCE,
 			bp.cpu_flag,
@@ -139,25 +139,21 @@ std::ostream& operator<<(std::ostream& o, int_detect& u)
 	return o;
 }
 
-
-
-
 void test_plugin::tick(ticker& op)
 {
-
+	/*
 	float color[4] = { 0.5,0.5,0.5,1.0 };
 	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
 	op.tick().dc->ClearDepthStencilView(op.tick().pDepthView, D3D11_CLEAR_FLAG::D3D11_CLEAR_DEPTH | D3D11_CLEAR_FLAG::D3D11_CLEAR_STENCIL, 1.0, 0);
 	
 
 
-	ma.draw(op.tick());
+	ma.apply(op.tick());
 	ID3D11ShaderResourceView* tem[] = { rvp };
 	op.tick().dc->PSSetShaderResources(0, 1, tem);
 	ID3D11SamplerState* temss[] = { ss };
 	op.tick().dc->PSSetSamplers(0, 1, temss);
 	pc.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
 	ID3D11DepthStencilState* DSS;
 	D3D11_DEPTH_STENCIL_DESC tds
 	{
@@ -194,6 +190,7 @@ void test_plugin::tick(ticker& op)
 	//op.tick().swap->Present(0, 0);
 	DSS->Release();
 	RS->Release();
+	*/
 	/*
 	float color[4] = { 0.5,0.5,0.5,1.0 };
 	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
@@ -253,7 +250,7 @@ void fail_throw(bool r) { if (!r) throw 1; }
 
 void test_plugin::init(ticker& op)
 {
-	
+	/*
 	try {
 		fail_throw(pc.ind.create_index(op.tick(), Purpose::constant, ind.data(), ind.size()));
 		fail_throw(pc[0].create_vertex(op.tick(), Purpose::constant, vertex_input, 4, ver::layout{}));
@@ -281,6 +278,7 @@ void test_plugin::init(ticker& op)
 	{
 		__debugbreak();
 	}
+	*/
 	
 
 

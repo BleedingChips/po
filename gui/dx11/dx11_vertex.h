@@ -14,33 +14,34 @@ namespace PO
 			static const char* name() { return type{}(); }
 		};
 
+		template<typename T, typename ...AT> struct layout_type;
+
 		namespace Implement
 		{
 			template<size_t d, typename T> struct layout_element
 			{
-				static void create_input_element_desc(D3D11_INPUT_ELEMENT_DESC* v, size_t solt)
+				using type = T;
+				D3D11_INPUT_ELEMENT_DESC operator()(size_t solt) const
 				{
-					*(v) = D3D11_INPUT_ELEMENT_DESC{ T::name(), static_cast<UINT>(T::index), T::format, static_cast<UINT>(solt), static_cast<UINT>(d),
+					return D3D11_INPUT_ELEMENT_DESC{
+						T::name(), static_cast<UINT>(T::index), T::format, static_cast<UINT>(solt), static_cast<UINT>(d),
 						(T::instance_used == 0 ? D3D11_INPUT_CLASSIFICATION::D3D11_INPUT_PER_VERTEX_DATA : D3D11_INPUT_CLASSIFICATION::D3D11_INPUT_PER_INSTANCE_DATA),
 						static_cast<UINT>(T::instance_used)
 					};
 				}
 			};
 
-			template<typename its, typename ...oth> struct final_layout : std::integral_constant<size_t, sizeof...(oth) +1>
+			template<typename its, typename ...oth> struct final_layout
 			{
-				static void create_input_element_desc(D3D11_INPUT_ELEMENT_DESC* v, size_t solt)
-				{
-					its::create_input_element_desc(v, solt);
-					final_layout<oth...>::create_input_element_desc(++v, solt);
-				}
-			};
+				static_assert(!Tmp::is_repeat<typename its::type, typename oth::type...>::value, "layout can not contain same element");
 
-			template<typename its> struct final_layout<its> : std::integral_constant<size_t, 1>
-			{
-				static void create_input_element_desc(D3D11_INPUT_ELEMENT_DESC* v, size_t solt)
+				std::vector<D3D11_INPUT_ELEMENT_DESC> operator()(size_t solt) const
 				{
-					its::create_input_element_desc(v, solt);
+					std::vector<D3D11_INPUT_ELEMENT_DESC> buffer =
+					{
+						its{}(solt), oth{}(solt)...
+					};
+					return buffer;
 				}
 			};
 
@@ -48,13 +49,16 @@ namespace PO
 			template<typename ...input, size_t last, typename its, typename ...AT> struct make_layout_execute<Tmp::set_t<input...>, last, its, AT...>
 			{
 				using type = typename make_layout_execute<
-					Tmp::set_t<input..., layout_element<last, its>>, 
-#ifdef _WIN64 //处理因内存对齐引发的数据空洞。
+					Tmp::set_t<input..., layout_element<last, its>>,
 					((( last + its::size ) % 4) == 0 ? (last + its::size) : ((last /4 +1 )*4)),
-#else
-					last + its::size, 
-#endif
 					AT...
+				>::type;
+			};
+
+			template<typename ...input, size_t last, typename ...its, typename ...AT> struct make_layout_execute<Tmp::set_t<input...>, last, layout_type<its...>, AT...>
+			{
+				using type = typename make_layout_execute <
+					Tmp::set_t<input...>, last, its..., AT...
 				>::type;
 			};
 
@@ -62,25 +66,19 @@ namespace PO
 			{
 				using type = final_layout<input...>;
 			};
+
 		}
 
 		template<typename T, typename ...AT> struct layout_type
 		{
-			static_assert(!Tmp::is_repeat<T, AT...>::value, "");
 			using type = typename Implement::make_layout_execute<Tmp::set_t<>, 0, T, AT...>::type;
-			static constexpr size_t value = type::value;
-			static void create_input_element_desc(D3D11_INPUT_ELEMENT_DESC* v, size_t solt)
+			std::vector<D3D11_INPUT_ELEMENT_DESC> operator ()(size_t solt = 0) const
 			{
-				type::create_input_element_desc(v, solt);
+				return type{}(solt);
 			}
-			using funtion_type = void(*)(D3D11_INPUT_ELEMENT_DESC*, size_t);
-			operator funtion_type () const { return &layout_type<T, AT...>::create_input_element_desc; }
-			operator std::vector<D3D11_INPUT_ELEMENT_DESC>() const 
+			operator std::vector<D3D11_INPUT_ELEMENT_DESC> () const
 			{
-				std::vector<D3D11_INPUT_ELEMENT_DESC> tem;
-				tem.resize(value);
-				create_input_element_desc(tem.data(), 0);
-				return std::move(tem);
+				return type{}(0);
 			}
 		};
 

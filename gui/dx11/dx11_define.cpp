@@ -9,10 +9,10 @@ namespace PO
 
 		namespace Purpose
 		{
-			buffer_purpose input{ D3D11_USAGE::D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE, 0 };
-			buffer_purpose output{ D3D11_USAGE::D3D11_USAGE_DEFAULT,  0, D3D11_BIND_FLAG::D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS };
-			buffer_purpose constant{ D3D11_USAGE::D3D11_USAGE_IMMUTABLE, 0, 0 };
-			buffer_purpose transfer{ D3D11_USAGE::D3D11_USAGE_STAGING, UINT(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ) | (UINT)(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE),  0 };
+			purpose input{ D3D11_USAGE::D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE, 0 };
+			purpose output{ D3D11_USAGE::D3D11_USAGE_DEFAULT,  0, D3D11_BIND_FLAG::D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS };
+			purpose constant{ D3D11_USAGE::D3D11_USAGE_IMMUTABLE, 0, 0 };
+			purpose transfer{ D3D11_USAGE::D3D11_USAGE_STAGING, UINT(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ) | (UINT)(D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE),  0 };
 		}
 
 		bool buffer::create(Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStride)
@@ -32,51 +32,7 @@ namespace PO
 			return rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK;
 		}
 
-		bool geometry::create_implement(
-			Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag,
-			void* index_data, size_t index_size, DXGI_FORMAT DF,
-			void* vertex_data, size_t setp, size_t vertex_size, size_t count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
-		)
-		{
-			char* id = static_cast<char*>(index_data);
-			char* vd = static_cast<char*>(vertex_data);
-			if (id + index_size == vd)
-			{
-				if (buffer::create(rp, usage, cpu_flag, bind_flag | D3D11_BIND_INDEX_BUFFER | D3D11_BIND_VERTEX_BUFFER, id, index_size + vertex_size, 0, 0))
-				{
-					index = index_range{ 0, index_size, DF };
-					vertex = vertex_range{ index_size, vertex_size, count, setp, scription };
-					return true;
-				}
-			}
-			else if (vd + vertex_size == id)
-			{
-				if (buffer::create(rp, usage, cpu_flag, bind_flag | D3D11_BIND_INDEX_BUFFER | D3D11_BIND_VERTEX_BUFFER, vd, index_size + vertex_size, 0, 0))
-				{
-					index = index_range{ vertex_size, index_size, DF };
-					vertex = vertex_range{ 0, vertex_size, count, setp, scription };
-					return true;
-				}
-			}
-			else
-			{
-				static std::vector<char> buffer;
-				static std::mutex buffer_mutex;
-				std::lock_guard<std::mutex> lg(buffer_mutex);
-				buffer.resize(index_size + vertex_size, 0);
-				std::memcpy(buffer.data(), id, index_size);
-				std::memcpy(buffer.data() + index_size, vd, vertex_size);
-				if (buffer::create(rp, usage, cpu_flag, bind_flag | D3D11_BIND_INDEX_BUFFER | D3D11_BIND_VERTEX_BUFFER, buffer.data(), index_size + vertex_size, 0, 0))
-				{
-					index = index_range{ 0, index_size, DF };
-					vertex = vertex_range{ index_size, vertex_size, count, setp, scription };
-					return true;
-				}
-			}
-			return false;
-		}
-
-		bool create_index_vertex_buffer(Implement::resource_ptr& rp, Purpose::buffer_purpose bp,
+		bool create_index_vertex_buffer(Implement::resource_ptr& rp, Purpose::purpose bp,
 			const void* data, size_t buffer_size,
 			index& ind, vertex& ver,
 			size_t index_offset, DXGI_FORMAT format,
@@ -103,39 +59,86 @@ namespace PO
 			return false;
 		}
 
-		bool instance::create_implement(
-			Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag,
-			void* vertex_data, size_t step, size_t vertex_size, size_t count, void(*scription)(D3D11_INPUT_ELEMENT_DESC*, size_t solt)
-		)
+		bool pixel_creater::update_layout()
 		{
-			if (buffer::create(rp, usage, cpu_flag, bind_flag | D3D11_BIND_VERTEX_BUFFER, vertex_data, vertex_size, 0, 0))
+			static std::vector<D3D11_INPUT_ELEMENT_DESC> des_buffer;
+			static std::mutex buffer_mutex;
+			if (rp == nullptr) return false;
+			if (update_flag)
 			{
-				vertex = vertex_range{ vertex_size, count, step, scription };
+				update_flag = false;
+				layout = nullptr;
+				std::lock_guard<std::mutex> lg(buffer_mutex);
+				des_buffer.clear();
+				for (size_t i = 0; i < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT; ++i)
+				{
+					auto ite = des_buffer.insert(des_buffer.end(), vec[i].desc.begin(), vec[i].desc.end());
+					for (; ite != des_buffer.end(); ++ite)
+						ite->InputSlot = static_cast<UINT>(i);
+				}
+				update_flag = (rp->CreateInputLayout(des_buffer.data(), static_cast<UINT>(des_buffer.size()), vshader_binary, static_cast<UINT>(vshader_binary.size()), &layout) != S_OK);
+			}
+			return rp != nullptr;
+		}
+
+		DXGI_FORMAT adjust_texture_format(DXGI_FORMAT DF)
+		{
+			switch (DF)
+			{
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			case DXGI_FORMAT_R32_TYPELESS:
+				return DXGI_FORMAT_R32_FLOAT;
+			}
+			return DF;
+		}
+
+		bool pixel_creater::bind(Implement::resource_ptr& r)
+		{
+			update_flag = true;
+			for (size_t i = 0; i < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT; ++i)
+				vec[i].clear();
+			ind.clear();
+			layout = nullptr;
+			vshader = nullptr;
+			gshader = nullptr;
+			rp = r;
+			if (rp != nullptr)
+			{
+				if (vshader_binary)
+					rp->CreateVertexShader(vshader_binary, vshader_binary.size(), nullptr, &vshader);
 				return true;
 			}
 			return false;
 		}
 
-		bool input_layout::create_input_layout(Implement::resource_ptr& rp, const binary& b, vertex* ver, size_t size)
+		bool pixel_creater::load_vshader(std::u16string path)
 		{
-			static std::vector<D3D11_INPUT_ELEMENT_DESC> des_buffer;
-			static std::mutex buffer_mutex;
-			ptr = nullptr;
-			std::lock_guard<std::mutex> lg(buffer_mutex);
-			des_buffer.clear();
-			for (size_t i = 0; i < size; ++i)
-			{
-				auto ite = des_buffer.insert(des_buffer.end(), ver[i].desc.begin(), ver[i].desc.end());
-				for (; ite != des_buffer.end(); ++ite)
-					ite->InputSlot = static_cast<UINT>(i);
-			}
-			return rp->CreateInputLayout(des_buffer.data(), static_cast<UINT>(des_buffer.size()), b, static_cast<UINT>(b.size()), &ptr) == S_OK;
+			if (rp == nullptr) return false;
+			vshader = nullptr;
+			if (vshader_binary.load_file(path))
+				if (rp->CreateVertexShader(vshader_binary, vshader_binary.size(), nullptr, &vshader) == S_OK)
+				{
+					update_flag = true;
+					return true;
+				}
+			return false;
 		}
 
-		void pixel_creater::draw(Implement::context_ptr& cp)
+		bool pixel_creater::load_gshader(std::u16string path)
 		{
+			if (rp == nullptr) return false;
+			gshader = nullptr;
+			binary tem;
+			if (tem.load_file(path))
+				return rp->CreateGeometryShader(tem, tem.size(), nullptr, &gshader) == S_OK;
+			return false;
+		}
 
-			cp->IASetInputLayout(il.ptr);
+		bool pixel_creater::apply(Implement::context_ptr& cp)
+		{
+			if (!is_resource_available_for_context(rp,cp) || !update_layout()) return false;
+			cp->IASetInputLayout(layout);
 			cp->IASetPrimitiveTopology(primitive);
 			cp->VSSetShader(vshader, nullptr, 0);
 			ID3D11Buffer* array[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -156,9 +159,15 @@ namespace PO
 				}
 			}
 			cp->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, array, element, offset);
+			cp->IASetIndexBuffer(ind.ptr, ind.format, static_cast<UINT>(ind.offset));
+			return true;
+		}
+
+		bool pixel_creater::draw(Implement::context_ptr& cp)
+		{
+			if (!is_resource_available_for_context(rp, cp)) return false;
 			if (ind)
 			{
-				cp->IASetIndexBuffer(ind.ptr, ind.format, static_cast<UINT>(ind.offset));
 				if (instance_r.count == 0)
 					cp->DrawIndexed(index_r.count, index_r.start, vertex_r.start);
 				else
@@ -170,6 +179,7 @@ namespace PO
 				else
 					cp->Draw(vertex_r.count, vertex_r.start);
 			}
+			return true;
 		}
 
 		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt)
@@ -194,7 +204,8 @@ namespace PO
 					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 					SRVD.Texture2D = D3D11_TEX2D_SRV{ 0,  tem.MipLevels };
 				}
-				rp->CreateShaderResourceView(pt, &SRVD, &ptr);
+				HRESULT re = rp->CreateShaderResourceView(pt, &SRVD, &ptr);
+				volatile int i = 0;
 			}
 			return ptr;
 		}
@@ -236,72 +247,110 @@ namespace PO
 			return ptr;
 		}
 
-
-		/*
-		bool draw_data::draw(Implement::context_ptr& cp, Implement::resource_ptr& rp, void* vshader_data, size_t vshader_size)
+		void material::bind(Implement::resource_ptr& r)
 		{
-			static std::vector<D3D11_INPUT_ELEMENT_DESC> sesc_buffer;
-			sesc_buffer.clear();
-			ID3D11Buffer* buffer_array[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			UINT offset[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			UINT step[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			geometry_ptr tem_ptr = geo.able_cast<geometry_ptr>() ? geo.cast<geometry_ptr>() : (geo.able_cast<geometry_weak_ptr>() ? geo.cast<geometry_weak_ptr>().lock() : geometry_ptr{});
-			if (tem_ptr)
+			pshader = nullptr;
+			rp = r;
+		}
+		
+		bool pixel_state::apply(Implement::context_ptr& cp)
+		{
+			if (!is_resource_available_for_context(rp, cp) || !update()) return false;
+			cp->RSSetState(rsp);
+			return true;
+		}
+
+		bool pixel_state::update()
+		{
+			if (need_update)
 			{
-				buffer_array[0] = tem_ptr->ptr;
-				offset[0] = static_cast<UINT>(tem_ptr->vertex.offset);
-				step[0] = static_cast<UINT>(tem_ptr->vertex.step);
-				size_t input_size = tem_ptr->vertex.count;
-				sesc_buffer.resize(input_size);
-				(*tem_ptr->vertex.scription)(sesc_buffer.data(), 0);
-			}
-			else {
-				return false;
-			}
-			bool have_instance = false;
-			for (size_t o = 0; o < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - 1; ++o)
-			{
-				instance_ptr tem_ptr = ins[o].able_cast<instance_ptr>() ? ins[o].cast<instance_ptr>() : (ins[o].able_cast<instance_weak_ptr>() ? ins[o].cast<instance_weak_ptr>().lock() : instance_ptr{});
-				if (tem_ptr)
-				{
-					buffer_array[o+1] = tem_ptr->ptr;
-					offset[o + 1] = 0;
-					size_t input_size = tem_ptr->vertex.count;
-					size_t old_size = sesc_buffer.size();
-					sesc_buffer.resize(input_size + old_size);
-					step[o + 1] = static_cast<UINT>(tem_ptr->vertex.step);
-					(*tem_ptr->vertex.scription)(sesc_buffer.data() + old_size, 0);
-					have_instance = true;
-				}
-				else {
-					buffer_array[o + 1] = nullptr;
-					offset[o + 1] = 0;
-					step[o + 1] = 0;
-				}
-			}
-			Implement::layout_ptr lp;
-			if (rp->CreateInputLayout(sesc_buffer.data(), D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, vshader_data, vshader_size, &lp) != S_OK)
-				return false;
-			cp->IASetInputLayout(lp);
-			cp->IASetPrimitiveTopology(tem_ptr->primitive);
-			cp->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, buffer_array, step, offset);
-			if (tem_ptr->index.size == 0)
-			{
-				cp->IASetIndexBuffer(tem_ptr->ptr, tem_ptr->index.DF, static_cast<UINT>(tem_ptr->index.offset));
-				if (have_instance)
-					cp->DrawIndexedInstanced(static_cast<UINT>(index.count), static_cast<UINT>(instance.count), static_cast<UINT>(index.start), static_cast<UINT>(vertex.start), static_cast<UINT>(instance.start));
-				else
-					cp->DrawIndexed(static_cast<UINT>(index.count), static_cast<UINT>(index.start), static_cast<UINT>(vertex.start));
-			}
-			else {
-				if (have_instance)
-					cp->DrawInstanced(static_cast<UINT>(vertex.count), static_cast<UINT>(instance.count), static_cast<UINT>(vertex.start), static_cast<UINT>(instance.start));
-				else
-					cp->Draw(static_cast<UINT>(vertex.count), static_cast<UINT>(vertex.start));
+				rsp = nullptr;
+				if (rp->CreateRasterizerState(&DRD, &rsp) != S_OK) return false;
+				need_update = false;
 			}
 			return true;
 		}
-		*/
+
+		void material_state::bind(Implement::resource_ptr& r)
+		{
+			dsp = nullptr;
+			depth_stencil_update = true;
+			bsp = nullptr;
+			blend_update = true;
+			rp = r;
+		}
+
+		bool material_state::update()
+		{
+			if (rp == nullptr) return false;
+			if (depth_stencil_update)
+			{
+				dsp = nullptr;
+				if (rp->CreateDepthStencilState(&DDSD, &dsp) != S_OK) return false;
+				depth_stencil_update = false;
+			}
+			if (blend_update)
+			{
+				bsp = nullptr;
+				HRESULT re = rp->CreateBlendState(&DBD, &bsp);
+				if (re != S_OK) return false;
+				blend_update = false;
+			}
+			return true;
+		}
+
+		bool material_state::apply(Implement::context_ptr& cp)
+		{
+			if (!is_resource_available_for_context(rp, cp) || !update()) return false;
+			cp->OMSetBlendState(bsp, blend_factor.data(), sample_mask);
+			cp->OMSetDepthStencilState(dsp, stencil_ref);
+			return true;
+		}
+
+		Implement::texture2D_ptr create_render_target(Implement::resource_ptr& rp, size_t w, size_t h, DXGI_FORMAT DF)
+		{
+			Implement::texture2D_ptr ptr;
+			D3D11_TEXTURE2D_DESC DTD
+			{
+				static_cast<UINT>(w),
+				static_cast<UINT>(h),
+				1,
+				1,
+				DF,
+				DXGI_SAMPLE_DESC{1, 0},
+				D3D11_USAGE_DEFAULT,
+				D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
+				0,
+				0
+			};
+			rp->CreateTexture2D(&DTD, nullptr, &ptr);
+			return ptr;
+		}
+
+		Implement::render_view_ptr cast_render_view(Implement::resource_ptr& rp, Implement::texture2D_ptr tp)
+		{
+			Implement::render_view_ptr ptr;
+			if (rp == nullptr || tp == nullptr) return ptr;
+			D3D11_TEXTURE2D_DESC tem;
+			tp->GetDesc(&tem);
+			if (
+				((tem.BindFlags & D3D11_BIND_RENDER_TARGET) != D3D11_BIND_RENDER_TARGET) ||
+				((tem.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) == D3D11_RESOURCE_MISC_TEXTURECUBE)
+				) return ptr;
+			D3D11_RENDER_TARGET_VIEW_DESC DRTVD{ tem.Format };
+			if (tem.ArraySize > 1)
+			{
+				DRTVD.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+				DRTVD.Texture2DArray = D3D11_TEX2D_ARRAY_RTV{0, 0, tem.ArraySize };
+			}
+			else {
+				DRTVD.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+				DRTVD.Texture2D = D3D11_TEX2D_RTV{ 0 };
+			}
+			rp->CreateRenderTargetView(tp, &DRTVD, &ptr);
+			return ptr;
+		}
+
 	}
 
 

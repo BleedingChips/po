@@ -83,6 +83,9 @@
     <ClInclude Include="..\dx11_vertex.h">
       <Filter>dx11</Filter>
     </ClInclude>
+    <ClInclude Include="..\dx_math.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shader\base_pshader.hlsl">

@@ -46,5 +46,11 @@
     <FxCompile Include="..\shader\vs.hlsl">
       <Filter>HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="..\shader\vfinal.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shader\pfinal.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
