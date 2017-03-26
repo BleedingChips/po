@@ -187,8 +187,12 @@ namespace
 			auto ite = handled_event_filter.find(msg);
 			if (ite != handled_event_filter.end() && ite->second.translate_event && ite->second.responded_event)
 			{
-				std::lock_guard<decltype(ptr->input_mutex)> lg(ptr->input_mutex);
-				ptr->input_event.push_back(ite->second.translate_event(wParam, lParam));
+				ptr->input_event.lock(
+					[&](PO::Win32::win32_form::tank& t)
+				{
+					t.push_back(ite->second.translate_event(wParam, lParam));
+				}
+				);
 				return ite->second.responded_event(wParam, lParam);
 			}
 		}
@@ -379,6 +383,51 @@ namespace PO
 
 		void win32_form::tick(form_ticker& fs)
 		{
+
+			output_event.lock(
+				[&, this](tank& o)
+			{
+				input_event.lock(
+					[&o](tank& i)
+				{
+					std::swap(o, i);
+					i.clear();
+				}
+				);
+				for (auto& ev : o)
+				{
+					Respond re = fs.self().respond_event(ev);
+					if (re == Respond::Pass)
+					{
+						if (ev.is_quit())
+							fs.self().close();
+					}
+					else if (re == Respond::Return)
+					{
+						UINT msg;
+						WPARAM wp;
+						LPARAM lp;
+						if (translate_event_to_massage(ev, msg, wp, lp))
+						{
+							SendMessage(raw_handle, msg, wp, lp);
+						}
+					}
+				}
+				o.clear();
+			}
+			);
+
+			/*
+			input_event.lock(
+				[&](tank& t)
+			{
+				fs.self().swap_event(t);
+				for (auto& iu : t)
+				{
+					if(iu.s_quit)
+				}
+			}
+			);
 			decltype(input_event) tem;
 			{
 				std::lock_guard<std::mutex> da(input_mutex);
@@ -389,6 +438,7 @@ namespace PO
 				if (iu.is_quit())
 					fs.self().close();
 			}
+			*/
 		}
 	}
 }

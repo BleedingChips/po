@@ -324,12 +324,37 @@ namespace PO
 					std::forward<P>(p), std::forward<K>(k)...
 				) {}
 
+			template<typename P, typename ...AT>
+			variant(Tmp::itself<P>, AT&&... at) : index(same_type<P>::type::value)
+			{
+				static_assert(Tmp::is_one_of<P,T...>::value, "not avalible type construct form this");
+				if (!Implement::variant_constructor<P>(data, std::forward<AT>(at)...))
+					throw Error::tool_exeception("unmatch mapping while construct form those parameter");
+			}
+
+			template<typename ...AT>
+			variant(Tmp::itself<void>, AT&& ...at) : variant(std::false_type{}, std::forward<AT>(at)...)
+			{
+				static_assert(Tmp::is_one_of<Tmp::itself<void>, T...>::value, "not avalible type construct form this");
+			}
+
 			~variant()
 			{
 				if (index != 0)
 					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t; Implement::variant_destructor<type>(data); }, []() {});
 			}
 
+			template<typename func>
+			void call(func&& f)
+			{
+				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::original_t; f(this->cast<type>()); }, []() {});
+			}
+
+			template<typename func, typename def>
+			void call(func&& f, def&& d)
+			{
+				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::original_t; f(this->cast<type>()); }, d);
+			}
 			
 			variant& operator= (const variant& v)
 			{

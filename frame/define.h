@@ -204,6 +204,13 @@ namespace PO
 		bool is_key() { return type == EventType::E_KEY; }
 	};
 
+	enum class Respond
+	{
+		Truncation,
+		Pass,
+		Return
+	};
+
 	class binary
 	{
 		std::shared_ptr<char> ptr;
@@ -276,5 +283,4 @@ namespace PO
 		}
 		operator bool() const { return static_cast<bool>(ptr); }
 	};
-
 }

@@ -17,6 +17,7 @@ namespace PO
 		struct ticker_init_type {};
 		template<typename frame> struct viewer_init_type {};
 		struct constor_init_type {};
+		template<typename ticker_t> class plugin_append;
 	}
 
 	class thread_task
@@ -92,6 +93,7 @@ namespace PO
 		Tool::completeness_ref cr;
 		std::atomic_bool available;
 		Implement::thread_task_runer ttr;
+
 		template<typename frame> friend struct Implement::form_packet;
 		Tool::optional<duration> tick(time_point tp)
 		{
@@ -102,12 +104,17 @@ namespace PO
 			return{};
 		}
 
+		template<typename ticker_t> friend class Implement::plugin_append;
+
 		form_self(Tool::completeness_ref c) : cr(std::move(c)), available(true) {}
+
 		friend struct Implement::form_ptr;
 		template<typename T> friend struct Implement::form_packet;
 
 	public:
 
+		virtual Respond respond_event(event& f) = 0;
+		void swap_event(std::vector<event>& eve);
 		bool push_task(std::weak_ptr<thread_task> task) { return ttr.push_task(std::move(task)); }
 		operator bool() const noexcept { return available; }
 		operator const Tool::completeness_ref&() const { return cr; }
@@ -288,6 +295,7 @@ namespace PO
 		friend class form_tick;
 		template<typename frame> friend class constor_outside;
 		template<typename frame> friend class constor_inside;
+		friend class conveyer_tl;
 	public:
 		form_self& form() { return form_ref; }
 		plugin_self& self() { return plugin_ref; }
@@ -353,6 +361,33 @@ namespace PO
 		}
 	};
 
+	class conveyer_tl : public constor
+	{
+		event& ev;
+		void set_event(const event& e) { ev = e; }
+		template<typename T> friend class conveyer;
+		conveyer_tl(plugin_self& s, form_self& f, Implement::plugin_append_tl& pat, event& e) :constor(s, f, pat), ev(e) {}
+	public:
+		event& get_event() const { return ev; }
+	};
+
+	template<typename ticker_t> class conveyer : public conveyer_tl
+	{
+		Implement::plugin_append<ticker_t>& plugin;
+		ticker_t& ticker_;
+		conveyer(plugin_self& ps, form_self& fs, Implement::plugin_append<ticker_t>& ft, event& e, ticker_t& fv)
+			: conveyer_tl(ps, fs, ft, e), plugin(ft), ticker_(fv) {}
+		template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
+		operator conveyer_tl& () { return *this; }
+	public:
+		ticker_t& tick() { return ticker_; }
+		template<typename plugin_t, typename ...AK>
+		void create_plugin(plugin_t t, AK&& ...ak)
+		{
+			plugin.create_plugin(t, ticker_init_type{}, form(), ticker_, std::forward<AK>(ak)...);
+		}
+	};
+
 	template<typename frame> class viewer
 	{
 		form_self& form_ref;
@@ -404,6 +439,7 @@ namespace PO
 			template<typename plugin_t, typename ticker_t> friend class Implement::plugin_implement;
 			virtual void plug_init(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) = 0;
 			virtual void plug_tick(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, duration da) = 0;
+			virtual Respond plug_respond(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, event& e) = 0;
 			using plugin_self::plugin_self;
 		public:
 		};
@@ -426,6 +462,28 @@ namespace PO
 			static std::true_type func(del<T, &T::tick>*);
 			template<typename T>
 			static std::false_type func(...);
+		public:
+			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
+		};
+
+		template<typename plugin_t, typename ticker_t> struct plugin_have_respond_tl
+		{
+			template<typename T, Respond(T::*)(conveyer_tl&)> struct del;
+			template<typename T>
+			static std::true_type func(del<T, &T::respond>*);
+			template<typename T>
+			static std::false_type func(...);
+		public:
+			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
+		};
+
+		template<typename plugin_t, typename ticker_t> struct plugin_have_respond
+		{
+			template<typename T, Respond (T::*)(conveyer<ticker_t>&)> struct del;
+			template<typename T>
+			static std::true_type func(del<T, &T::respond>*);
+			template<typename T>
+			static auto func(...)->plugin_have_respond_tl<plugin_t, ticker_t>;
 		public:
 			static constexpr bool value = decltype(func<plugin_t>(nullptr))::value;
 		};
@@ -548,17 +606,17 @@ namespace PO
 						);
 			}
 
-			/*
-			bool event_respond_implement(event& ev) override
+			virtual Respond plug_respond(form_self& fs, plugin_append<ticker_t>& pa, ticker_t& t, event& e)
 			{
-				all_data.message = ev;
-				return Tool::statement_if<able_to_call_event_respond<frame_type, plugin_type>::value>
-				(
-				[&](auto& plugin) { return plugin.event_respond(responder<frame_type>(all_data)); },
-				[this](auto& plugin) {use_tick = false; return false; },
-				(plugin_data)
-				);
-			}*/
+				conveyer<ticker_t> tem_con{ *this, fs, pa, e, t };
+				return Tool::statement_if<plugin_have_respond<plugin_t, ticker_t>::value>
+					(
+						[](auto& p, conveyer<ticker_t>& e) { return p.respond(e); },
+						[](auto& p, conveyer<ticker_t>& e) {return Respond::Pass; },
+						*(reinterpret_cast<plugin_t*>(&data)), tem_con
+						);
+			}
+
 		};
 
 		template<typename plugin_t, typename ticker_t> using plugin_final = Tool::completeness<plugin_implement<plugin_t, ticker_t>>;
@@ -566,8 +624,10 @@ namespace PO
 		template<typename ticker_t> class plugin_append : public plugin_append_tl
 		{
 			std::mutex pim;
-			std::list<std::unique_ptr<plugin_interface<ticker_t>>> inilizered_plugin_list;
-			std::list<std::unique_ptr<plugin_interface<ticker_t>>> plugin_list;
+			using tank = std::vector<std::unique_ptr<plugin_interface<ticker_t>>>;
+			
+			Tool::scope_lock<tank> inilizered_plugin_list;
+			tank plugin_list;
 			ticker_t tick;
 
 			virtual void create_plugin_tl_execute(std::function<std::unique_ptr<Implement::plugin_tl_interface>(constor&)>&& up, form_self& fs)
@@ -580,39 +640,51 @@ namespace PO
 			template<typename plugin_t, typename init_type, typename ...AK> auto create_plugin(plugin_t t, init_type it, form_self& fs, AK&&... ak)
 			{
 				auto ptr = std::make_unique<plugin_final<typename plugin_t::type, ticker_t>>(it, fs, *this, std::forward<AK>(ak)...);
-				{
-					std::lock_guard<decltype(pim)> lg(pim);
-					inilizered_plugin_list.push_back(std::move(ptr));
-				}
+				inilizered_plugin_list.lock(
+					[&ptr](tank& io) {io.push_back(std::move(ptr)); }
+				);
 			}
 			template<typename form>
 			plugin_append(form& fv) : tick(fv) {}
+
+
+			void plug_init(duration da, form_self& fs)
+			{
+				plugin_list.erase(std::remove_if(plugin_list.begin(), plugin_list.end(), [](auto& i) {return !(i && (*i)); }), plugin_list.end());
+				auto start = inilizered_plugin_list.lock(
+					[this](tank& in)
+				{
+					in.erase(std::remove_if(in.begin(), in.end(), [](auto& i) {return !(i && (*i)); }), in.end());
+					auto ite = plugin_list.insert(plugin_list.end(), std::make_move_iterator(in.begin()), std::make_move_iterator(in.end()));
+					in.clear();
+					return ite;
+				}
+				);
+
+				auto pre_start = start;
+				for (; pre_start != plugin_list.end(); ++pre_start)
+					(*pre_start)->plug_init(fs, *this, tick, da);
+
+				plugin_list.erase(std::remove_if(start, plugin_list.end(), [](auto& i) {return !(i && (*i)); }), plugin_list.end());
+
+			}
+
+			Respond plug_respond(event& e, form_self& fs)
+			{
+				Respond re = Respond::Pass;
+				for (auto& ptr : plugin_list)
+				{
+					re = (ptr)->plug_respond(fs, *this, tick, e);
+					if (re == Respond::Truncation || re == Respond::Return)
+						break;
+				}
+				return re;
+			}
+
 			void plug_tick(duration da, form_self& fs)
 			{
-				decltype(inilizered_plugin_list) temporary_list;
-				{
-					std::lock_guard<decltype(pim)> lg(pim);
-					if (!inilizered_plugin_list.empty())
-					{
-						temporary_list = std::move(inilizered_plugin_list);
-						inilizered_plugin_list.clear();
-					}
-				}
-				if (!temporary_list.empty())
-				{
-					for (auto& ptr : temporary_list)
-						(ptr)->plug_init(fs, *this, tick , da);
-					plugin_list.splice(plugin_list.end(), std::move(temporary_list), temporary_list.begin(), temporary_list.end());
-				}
-				for (auto ptr = plugin_list.begin(); ptr != plugin_list.end();)
-				{
-					if ((*ptr) && (**ptr))
-					{
-						(*ptr++)->plug_tick(fs, *this, tick, da);
-						continue;
-					}
-					plugin_list.erase(ptr++);
-				}
+				for (auto& ptr : plugin_list)
+					ptr->plug_tick(fs, *this, tick, da);
 			}
 			
 		};
@@ -639,20 +711,29 @@ namespace PO
 			static constexpr bool value = decltype(fun<form>(nullptr))::value;
 		};
 
-		template<typename frame>
-		struct form_packet
+		template<typename form> class form_have_pos_tick
 		{
-			form_self self;
+			template<typename T, void (T::*)(form_ticker&)> struct del;
+			template<typename T> static std::true_type fun(del<T, &T::pos_tick>*);
+			template<typename T> static std::false_type fun(...);
+		public:
+			static constexpr bool value = decltype(fun<form>(nullptr))::value;
+		};
+
+		template<typename frame>
+		struct form_packet : public form_self
+		{
+			//form_self self;
 			Implement::frame_form<frame> form_data;
 			plugin_append<Implement::frame_ticker<frame>> plugin_data;
 
 			template<typename ...AT> form_packet(std::true_type, const Tool::completeness_ref& cr, AT&& ...at) :
-				self(cr), form_data(self, std::forward<AT>(at)...), plugin_data(form_data)
+				form_self(cr), form_data(*this, std::forward<AT>(at)...), plugin_data(form_data)
 			{
 			}
 
 			template<typename ...AT> form_packet(std::false_type, const Tool::completeness_ref& cr, AT&& ...at) :
-				self(cr), form_data(std::forward<AT>(at)...), plugin_data(form_data)
+				form_self(cr), form_data(std::forward<AT>(at)...), plugin_data(form_data)
 			{
 			}
 
@@ -665,7 +746,7 @@ namespace PO
 			{
 			}
 
-			operator bool() { return self; }
+			//operator bool() { return self; }
 			/*
 			template<typename plugin, typename view_or_tick, typename ...AK> decltype(auto) create_plugin(view_or_tick& ff, AK&& ...ak)
 			{
@@ -674,13 +755,18 @@ namespace PO
 				inilizered_plugin_list.push_back(std::move(ptr));
 			}
 			*/
+
+			virtual Respond respond_event(event& f) override
+			{
+				return plugin_data.plug_respond(f, *this);
+			}
+
 			void tick(time_point tp)
 			{
-				auto dua = self.tick(tp);
+				auto dua = form_self::tick(tp);
 				if (dua)
 				{
-					//form_call_pre_tick<Implement::frame_form<frame>>{}(form_data, self, *dua);
-					plugin_data.plug_tick(*dua, self);
+					plugin_data.plug_init(*dua, *this);
 					Tool::statement_if<form_have_tick<Implement::frame_form<frame>>::value>
 						(
 							[](auto& p, duration da, form_self& fs)
@@ -689,45 +775,20 @@ namespace PO
 						p.tick(ft);
 					},
 							[](auto& p, duration da, form_self&) {},
-						form_data, *dua, self
+						form_data, *dua, *this
+						);
+					plugin_data.plug_tick(*dua, *this);
+					Tool::statement_if<form_have_pos_tick<Implement::frame_form<frame>>::value>
+						(
+							[](auto& p, duration da, form_self& fs)
+					{
+						form_ticker ft(fs, da);
+						p.pos_tick(ft);
+					},
+							[](auto& p, duration da, form_self&) {},
+						form_data, *dua, *this
 						);
 				}
-				/*
-				self.reored.tick(da,
-					[&, this](duration dua) 
-				{
-					Tool::statement_if<form_have_func_tick<form>::value>
-						(
-							[dua](auto& t) {t.tick(dua); }
-					)(form_data);
-					decltype(inilizered_plugin_list) temporary_list;
-					{
-						std::lock_guard<decltype(pim)> lg(pim);
-						if (!inilizered_plugin_list.empty())
-						{
-							temporary_list = std::move(inilizered_plugin_list);
-							inilizered_plugin_list.clear();
-						}
-					}
-					if (!temporary_list.empty())
-					{
-						for (auto& ptr : temporary_list)
-							(ptr)->init(ticker);
-						plugin_list.splice(plugin_list.end(), std::move(temporary_list), temporary_list.begin(), temporary_list.end());
-					}
-					for (auto ptr = plugin_list.begin(); ptr != plugin_list.end();)
-					{
-						if ((*ptr) && (**ptr))
-						{
-							(*ptr++)->tick(dua, ticker);
-							continue;
-						}
-						plugin_list.erase(ptr++);
-					}
-				}
-					);
-				*/
-				
 			}
 
 			/*
@@ -771,7 +832,7 @@ namespace PO
 					[&, this]()
 				{
 					form_final<frame> packet(std::forward<AK>(ak)...);
-					p.set_value(std::make_unique<viewer_packet<frame>>(packet, packet.self, packet.plugin_data, packet.form_data));
+					p.set_value(std::make_unique<viewer_packet<frame>>(packet, packet, packet.plugin_data, packet.form_data));
 					time_point start_loop = std::chrono::system_clock::now();
 					while (!force_exist_form  && packet)
 					{

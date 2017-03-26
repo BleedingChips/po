@@ -14,6 +14,19 @@ struct IND
 	const char* operator() ()const { return "IND"; }
 };
 
+PO::Respond simul_debug::respond(conveyer& c)
+{
+	static size_t count = 0;
+	if (c.get_event().is_quit())
+	{
+		++count;
+		std::cout << "alsakldjlfkasdfasd" << std::endl;
+		if (count < 2)
+			return PO::Respond::Truncation;
+	}
+	return PO::Respond::Pass;
+}
+
 void simul_debug::init(ticker& t)
 {
 	pc.bind(t.tick());

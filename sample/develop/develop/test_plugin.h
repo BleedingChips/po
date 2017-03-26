@@ -3,6 +3,7 @@
 #include "../../../gui/dx11/dx11_define.h"
 #include <DirectXTex.h>
 using ticker = PO::ticker<PO::Dx11::Dx11_ticker>;
+using conveyer = PO::conveyer<PO::Dx11::Dx11_ticker>;
 using namespace PO::Dx11;
 
 PO::Tool::variant<Implement::texture1D_ptr, Implement::texture2D_ptr, Implement::texture3D_ptr>

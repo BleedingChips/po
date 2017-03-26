@@ -70,7 +70,14 @@ int call7(int o) { cout << 7 << "," << o << endl; return 7; }
 int main()
 
 {
-
+	PO::Tool::mail<int(int)> mal;
+	auto ty = mal.bind(call6);
+	mal([](int) { return true; }, 122);
+	cout << "===" << endl;
+	auto ty2 = mal.bind(call7);
+	mal([](int) { return true; }, 122);
+	cout << "===" << endl;
+	cout << alignof(uint16_t) << endl;
 	mat ma = 
 	{
 		ver{-0.0254603, -0.0468672, 0, 0.996687},

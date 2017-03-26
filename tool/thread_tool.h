@@ -265,7 +265,7 @@ namespace PO
 				mail_element(std::function<ret(para...)> f, std::shared_ptr<scope_lock<mail_control>> s, completeness_ref c)
 					: func(std::move(f)), cont(std::move(s)), cr(std::move(c)) {}
 				operator bool() const { return cont && cont->lock([](mail_control& mc) {return mc.avalible; }); }
-				auto operator()(para... pa) 
+				auto operator()(para... pa)
 				{
 					auto op = cr.lock_if(
 						[&, this]() 
@@ -277,9 +277,20 @@ namespace PO
 						cont->lock([](mail_control& i) {i.avalible = false; });
 					return op;
 				}
-				
-				//mail_element(std::function<ret(para)> pa, ) :func(std::move(pa)), vision(0) {}
-				//mail_element(mail_element&& m) : func(std::move(m.func)), vision(0) {}
+			};
+			template<typename T> struct mail_element_without_ref;
+			template<typename ret, typename ...para>
+			struct mail_element_without_ref<ret(para...)>
+			{
+				std::function<ret(para...)> func;
+				std::shared_ptr<scope_lock<mail_control>> cont;
+				mail_element_without_ref(std::function<ret(para...)> f, std::shared_ptr<scope_lock<mail_control>> s)
+					: func(std::move(f)), cont(std::move(s)) {}
+				operator bool() const { return cont && cont->lock([](mail_control& mc) {return mc.avalible; }); }
+				auto operator()(para... pa) -> Tool::optional<std::conditional_t<std::is_same<ret, void>::value, Tmp::itself<void>, decltype(func(pa...))>>
+				{
+					return{ func(pa...) };
+				}
 			};
 		}
 		struct receiption
@@ -291,35 +302,77 @@ namespace PO
 		template<typename ret, typename ...para, typename ...vector_para>
 		struct mail<ret(para...), vector_para...>
 		{
-			using tank_type = std::vector<Implement::mail_element<ret(para...)>, vector_para...>;
+			using ele_ref = Implement::mail_element<ret(para...)>;
+			using ele = Implement::mail_element_without_ref<ret(para...)>;
+			using tank_type = std::vector<
+				Tool::variant<ele_ref, ele>,
+				vector_para...
+			>;
 			scope_lock<tank_type> input;
 			scope_lock<tank_type> store;
-			receiption bind(completeness_ref cr, std::function<ret(para...)> pa)
+			receiption bind(std::function<ret(para...)> pa, completeness_ref cr)
 			{
 				auto con = std::make_shared<scope_lock<Implement::mail_control>>();
 				input.lock(
-					[&](auto& i) {i.emplace_back(std::move(pa), con, std::move(cr)); }
+					[&](auto& i) {
+					i.emplace_back(Tmp::itself<ele_ref>, std::move(pa), con, std::move(cr)); 
+				}
 				);
 				return{con};
+			}
+			receiption bind(std::function<ret(para...)> pa)
+			{
+				auto con = std::make_shared<scope_lock<Implement::mail_control>>();
+				input.lock(
+					[&](auto& i) {
+					i.emplace_back(Tmp::itself<ele>{}, std::move(pa), con);
+				}
+				);
+				return{ con };
 			}
 			template<typename ask>
 			void operator()(ask&& ak, para... pa)
 			{
 				store.lock(
-					[&, this](tank_type& da)
+					[&ak, &pa..., this](tank_type& da)
 				{
-					da.erase(std::remove_if(da.begin(), da.end(), [](auto& u) {return !u; }), da.end());
-					bool need_break = false;
-					for (Implement::mail_element<ret(para...)>& ptr : da)
+					da.erase(std::remove_if(da.begin(), da.end(), [](auto& u) 
 					{
-						auto op = ptr(pa...);
-						if (op && (need_break = !ak(*op)))
+						bool ava = true; 
+						if (u)
+							u.call([&ava](auto& t) {ava = !static_cast<bool>(t); });
+						return ava;
+					}), da.end());
+					bool need_break = false;
+					
+					for (Tool::variant<ele_ref, ele>& ptr : da)
+					{
+						ptr.call(
+							[&need_break, &ak, &pa...](auto& i) 
+						{
+							auto op = i(pa...);
+							if (op) need_break = !Tool::statement_if<std::is_same<ret, void>::value>
+								(
+									[](auto&& f, auto&& pa) {f(); return false; },
+									[](auto&& f, auto&& pa) {return f(pa); },
+									std::forward<ask>(ak), *op
+									);
+						}
+						);
+						if (need_break)
 							break;
 					}
+					
 					auto start = input.lock(
 						[&da](tank_type& aa)
 					{
-						aa.erase(std::remove_if(aa.begin(), aa.end(), [](auto& u) {return !u; }), aa.end());
+						aa.erase(std::remove_if(aa.begin(), aa.end(), [](auto& u) 
+						{
+							bool ava = true;
+							if (u)
+								u.call([&ava](auto& t) {ava = !static_cast<bool>(t); });
+							return ava;
+						}), aa.end());
 						auto insert =  da.insert(da.end(), std::make_move_iterator(aa.begin()), std::make_move_iterator(aa.end()));
 						aa.clear();
 						return insert;
@@ -329,8 +382,19 @@ namespace PO
 					if(!need_break)
 						for (; start != da.end(); ++start)
 						{
-							auto op = (*start)(pa...);
-							if (op && !ak(*op))
+							start->call(
+								[&need_break, &ak, &pa...](auto& i)
+							{
+								auto op = i(pa...);
+								if (op) need_break = !Tool::statement_if<std::is_same<ret, void>::value>
+									(
+										[](auto&& f, auto&& pa) {f(); return false; },
+										[](auto&& f, auto&& pa) {return f(pa); },
+										std::forward<ask>(ak), *op
+									);
+							}
+							);
+							if (need_break)
 								break;
 						}
 				}
@@ -342,4 +406,23 @@ namespace PO
 
 	}
 }
+
+namespace std
+{
+	template<typename T, typename K> void swap(PO::Tool::scope_lock<T>& t, PO::Tool::scope_lock<K>& k)
+	{
+		t.lock(
+			[&](T& t) 
+		{
+			k.lock(
+				[&t](K& k) 
+			{
+				swap(t, k);
+			}
+			);
+		}
+		);
+	}
+}
+
 #include "thread_tool.hpp"

@@ -8,6 +8,7 @@ namespace PO
 		template<typename type, size_t i, typename T, size_t ic = 0>
 		struct syntax : DXGI::data_format<T>
 		{
+			static constexpr size_t align = alignof(T);
 			static constexpr size_t size = sizeof(T);
 			static constexpr size_t index = i;
 			static constexpr size_t instance_used = ic;
@@ -50,7 +51,10 @@ namespace PO
 			{
 				using type = typename make_layout_execute<
 					Tmp::set_t<input..., layout_element<last, its>>,
-					((( last + its::size ) % 4) == 0 ? (last + its::size) : ((last /4 +1 )*4)),
+					((last % its::align) == 0 ? (last + its::size) : (last + its::align - (last %its::align))),
+
+
+					//((( last + its::size ) % 4) == 0 ? (last + its::size) : ((last /4 +1 )*4)),
 					AT...
 				>::type;
 			};

@@ -225,7 +225,7 @@ TwoColourCompositeOutput main(in_ver IN)
 
 	float4 view = float4((normalize(mul(invViewProj, IN.clip_pos).xyz) + float3(1.0,1.0,1.0)) / 2.0, 0.0);
 	//result.add = float4(nearFarTexture.Sample(cube_sample, view).xyz, 1.0);
-	result.add = view;
+	result.add = float4(1.0, 1.0, 1.0, 1.0);
 	//result.add = float4((IN.clip_pos + float2(1.0 , 1.0) ) / 2.0, 0.0, 1.0);
 	return result;
 

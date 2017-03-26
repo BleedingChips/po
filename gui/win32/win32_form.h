@@ -29,9 +29,9 @@ namespace PO
 		struct win32_form
 		{
 			HWND raw_handle;
-			std::mutex input_mutex;
-			std::deque<event> input_event;
-			std::deque<event> output_event;
+			using tank = std::vector<event>;
+			Tool::scope_lock<tank> input_event;
+			Tool::scope_lock<tank> output_event;
 			win32_form(form_self&, const win32_initial& = win32_initial{});
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();

@@ -25,4 +25,5 @@ struct simul_debug
 	simul_debug() {}
 	void init(ticker& t);
 	void tick(ticker& t);
+	PO::Respond respond(conveyer& c);
 };
