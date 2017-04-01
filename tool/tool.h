@@ -497,6 +497,22 @@ namespace PO
 			}
 		};
 
+		template<typename T> using optional_t = std::conditional_t<std::is_void<T>::value,
+			Tool::optional<Tmp::itself<void>>,
+			Tool::optional<T>
+		>;
+
+		template<typename F, typename ...P>
+		decltype(auto) return_optional_t(F&& f, P&& ...ap)
+		{
+			return statement_if<std::is_void<decltype(f(std::forward<P>(ap)...))>::value>
+				(
+					[](auto& t, auto&& ...io) {t(std::forward<decltype(io) && >(io)...); return Tmp::itself<void>{}; },
+					[](auto& t, auto&& ...io) {return t(std::forward<decltype(io) && >(io)...); },
+					f, std::forward<P>(ap)...
+					);
+		};
+
 		namespace Implement
 		{
 			struct any_interface

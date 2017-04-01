@@ -188,34 +188,24 @@ namespace PO
 			}
 
 			template<typename T>
-			auto lock_if(T&& fun) -> Tool::optional<std::conditional_t<std::is_same<decltype(fun()),void>::value, Tmp::itself<void>, decltype(fun())>>
+			auto lock_if(T&& fun) -> Tool::optional_t<decltype(fun())>
 			{
 				if (operator bool() && data->add_read_ref())
 				{
-					//Tool::destructor de([this]() {data->del_read_ref(); });
 					at_scope_exit ase([this]() {data->del_read_ref(); });
-					return statement_if<std::is_same<decltype(fun()), void>::value>
-						(
-							[](auto& f) { f(); return Tmp::itself<void>{}; },
-							[](auto& f) {return f(); },
-							fun
-							);
+					return{ return_optional_t(fun) };
 				}
 				return {};
 			}
+
 			template<typename T>
-			auto try_lock_if(T&& fun) ->Tool::optional<std::conditional_t<std::is_same<decltype(fun()), void>::value, Tmp::itself<void>, decltype(fun())>>
+			auto try_lock_if(T&& fun) -> Tool::optional_t<decltype(fun())>
 			{
 				if (operator bool() && data->try_add_read_ref())
 				{
 					//Tool::destructor de([this]() {data->del_read_ref(); });
 					at_scope_exit ase([this]() {data->del_read_ref(); });
-					return statement_if<std::is_same<decltype(fun()), void>::value>
-						(
-							[](auto& f) { f(); return Tmp::itself<void>{}; },
-							[](auto& f) {return f(); },
-							fun
-							);
+					return{ return_optional_t(fun) };
 				}
 				return {};
 			}
@@ -235,12 +225,12 @@ namespace PO
 				std::lock_guard<mutex> lg(lock_mutex);
 				return f(data);
 			}
-			template<typename fun> auto try_lock(fun&& f) -> Tool::optional<decltype(f(data))>
+			template<typename fun> auto try_lock(fun&& f) -> Tool::optional_t<decltype(f())>
 			{
 				if (lock_mutex.try_lock())
 				{
 					Tool::at_scope_exit ase({ &}() { lock_mutex.unlock(); })
-					return{ f(data) };
+					return{ return_optional_t(f) };
 				}
 				return{};
 			}
@@ -265,7 +255,7 @@ namespace PO
 				mail_element(std::function<ret(para...)> f, std::shared_ptr<scope_lock<mail_control>> s, completeness_ref c)
 					: func(std::move(f)), cont(std::move(s)), cr(std::move(c)) {}
 				operator bool() const { return cont && cont->lock([](mail_control& mc) {return mc.avalible; }); }
-				auto operator()(para... pa)
+				decltype(auto) operator()(para... pa)
 				{
 					auto op = cr.lock_if(
 						[&, this]() 
@@ -287,9 +277,9 @@ namespace PO
 				mail_element_without_ref(std::function<ret(para...)> f, std::shared_ptr<scope_lock<mail_control>> s)
 					: func(std::move(f)), cont(std::move(s)) {}
 				operator bool() const { return cont && cont->lock([](mail_control& mc) {return mc.avalible; }); }
-				auto operator()(para... pa) -> Tool::optional<std::conditional_t<std::is_same<ret, void>::value, Tmp::itself<void>, decltype(func(pa...))>>
+				auto operator()(para... pa) -> Tool::optional_t<decltype(func(pa...))>
 				{
-					return{ func(pa...) };
+					return{ return_optional_t(func, pa...)};
 				}
 			};
 		}
@@ -354,8 +344,8 @@ namespace PO
 							if (op) need_break = !Tool::statement_if<std::is_same<ret, void>::value>
 								(
 									[](auto&& f, auto&& pa) {f(); return false; },
-									[](auto&& f, auto&& pa) {return f(pa); },
-									std::forward<ask>(ak), *op
+									[](auto&& f, auto&& pa) {return f(*pa); },
+									std::forward<ask>(ak), op
 									);
 						}
 						);
@@ -378,7 +368,6 @@ namespace PO
 						return insert;
 					}
 					);
-					cout << "66666 " << da.end() - start << endl;
 					if(!need_break)
 						for (; start != da.end(); ++start)
 						{
@@ -389,8 +378,8 @@ namespace PO
 								if (op) need_break = !Tool::statement_if<std::is_same<ret, void>::value>
 									(
 										[](auto&& f, auto&& pa) {f(); return false; },
-										[](auto&& f, auto&& pa) {return f(pa); },
-										std::forward<ask>(ak), *op
+										[](auto&& f, auto&& pa) {return f(*pa); },
+										std::forward<ask>(ak), op
 									);
 							}
 							);
@@ -401,9 +390,6 @@ namespace PO
 				);
 			}
 		};
-		
-
-
 	}
 }
 

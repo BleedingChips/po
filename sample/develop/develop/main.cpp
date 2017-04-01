@@ -66,6 +66,20 @@ int call6(int o) { cout << 6 << "," << o << endl; return 6; }
 int call7(int o) { cout << 7 << "," << o << endl; return 7; }
 
 
+class Data
+{
+	int a;
+	int b;
+public:
+	Data(int c, int d) {}
+	//Data(int ) {}
+};
+
+struct Data2
+{
+	Data op = { 1,2 };
+};
+
 
 int main()
 

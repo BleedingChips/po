@@ -74,5 +74,8 @@
     <ClInclude Include="..\frame\resource_loader.h">
       <Filter>frame</Filter>
     </ClInclude>
+    <ClInclude Include="..\frame\frame_implement.h">
+      <Filter>frame</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

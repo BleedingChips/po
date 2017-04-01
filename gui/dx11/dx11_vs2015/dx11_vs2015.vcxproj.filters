@@ -25,6 +25,12 @@
     <Filter Include="dx11\shader">
       <UniqueIdentifier>{c373250a-9b2d-439d-ba00-bd01f4546f82}</UniqueIdentifier>
     </Filter>
+    <Filter Include="plugin">
+      <UniqueIdentifier>{32339b79-395a-45a6-931a-f5194fde4a80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dx">
+      <UniqueIdentifier>{5b3b3ee0-f31c-4c92-9ac8-0009fc328770}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\win32\win32_form.cpp">
@@ -44,6 +50,12 @@
     </ClCompile>
     <ClCompile Include="..\dx11_define.cpp">
       <Filter>dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\plugin\view_matrix.cpp">
+      <Filter>plugin</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dx\dx_math.cpp">
+      <Filter>dx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -83,8 +95,14 @@
     <ClInclude Include="..\dx11_vertex.h">
       <Filter>dx11</Filter>
     </ClInclude>
-    <ClInclude Include="..\dx_math.h">
-      <Filter>dx11</Filter>
+    <ClInclude Include="..\plugin\view_matrix.h">
+      <Filter>plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dx\dx_math.h">
+      <Filter>dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dx\dx_type.h">
+      <Filter>dx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

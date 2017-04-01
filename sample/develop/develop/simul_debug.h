@@ -1,6 +1,6 @@
 #pragma once
 #include "test_plugin.h"
-
+#include "../../../gui/dx11/plugin/view_matrix.h"
 struct simul_debug
 {
 	pixel_creater pc;
@@ -22,6 +22,10 @@ struct simul_debug
 	Implement::sample_state_ptr wcc_sampler;
 	Implement::sample_state_ptr wrap_sampler;
 	Implement::sample_state_ptr cmc_sampler;
+
+	PO::Dx11::view_matrix vm;
+	buffer b;
+
 	simul_debug() {}
 	void init(ticker& t);
 	void tick(ticker& t);

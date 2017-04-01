@@ -127,15 +127,19 @@
   <ItemGroup>
     <ClCompile Include="..\..\dxgi\dxgi.cpp" />
     <ClCompile Include="..\..\dxgi\dxgi_log.cpp" />
+    <ClCompile Include="..\..\dx\dx_math.cpp" />
     <ClCompile Include="..\..\win32\win32_form.cpp" />
     <ClCompile Include="..\..\win32\win32_log.cpp" />
     <ClCompile Include="..\dx11_define.cpp" />
     <ClCompile Include="..\dx11_form.cpp" />
+    <ClCompile Include="..\plugin\view_matrix.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dxgi\dxgi.h" />
     <ClInclude Include="..\..\dxgi\dxgi_define.h" />
     <ClInclude Include="..\..\dxgi\dxgi_log.h" />
+    <ClInclude Include="..\..\dx\dx_math.h" />
+    <ClInclude Include="..\..\dx\dx_type.h" />
     <ClInclude Include="..\..\win32\win32_define.h" />
     <ClInclude Include="..\..\win32\win32_form.h" />
     <ClInclude Include="..\..\win32\win32_log.h" />
@@ -145,7 +149,7 @@
     <ClInclude Include="..\dx11_math.h" />
     <ClInclude Include="..\dx11_shader.h" />
     <ClInclude Include="..\dx11_vertex.h" />
-    <ClInclude Include="..\dx_math.h" />
+    <ClInclude Include="..\plugin\view_matrix.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\shader\base_cshader.hlsl">

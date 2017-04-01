@@ -16,16 +16,18 @@ struct IND
 
 PO::Respond simul_debug::respond(conveyer& c)
 {
-	static size_t count = 0;
-	if (c.get_event().is_quit())
-	{
-		++count;
-		std::cout << "alsakldjlfkasdfasd" << std::endl;
-		if (count < 2)
-			return PO::Respond::Truncation;
-	}
-	return PO::Respond::Pass;
+	return vm.capture_event(c.get_event());
 }
+
+/*
+struct yuan_data
+{
+	float3 poi;
+	float3 
+};
+*/
+
+std::vector<float3> yuan;
 
 void simul_debug::init(ticker& t)
 {
@@ -33,6 +35,9 @@ void simul_debug::init(ticker& t)
 	m.bind(t.tick());
 	ps.bind(t.tick());
 	ms.bind(t.tick());
+
+	if (!b.create(t.tick(), D3D11_USAGE::D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE, D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER, nullptr, sizeof(DirectX::XMFLOAT4X4), 0, 0))
+		__debugbreak();
 
 	/*
 	ms.set_blend(D3D11_RENDER_TARGET_BLEND_DESC{ true, D3D11_BLEND_ONE, D3D11_BLEND_SRC1_COLOR, D3D11_BLEND_OP_ADD,  D3D11_BLEND_ONE , D3D11_BLEND_ZERO , D3D11_BLEND_OP_ADD , D3D11_COLOR_WRITE_ENABLE_ALL })
@@ -93,6 +98,7 @@ void simul_debug::init(ticker& t)
 		0,
 		0
 	};
+
 	PO::Win32::Error::fail_throw(t.tick().dev->CreateSamplerState(&wmc_sampler_state, &wmc_sampler));
 
 	D3D11_SAMPLER_DESC wcc_sampler_state
@@ -108,6 +114,7 @@ void simul_debug::init(ticker& t)
 		0,
 		0
 	};
+
 	PO::Win32::Error::fail_throw(t.tick().dev->CreateSamplerState(&wcc_sampler_state, &wcc_sampler));
 
 	D3D11_SAMPLER_DESC wrap_sampler_state
@@ -146,8 +153,26 @@ void simul_debug::init(ticker& t)
 
 void simul_debug::tick(ticker& op)
 {
+
+	vm.tick(op.time());
+	//std::cout << vm.view(3, 0) << "," << vm.view(3, 1) << "," << vm.view(3, 2) << std::endl;
+	std::cout << vm.projection << std::endl;
+	
+	auto i = vm.get_proj();
+	
+	if (!b.write(op.tick(),
+		[&i](void* d, size_t size)
+	{
+		std::memcpy(d, &i, size);
+	}
+	))
+		__debugbreak();
+		
+
 	float color[4] = { 0.5,0.5,0.5,1.0 };
 	ID3D11RenderTargetView* tem_array[] = { op.tick().pView, rvp };
+	ID3D11Buffer* buf[] = { b.ptr };
+	op.tick().dc->VSSetConstantBuffers(0, 1, buf);
 	op.tick().dc->OMSetRenderTargets(2, tem_array, op.tick().pDepthView);
 	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
 	op.tick().dc->ClearRenderTargetView(rvp, color);
@@ -164,9 +189,9 @@ void simul_debug::tick(ticker& op)
 		godraysVolumeTexture,
 		shadowTexture
 	};
-	op.tick().dc->PSSetShaderResources(0, tem.size(), tem.data());
+	op.tick().dc->PSSetShaderResources(0, static_cast<UINT>(tem.size()), tem.data());
 	std::vector<ID3D11SamplerState*> temss = { cube_sample, wmc_sampler, wcc_sampler, wrap_sampler, cmc_sampler };
-	op.tick().dc->PSSetSamplers(0, temss.size(), temss.data());
+	op.tick().dc->PSSetSamplers(0, static_cast<UINT>(temss.size()), temss.data());
 	pc.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
 	/*

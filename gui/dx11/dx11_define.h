@@ -11,71 +11,12 @@
 #include <array>
 #include <map>
 #include "../../frame/define.h"
+#include "../dx/dx_math.h"
 namespace PO
 {
 	namespace Dx11
 	{
-		using float2 = DirectX::XMFLOAT2;
-		using float3 = DirectX::XMFLOAT3;
-		using float4 = DirectX::XMFLOAT4;
-		using matrix4 = DirectX::XMFLOAT4X4;
-
-		template<typename store> struct store2
-		{
-			store x;
-			store y;
-		};
-
-		template<typename store> struct store3
-		{
-			store x;
-			store y;
-			store z;
-		};
-		template<typename store> struct store4
-		{
-			store x;
-			store y;
-			store z;
-			store w;
-		};
-
-		using int2 = store2<int32_t>;
-		using int3 = store3<int32_t>;
-		using int4 = store4<int32_t>;
-
-		using uint2 = store2<uint32_t>;
-		using uint3 = store3<uint32_t>;
-		using uint4 = store4<uint32_t>;
-	}
-
-	namespace DXGI
-	{
-		template<typename T> struct data_format;
-		template<> struct data_format<Dx11::float2>
-		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT;
-		};
-		template<> struct data_format<Dx11::float3>
-		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
-		};
-		template<> struct data_format<Dx11::float4>
-		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
-		};
-		template<> struct data_format<Dx11::int2>
-		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32_SINT;
-		};
-		template<> struct data_format<Dx11::int3>
-		{
-			static constexpr DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_SINT;
-		};
-	}
-
-	namespace Dx11
-	{
+		using namespace Dx;
 		namespace Implement
 		{
 			using resource_ptr = CComPtr<ID3D11Device>;
@@ -98,11 +39,11 @@ namespace PO
 			using raterizer_state_ptr = CComPtr<ID3D11RasterizerState>;
 			using blend_state_ptr = CComPtr<ID3D11BlendState>;
 			using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
-
 		}
 
 		namespace Purpose
 		{
+
 			struct purpose
 			{
 				D3D11_USAGE usage;
@@ -128,7 +69,7 @@ namespace PO
 			}
 			void clear() { ptr = nullptr; }
 			bool create(Implement::resource_ptr& rp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStride);
-			template<typename T> auto write(Implement::context_ptr& cp, T& t) -> Tool::optional<decltype(t(static_cast<void*>(nullptr), static_cast<size_t>(0)))>
+			template<typename T> auto write(Implement::context_ptr& cp, T& t) -> Tool::optional_t<decltype(t(nullptr, 0))>
 			{
 				if (ptr != nullptr)
 				{
@@ -136,17 +77,18 @@ namespace PO
 					ptr->GetDesc(&DBD);
 					if (
 						(DBD.Usage == D3D11_USAGE::D3D11_USAGE_DYNAMIC || DBD.Usage == D3D11_USAGE::D3D11_USAGE_STAGING)
-						&& (DBD.CPUAccessFlags & D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE == D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE)
+						&& ((DBD.CPUAccessFlags & D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE) == D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE)
 						)
 					{
 						D3D11_MAPPED_SUBRESOURCE DMS;
-						if (cp->Map(ptr, 0, D3D11_MAP_WRITE, &DMS) != S_OK)
+						HRESULT re = cp->Map(ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS);
+						if (re != S_OK)
 							return{};
 						Tool::at_scope_exit tem([&,this]()
 						{
 							cp->Unmap(ptr, 0);
 						});
-						return{ t(DMS.pData, DBD.ByteWidth) };
+						return{ Tool::return_optional_t(t , DMS.pData, DBD.ByteWidth) };
 					}
 				}
 				return{};
@@ -242,7 +184,6 @@ namespace PO
 		Implement::texture2D_ptr create_render_target(Implement::resource_ptr& rp, size_t w, size_t e, DXGI_FORMAT DF);
 		Implement::render_view_ptr cast_render_view(Implement::resource_ptr& rp, Implement::texture2D_ptr tp);
 		//Implement::texture2D_ptr create_depth_s(Implement::resource_ptr& rp, size_t w, size_t e, DXGI_FORMAT DF);
-
 		
 
 		DXGI_FORMAT adjust_texture_format(DXGI_FORMAT DF);
@@ -271,6 +212,39 @@ namespace PO
 			bool apply(Implement::context_ptr& cp);
 			bool update();
 		};
+
+		/*
+		struct pixel
+		{
+			struct pixel_solt_control
+			{
+
+			};
+			Implement::resource_ptr rp;
+
+			ID3D11Buffer* buffer_array[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			UINT offset[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			UINT element[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			std::vector<std::shared_ptr<pixel_solt_control>> control;
+
+			ID3D11Buffer* index;
+			UINT offset;
+			DXGI_FORMAT format;
+
+			Implement::vshader_ptr vshader;
+			binary v_binary;
+
+			Implement::gshader_ptr gshader;
+
+
+			bool update = false;
+		};
+		*/
+
+
+
+
+
 
 		struct pixel_creater
 		{
@@ -329,9 +303,9 @@ namespace PO
 				return create_index_vertex_buffer(rp, bp, data, buffer_size, ind, vec[count], index_offset, format, vertex_offset, element_size, std::move(layout));
 			}
 			struct range { UINT start, count; }index_r, vertex_r, instance_r;
-			void set_index_range(UINT s, UINT e) { index_r = range{ s, e }; }
-			void set_vertex_range(UINT s, UINT e) { vertex_r = range{ s, e }; }
-			void set_instance_range(UINT s, UINT e) { instance_r = range{ s, e }; }
+			void set_index_range(size_t s, size_t e) { index_r = range{ static_cast<UINT>(s), static_cast<UINT>(e) }; }
+			void set_vertex_range(size_t s, size_t e) { vertex_r = range{ static_cast<UINT>(s), static_cast<UINT>(e) }; }
+			void set_instance_range(size_t s, size_t e) { instance_r = range{ static_cast<UINT>(s), static_cast<UINT>(e) }; }
 			bool apply(Implement::context_ptr& cp);
 			bool draw(Implement::context_ptr& cp);
 		};

@@ -136,6 +136,7 @@
     <ClInclude Include="..\frame\error.h" />
     <ClInclude Include="..\frame\event.h" />
     <ClInclude Include="..\frame\frame.h" />
+    <ClInclude Include="..\frame\frame_implement.h" />
     <ClInclude Include="..\frame\resource_loader.h" />
     <ClInclude Include="..\po.h" />
     <ClInclude Include="..\tool\auto_adapter.h" />

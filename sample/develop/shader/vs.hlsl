@@ -1,20 +1,10 @@
-
-struct vinput
+cbuffer FrameUpdate : register(b1)
 {
-	float2 pos:POSITION;
-	float2 tex:TEXCOORD;
-};
+	float4x4 mu;
+}
 
-struct voutput
-{
-	float4 pos:SV_POSITION;
-	float2 tex:TEXCOORD;
-};
 
-voutput main(vinput inp)
+float4 main(in float3 POI : POSITION) : SV_POSITION
 {
-	voutput tem;
-	tem.pos = float4(inp.pos,0.0, 1.0);
-	tem.tex = inp.tex;
-	return tem;
+	return mul(mu, float4(POI, 1.0));
 }

@@ -138,7 +138,7 @@ TwoColourCompositeOutput CompositeAtmospherics(float4 clip_pos
 	float sine = view.z;
 	float4 nearFarCloud = texture_cube_lod(nearFarTexture, view, 0);
 
-
+	
 	float dist_rt = pow(dist, 0.5);
 	float4 cloud = texture_cube_lod(farCloudTexture, view, 0);
 	float3 offsetMetres = view*dist*1000.0*maxFadeDistanceKm;
@@ -217,16 +217,18 @@ TwoColourCompositeOutput main(in_ver IN)
 		, maxFadeDistanceKm
 		, cloudShadowStrength
 
+
 		, nearDist);
 	result.add.rgb = pow(result.add.rgb, float3(gamma, gamma, gamma));
 	result.add.rgb *= exposure;
 	//return result;
 
 
-	float4 view = float4((normalize(mul(invViewProj, IN.clip_pos).xyz) + float3(1.0,1.0,1.0)) / 2.0, 0.0);
+	//float4 view = float4((normalize(mul(invViewProj, IN.clip_pos).xyz) + float3(1.0,1.0,1.0)) / 2.0, 0.0);
 	//result.add = float4(nearFarTexture.Sample(cube_sample, view).xyz, 1.0);
-	result.add = float4(1.0, 1.0, 1.0, 1.0);
+	//result.add = float4(1.0, 1.0, 1.0, 1.0);
 	//result.add = float4((IN.clip_pos + float2(1.0 , 1.0) ) / 2.0, 0.0, 1.0);
+	//result.add = float4(1.0, 0.0, 0.0, 1.0);
 	return result;
 
 }

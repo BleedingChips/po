@@ -49,6 +49,8 @@ namespace PO
 			{
 				using type = T;
 			};
+			itself() {}
+			itself(const itself&) {}
 		};
 
 		namespace Implement

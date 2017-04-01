@@ -18,6 +18,7 @@ struct test_plugin
 	Implement::texture2D_ptr tp;
 	Implement::resource_view_ptr rvp;
 	Implement::sample_state_ptr ss;
+	constant_value cv;
 
 	test_plugin()
 	{
