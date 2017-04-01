@@ -351,6 +351,28 @@ namespace PO
 			return ptr;
 		}
 
+		bool constant_value::create_implement(void* data, size_t buffer_size, D3D11_USAGE usage, UINT cpu_flag)
+		{
+			if (rp == nullptr) return false;
+			ID3D11Buffer* ptr = nullptr;
+			D3D11_BUFFER_DESC DBD
+			{
+				static_cast<UINT>(buffer_size),
+				usage,
+				D3D11_BIND_CONSTANT_BUFFER,
+				cpu_flag,
+				0,
+				static_cast<UINT>(0)
+			};
+			D3D11_SUBRESOURCE_DATA DSD{ data, 0, 0 };
+			if (rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK)
+			{
+				buffer.push_back(ptr);
+				return true;
+			}
+			return false;
+		}
+
 	}
 
 

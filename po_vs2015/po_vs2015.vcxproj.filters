@@ -77,5 +77,8 @@
     <ClInclude Include="..\frame\frame_implement.h">
       <Filter>frame</Filter>
     </ClInclude>
+    <ClInclude Include="..\tool\tmpcall.h">
+      <Filter>tool</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

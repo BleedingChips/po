@@ -44,6 +44,13 @@ namespace PO
 		namespace Purpose
 		{
 
+			struct input
+			{
+				
+			};
+
+
+
 			struct purpose
 			{
 				D3D11_USAGE usage;
@@ -378,6 +385,36 @@ namespace PO
 				if (!is_resource_available_for_context(rp, cp)) return false;
 				cp->PSSetShader(pshader, nullptr, 0);
 				return true;
+			}
+		};
+
+		struct constant_value
+		{
+			std::vector<ID3D11Buffer*> buffer;
+			Implement::resource_ptr rp;
+
+			bool create_implement(void* data, size_t buffer_size, D3D11_USAGE usage, UINT cpu_flag);
+
+
+		public:
+
+			size_t size() const { return buffer.size(); }
+
+			template<typename T>
+			bool create(T* data)
+			{
+
+			}
+
+
+			void clear() noexcept
+			{
+				std::for_each(buffer.begin(), buffer.end(), [](ID3D11Buffer* B) {if(B!=nullptr) B->Release(); });
+				buffer.clear();
+			}
+			~constant_value()
+			{
+				clear();
 			}
 		};
 
