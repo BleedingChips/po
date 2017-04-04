@@ -4,6 +4,17 @@ namespace PO
 {
 	namespace TmpCall
 	{
+		namespace Implement
+		{
+			template<typename T, typename ...in> struct is_callable_function_implement
+			{
+				template<typename K, typename ...i> static std::true_type func(typename K::template in<i...>*);
+				template<typename K, typename ...i> static std::false_type func(...);
+				using type = decltype(func<T, in...>(nullptr));
+			};
+		}
+
+		template<typename T, typename ...in> struct is_callable_function : Implement::is_callable_function_implement<T, in...>::type {};
 
 		namespace Implement
 		{
@@ -98,18 +109,6 @@ namespace PO
 			};
 		};
 
-		template<template<typename...> class f> struct make_func_t
-		{
-			template<typename ...i> struct in
-			{
-				using type = typename f<i...>::type;
-				template<template<typename ...> class o> struct out
-				{
-					using type = o<typename f<i...>::type>;
-				};
-			};
-		};
-
 
 
 		template<typename ...T> struct front_append
@@ -129,6 +128,7 @@ namespace PO
 
 		template<typename F> struct packet
 		{
+			static_assert(is_callable_function<F>::value, "packet only accept callable function");
 			template<typename ...T> struct in
 			{
 				using type = typename F::template in<T...>;
@@ -281,121 +281,140 @@ namespace PO
 				};
 			};
 		};
+
+
 		
 		namespace Implement
 		{
-			template<bool state, typename F, typename t, typename i> struct label_implemenmt_helper
+			template<size_t s, template<typename...> class output, typename result, typename ...T> struct label_serial_t_implemenmt;
+			template<size_t s, template<typename...> class output, typename ...result> 
+			struct label_serial_t_implemenmt<s, output, std::tuple<result...>>
 			{
-				using type = typename F::template in<t, i>::type;
+
 			};
-
-			template<typename F, typename t, typename i> 
-			struct label_implemenmt_helper<false, F, t, i>
+			template<size_t s, template<typename...> class output, typename ...output_type, typename this_type, typename ...other_type>
+			struct label_serial_t_implemenmt<s, output, Tmp::set_t<output_type...>, Tmp::set_t<this_type, other_type...>>
 			{
-				using type = typename F::template in<t>::type;
+				using type = typename label_serial_t_implemenmt<s + 1, output, Tmp::set_t<output_type..., Tmp::label<this_type, Tmp::set_i<s>> >, Tmp::set_t<other_type...>>::type;
 			};
-
-
-			template<size_t s, template<typename...> class output, typename func, typename result, typename ...T> struct label_implemenmt;
-			template<size_t s, template<typename...> class output, typename func, typename ...result>
-			struct label_implemenmt<s, output, func, std::tuple<result...>>
+			template<size_t s, template<typename...> class output, typename ...output_type>
+			struct label_serial_t_implemenmt<s, output, Tmp::set_t<output_type...>, Tmp::set_t<>>
 			{
-				using type = output<result...>;
-			};
-
-			template<size_t s, template<typename...> class output, typename func, typename ...result, typename its, typename ...other>
-			struct label_implemenmt<s, output, func, std::tuple<result...>, its, other...>
-			{
-				using type = typename label_implemenmt<s + 1, output, func, std::tuple
-					<
-						result..., 
-						std::pair<its, typename func::template in<its, std::integral_constant<size_t, s>>::type>
-					>, other...>::type;
+				using type = output<output_type...>;
 			};
 		}
 
 		template<typename F>
 		struct label
 		{
+			static_assert(is_callable_function<F>::value, "label accept function");
 			template<typename ...i> struct in
 			{
 				template<template<typename ...> class o> struct out
 				{
-					using type = typename Implement::label_implemenmt<0, o, F, std::tuple<>, i...>::type;
+					using type = typename Implement::label_serial_t_implemenmt<s, o, Tmp::set_t<>, Tmp::set_t<i...>>::type;
+				};
+			};
+		};
+
+
+
+		/*
+		namespace Implement
+		{
+			template<size_t index, typename this_input, typename ...other_input> struct pick_single_t_implemenmt
+			{
+				static_assert(sizeof...(other_input) >= index, "picker the number of input type is less then require");
+				using type = typename pick_single_t_implemenmt<index - 1, other_input...>::type;
+			};
+
+			template<typename this_input, typename ...other_input> struct pick_single_t_implemenmt<0, this_input, other_input...>
+			{
+				using type = this_input;
+			};
+		}
+
+		template<size_t i>
+		struct pick_single_t
+		{
+			template<typename ...input> struct in
+			{
+				static_assert(sizeof...(input) >= i, "picker the number of input type is less then require");
+				template<template<typename ...> class o> struct out
+				{
+					using type = o< typename Implement::pick_single_t_implemenmt<i, input...>::type >;
+				};
+			};
+		};
+
+
+		namespace Implement
+		{
+			template<template<typename ... > class role, template<typename ...> class out, typename output, typename ...input> struct pick_if_t_implemenmt;
+			template<template<typename ... > class role, template<typename ...> class out, typename ...output> struct pick_if_t_implemenmt<role, out, Tmp::set_t<output...>>
+			{
+				using type = out<output...>;
+			};
+			template<template<typename ... > class role, template<typename ...> class out, typename ...output, typename this_input, typename ...input> struct pick_if_t_implemenmt<role, out, Tmp::set_t<output...>, this_input, input...>
+			{
+				using type = typename pick_if_t_implemenmt<role, out, std::conditional_t< role<this_input>::value, Tmp::set_t<output..., this_input>, Tmp::set_t<output...>>, input...>::type;
+			};
+		}
+
+
+		template<template<typename ... > class role>
+		struct pick_if_t
+		{
+			template<typename ...input> struct in
+			{
+				template<template<typename...> class o> struct out
+				{
+					using type = typename Implement::pick_if_t_implemenmt<role, o, Tmp::set_t<>, input...>::type;
 				};
 			};
 		};
 
 		namespace Implement
 		{
-
-			template<size_t i, typename ...T> struct pick_implement;
-			template<size_t i, typename its, typename ...T> struct pick_implement<i, its, T...>
+			template<template<typename ...> class out, typename output, typename ...input> struct pick_func_if_t_cut_implemenmt;
+			template<template<typename ...> class out, typename ...output, typename this_input, typename ...input> struct pick_func_if_t_cut_implemenmt<out, Tmp::set_t<output...>, this_input, input...>
 			{
-				using type = typename pick_implement<i - 1, T...>::type;
-			};
-			template<typename its, typename ...T> struct pick_implement<0, its, T...>
-			{
-				using type = its;
+				using type = typename pick_func_if_t_cut_implemenmt<out,
+					std::conditional_t< this_input::first_type::value, Tmp::set_t<output..., typename this_input::second_type>, Tmp::set_t<output...>>,
+					input...>::type;
 			};
 
-			template<typename F, template<typename...> class o, typename ...input> struct select_index_implement;
-			template<size_t i, template<typename...> class o, typename ...input> 
-			struct select_index_implement<std::integral_constant<size_t, i>, o, input...>
+			template<template<typename ...> class out, typename ...output> struct pick_func_if_t_cut_implemenmt<out, Tmp::set_t<output...>>
 			{
-				using type = o<typename pick_implement<i, input...>::type>;
+				using type = out<output...>;
 			};
 
-			template<size_t ...i, template<typename...> class o, typename ...input>
-			struct select_index_implement<std::integer_sequence<size_t, i...>, o, input...>
+			template<typename S, typename ...func> struct pick_func_if_implement
 			{
-				using type = o<typename pick_implement<i, input...>::type...>;
+				template<typename input> struct in
+				{
+					using type = std::pair<typename process_statement<S, append_t<input>, func...>::type::type, input>;
+				};
+			};
+
+			struct pick_func_if_t_filter_implemenmt
+			{
+				template<typename ...i> struct in
+				{
+					template<template<typename...> class o> struct out
+					{
+						using type = typename pick_func_if_t_cut_implemenmt<o, Tmp::set_t<>, i...>::type;
+					};
+				};
 			};
 		}
 
-		template<typename F> 
-		struct select_index
+		template<typename ...func> struct pick_func_if_t
 		{
-			template<typename ...T> struct in
+			template<typename s, typename state> struct in_statement
 			{
-				template<template<typename ...> class o> struct out
-				{
-					using type = typename Implement::select_index_implement<F, o, T...>::type;
-				};
-			};
-		};
-
-		namespace Implement
-		{
-			template<typename F, typename result, template<typename ...> class o, typename ...input> struct select_if_implement;
-			template<typename F, typename ...result, template<typename ...> class o, typename its, typename ...input> 
-			struct select_if_implement<F, std::tuple<result...>, o, its, input...>
-			{
-				using type = typename select_if_implement
-					<
-						F,
-						std::conditional_t<F::template in<its>::type::value, std::tuple<result..., its>, std::tuple<result...>>,
-						o,
-						input...
-					>::type;
-			};
-
-			template<typename F, typename ...result, template<typename ...> class o>
-			struct select_if_implement<F, std::tuple<result...>, o>
-			{
-				using type = o<result...>;
-			};
-		}
-
-		template<typename F>
-		struct select_if
-		{
-			template<typename ...T> struct in
-			{
-				template<template<typename ...> class o> struct out
-				{
-					using type = typename Implement::select_if_implement<F, std::tuple<>, o, T...>::type;
-				};
+				using type = typename Implement::process_statement<s, state, sperate_call_t<typename Implement::pick_func_if_implement<s, func...>>, Implement::pick_func_if_t_filter_implemenmt >::type;
+				using stack = s;
 			};
 		};
 
@@ -426,82 +445,59 @@ namespace PO
 			};
 		};
 
-		template<typename F> struct replace
-		{
-			template<typename ...T> struct in
-			{
-				template<template<typename ...> class o> struct out
-				{
-					using type = o<typename F::template in<T>::type...>;
-				};
-			};
-		};
-
 		namespace Implement
 		{
-			template<typename F, template<typename...> class out, typename its, typename ...T> struct combine_implement
+			template<template<typename...> class role, template<typename...> class out, typename ...T> struct combine_t_implement
 			{
-				using type = out<its>;
+				using type = out<>;
 			};
 
-			template<typename F, template<typename...> class out, typename ite, typename oth, typename ...T>
-			struct combine_implement<F, out, ite, oth, T...>
+			template<template<typename...> class role, template<typename...> class out, typename this_type, typename other_type, typename ...T>
+			struct combine_t_implement<role, out, this_type, other_type, T...>
 			{
-				using type = typename combine_implement<F, out, typename F::template in<ite, oth>::type, T...>::type;
+				using type = typename combine_t_implement<role, out, role<this_type, other_type>, T...>::type;
+			};
+
+			template<template<typename...> class role, template<typename...> class out, typename this_type>
+			struct combine_t_implement<role, out, this_type>
+			{
+				using type = out<this_type>;
 			};
 		}
 
-		template<typename F>
-		struct combine
+		template<template<typename ...> class role>
+		struct combine_t
 		{
 			template<typename ...i> struct in
 			{
 				template<template<typename...> class o> struct out
 				{
-					using type = typename Implement::combine_implement<F, o, i...>::type;
+					using type = typename Implement::combine_t_implement<role, o, i...>::type;
 				};
 			};
 		};
 
-		namespace Implement
-		{
-			template<size_t i, typename F, typename result, template<typename ...> class o, typename ...input> struct localizer_implement;
-			template<size_t i, typename F, size_t ...result, template<typename ...> class o, typename its, typename ...input>
-			struct localizer_implement<i, F, std::integer_sequence<size_t, result...>, o, its, input...>
-			{
-				using type = typename localizer_implement <
-					i + 1,
-					F,
-					std::conditional_t<F::template in<its>::type::value, std::integer_sequence<size_t, result..., i>, std::integer_sequence<size_t, result...>>,
-					o,
-					input...
-				>::type;
-			};
-			template<size_t i, typename F, size_t ...result, template<typename ...> class o>
-			struct localizer_implement<i, F, std::integer_sequence<size_t, result...>, o>
-			{
-				using type = o<std::integer_sequence<size_t, result...>>;
-			};
-		}
-
-		template<typename F>
-		struct localizer
+		struct label_size_t
 		{
 			template<typename ...i> struct in
 			{
 				template<template<typename ...> class o> struct out
 				{
-					using type = typename Implement::localizer_implement<0 , F,  std::integer_sequence<size_t>, o, i...>::type;
+					using type = o<Tmp::label<i, Tmp::set_i<sizeof(i)>>...>;
 				};
 			};
 		};
 
-
-
-
-
-
-		/*
+		struct replace_by_label_t
+		{
+			template<typename ...i> struct in
+			{
+				template<template<typename ...> class o> struct out
+				{
+					using type = o<typename i::label_t...>;
+				};
+			};
+		};
 
 		namespace Implement
 		{
