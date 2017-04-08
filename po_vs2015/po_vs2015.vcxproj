@@ -142,7 +142,6 @@
     <ClInclude Include="..\tool\auto_adapter.h" />
     <ClInclude Include="..\tool\mail.h" />
     <ClInclude Include="..\tool\thread_tool.h" />
-    <ClInclude Include="..\tool\thread_tool.hpp" />
     <ClInclude Include="..\tool\tmp.h" />
     <ClInclude Include="..\tool\tmpcall.h" />
     <ClInclude Include="..\tool\tool.h" />

@@ -47,10 +47,10 @@ namespace PO
 			};
 
 			template<typename input, size_t last, typename ...AT> struct make_layout_execute;
-			template<typename ...input, size_t last, typename its, typename ...AT> struct make_layout_execute<Tmp::set_t<input...>, last, its, AT...>
+			template<typename ...input, size_t last, typename its, typename ...AT> struct make_layout_execute<std::tuple<input...>, last, its, AT...>
 			{
 				using type = typename make_layout_execute<
-					Tmp::set_t<input..., layout_element<last, its>>,
+					std::tuple<input..., layout_element<last, its>>,
 					((last % its::align) == 0 ? (last + its::size) : (last + its::align - (last %its::align))),
 
 
@@ -59,14 +59,14 @@ namespace PO
 				>::type;
 			};
 
-			template<typename ...input, size_t last, typename ...its, typename ...AT> struct make_layout_execute<Tmp::set_t<input...>, last, layout_type<its...>, AT...>
+			template<typename ...input, size_t last, typename ...its, typename ...AT> struct make_layout_execute<std::tuple<input...>, last, layout_type<its...>, AT...>
 			{
 				using type = typename make_layout_execute <
-					Tmp::set_t<input...>, last, its..., AT...
+					std::tuple<input...>, last, its..., AT...
 				>::type;
 			};
 
-			template<typename ...input, size_t last> struct make_layout_execute<Tmp::set_t<input...>, last>
+			template<typename ...input, size_t last> struct make_layout_execute<std::tuple<input...>, last>
 			{
 				using type = final_layout<input...>;
 			};
@@ -75,7 +75,7 @@ namespace PO
 
 		template<typename T, typename ...AT> struct layout_type
 		{
-			using type = typename Implement::make_layout_execute<Tmp::set_t<>, 0, T, AT...>::type;
+			using type = typename Implement::make_layout_execute<std::tuple<>, 0, T, AT...>::type;
 			std::vector<D3D11_INPUT_ELEMENT_DESC> operator ()(size_t solt = 0) const
 			{
 				return type{}(solt);

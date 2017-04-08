@@ -5,15 +5,19 @@ namespace PO
 {
 	namespace Tool
 	{
+		
 		class unorder_adapt
 		{
 			template<typename T, typename K> struct combine_implement;//TODO static_assert
-			template<size_t ...s1, size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<s1...>, Tmp::set_i<s2, s2o...>>
+			template<size_t ...s1, size_t s2, size_t... s2o> struct combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t, s2, s2o...>>
 			{
 				using type = typename std::conditional_t<
-					Tmp::is_one_of<Tmp::set_i<s2>, Tmp::set_i<s1>...>::value,
-					combine_implement<Tmp::set_i<s1...>, Tmp::set_i<s2o...>>,
-					TmpCall::self_t::template in<Tmp::set_i<s1..., s2>>
+					Tmp::is_one_of<
+						std::integral_constant<size_t, s2>, 
+						std::integral_constant<size_t, s1>...
+					>::value,
+					combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t, s2o...>>,
+					Tmp::itself<std::integer_sequence<size_t, s1..., s2>>
 				>::type;
 			};
 
@@ -22,33 +26,33 @@ namespace PO
 			template<typename T, typename K> using match = std::is_convertible<T, K>;
 			template<typename ...T> struct combine
 			{
-				using type = TmpCall::call<TmpCall::in_t<Tmp::set_i<>, T...>, TmpCall::combine_t<combine_implement_t>, TmpCall::self_t>;
+				using type = TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<combine_implement_t>>, TmpCall::self>;
 			};
 		};
-
+		
 		class order_adapt
 		{
 			template<typename out, typename in> struct reverser;
-			template<size_t ...out, size_t t, size_t... in> struct reverser<Tmp::set_i<out...>, Tmp::set_i<t, in...>>
+			template<size_t ...out, size_t t, size_t... in> struct reverser<std::integer_sequence<size_t, out...>, std::integer_sequence<size_t, t, in...>>
 			{
-				using type = typename reverser<Tmp::set_i<t, out...>, Tmp::set_i<in...>>::type;
+				using type = typename reverser<std::integer_sequence<size_t, t, out...>, std::integer_sequence<size_t, in...>>::type;
 			};
-			template<size_t ...out> struct reverser<Tmp::set_i<out...>, Tmp::set_i<>>
+			template<size_t ...out> struct reverser<std::integer_sequence<size_t, out...>, std::integer_sequence<size_t>>
 			{
-				using type = Tmp::set_i<out...>;
+				using type = std::integer_sequence<size_t, out...>;
 			};
 
 			template<typename T, typename K> struct combine_implement;//TODO static_assert
-			template<size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<>, Tmp::set_i<s2, s2o...>>
+			template<size_t s2, size_t... s2o> struct combine_implement<std::integer_sequence<size_t>, std::integer_sequence<size_t, s2, s2o...>>
 			{
-				using type = Tmp::set_i<s2>;
+				using type = std::integer_sequence<size_t, s2>;
 			};
-			template<size_t s1, size_t ...s1o, size_t s2, size_t... s2o> struct combine_implement<Tmp::set_i<s1, s1o...>, Tmp::set_i<s2, s2o...>>
+			template<size_t s1, size_t ...s1o, size_t s2, size_t... s2o> struct combine_implement<std::integer_sequence<size_t, s1, s1o...>, std::integer_sequence<size_t, s2, s2o...>>
 			{
-				using type = typename std::conditional_t<
-					Tmp::is_one_of<Tmp::set_i<s2>, Tmp::set_i<s1>, Tmp::set_i<s1o>...>::value || ( s1 > s2 ),
-					combine_implement<Tmp::set_i<s1, s1o...>, Tmp::set_i<s2o...>>,
-					TmpCall::self_t::template in<Tmp::set_i<s2, s1, s1o...>>
+				using type = typename std::conditional_t <
+					Tmp::is_one_of<std::integral_constant<size_t, s2>, std::integral_constant<size_t, s1>, std::integral_constant<size_t, s1o>...>::value || (s1 > s2),
+					combine_implement<std::integer_sequence<size_t, s1, s1o...>, std::integer_sequence<size_t, s2o...>>,
+					Tmp::itself<std::integer_sequence<size_t, s2, s1, s1o...>>
 				>::type;
 			};
 
@@ -57,42 +61,56 @@ namespace PO
 			template<typename T, typename K> using match = std::is_convertible<T, K>;
 			template<typename ...T> struct combine
 			{
-				using type = typename reverser<Tmp::set_i<>, TmpCall::call<TmpCall::in_t<Tmp::set_i<>, T...>, TmpCall::combine_t<combine_implement_t>, TmpCall::self_t>>::type;
+				using type = typename reverser<std::integer_sequence<size_t>, TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<combine_implement_t>>, TmpCall::self>>::type;
 			};
 		};
 
-
 		namespace Implement
 		{
+			template<typename T> struct add_one;
+			template<size_t ...i> struct add_one<std::integer_sequence<size_t, i...>>
+			{
+				using type = std::integer_sequence<size_t, (i + 1)...>;
+			};
 
 			template<template<typename ...> class role> struct analyze_match_implement
 			{
 				template<typename T, typename ...AT> struct in
 				{
-					using type = TmpCall::call< TmpCall::in_t<AT...>, TmpCall::localizer_t<0, Tmp::instant<role, T>::template in_t>,  TmpCall::bind_i<Tmp::set_i>>;
+					using type = TmpCall::call<TmpCall::append<AT...>, TmpCall::localizer<TmpCall::make_func_front<role, T>>, TmpCall::self>;
 				};
 			};
 
-			template<typename adapt_type, typename func, typename ...par> struct analyze_implement
+			template<bool, typename adapt_type, typename func, typename ...par> struct analyze_implement
 			{
-				using func_para_append = typename Tmp::pick_func<Tmp::degenerate_func_t<Tmp::extract_func_t<func>>>::template out<TmpCall::append_t>;
-				
-				using normal_index = typename TmpCall::call <func_para_append,
-					TmpCall::sperate_call_t<
-						TmpCall::append_t<par...>,
+				using func_para_append = typename Tmp::pick_func<Tmp::degenerate_func_t<Tmp::extract_func_t<func>>>::template out<TmpCall::append>;
+				using type = typename TmpCall::call<func_para_append,
+					TmpCall::sperate_call<
+						TmpCall::append<par...>,
 						analyze_match_implement<adapt_type::template match>
 					>,
-					TmpCall::func_t<adapt_type::template combine>
-				>::type;
-
-				using member_index = TmpCall::call<TmpCall::in_t<Tmp::set_i<0>>, TmpCall::append_t<normal_index>, TmpCall::extract_value_t, TmpCall::bind_i<Tmp::set_i>>;
-
-				using type = std::conditional_t<Tmp::is_member_function_pointer<func>::value, member_index, normal_index>;
+					TmpCall::make_func_t<adapt_type::template combine>
+				>;
 			};
 
-			template<size_t ...i, typename fun, typename par> decltype(auto) auto_adapter_implement(Tmp::set_i<i...>, fun&& f, par pa)
+			template<typename adapt_type, typename func, typename member_ptr, typename ...par> 
+			struct analyze_implement<true, adapt_type, func, member_ptr, par...>
 			{
-				return std::invoke(std::forward<fun>(f), std::get<i>(pa)...);
+				using func_para_append = typename Tmp::pick_func<Tmp::degenerate_func_t<Tmp::extract_func_t<func>>>::template out<TmpCall::append>;
+
+				using type = typename TmpCall::call<
+					func_para_append,
+					TmpCall::sperate_call<
+						TmpCall::append<par...>,
+						analyze_match_implement<adapt_type::template match>
+					>,
+					TmpCall::make_func_t<adapt_type::template combine>//,
+				>;
+			};
+
+			template<bool is_member_func, size_t ...i, typename fun, typename par> decltype(auto) auto_adapter_implement(std::integral_constant<bool, is_member_func>, std::integer_sequence<size_t, i...>, fun&& f, par pa)
+			{
+				return std::invoke(std::forward<fun>(f), std::get<is_member_func ? (i + 1) : (i)>(pa)...);
 			}
 		}		
 		
@@ -104,13 +122,20 @@ namespace PO
 					[](auto&& fot, auto&& ...ini) { return std::invoke(std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...); },
 					[](auto&& fot, auto&& ...ini)
 			{
-				using index = typename Implement::analyze_implement<adapter_type, decltype(fot) && , decltype(ini) && ...>::type;
-				return Implement::auto_adapter_implement(index(), std::forward<decltype(fot) && >(fot), std::forward_as_tuple(std::forward<decltype(ini) && >(ini)...));
+				using index = typename Implement::analyze_implement<Tmp::is_member_function_pointer<func_object>::value, adapter_type, decltype(fot) && , decltype(ini) && ...>::type;
+				return Implement::auto_adapter_implement(
+					std::integral_constant<bool, Tmp::is_member_function_pointer<func_object>::value>{},
+					index{}, 
+					std::forward<decltype(fot) && >(fot), std::forward_as_tuple(std::forward<decltype(ini) && >(ini)...));
 			},
 					std::forward<func_object>(fo), std::forward<input>(in)...
 				);
 		}
 
+		//TODO need to finish auto bind
+
+
+		/*
 		template<typename func_object, typename ...input>
 		decltype(auto) auto_adapter_unorder(func_object&& fo, input&&... in)
 		{
@@ -171,7 +196,7 @@ namespace PO
 			},
 				std::forward<fun_obj>(fo), std::forward<input>(in)...
 				);
-
+				*/
 
 
 
@@ -198,6 +223,6 @@ namespace PO
 					std::forward<fun_obj>(fo), std::forward<input>(in)...
 					);
 					*/
-		}
+		//}
 	}
 }

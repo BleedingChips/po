@@ -7,6 +7,22 @@ namespace PO
 	namespace Dx11
 	{
 
+		HRESULT create_buffer(Implement::resource_ptr& rp, Implement::buffer_ptr& ptr, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides)
+		{
+			ptr = nullptr;
+			D3D11_BUFFER_DESC DBD
+			{
+				static_cast<UINT>(data_size),
+				usage,
+				bind_flag,
+				cpu_flag,
+				misc_flag,
+				static_cast<UINT>(StructureByteStrides)
+			};
+			D3D11_SUBRESOURCE_DATA DSD{ data, 0, 0 };
+			return rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK;
+		}
+		/*
 		namespace Purpose
 		{
 			purpose input{ D3D11_USAGE::D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE, 0 };
@@ -349,8 +365,9 @@ namespace PO
 			}
 			rp->CreateRenderTargetView(tp, &DRTVD, &ptr);
 			return ptr;
-		}
+		}*/
 
+		/*
 		bool constant_value::create_implement(void* data, size_t buffer_size, D3D11_USAGE usage, UINT cpu_flag)
 		{
 			if (rp == nullptr) return false;
@@ -372,6 +389,7 @@ namespace PO
 			}
 			return false;
 		}
+		*/
 
 	}
 

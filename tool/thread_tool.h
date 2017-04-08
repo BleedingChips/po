@@ -2,6 +2,9 @@
 #include "tool.h"
 #include <atomic>
 #include <mutex>
+#include <vector>
+#include <thread>
+#include <chrono>
 namespace PO
 {
 	namespace Tool
@@ -72,36 +75,6 @@ namespace PO
 			};
 		}
 
-		template<typename T>
-		class completeness :private Assistant::completeness_head, public std::remove_reference_t<T>
-		{
-			friend class completeness_ref;
-
-			template<typename ...AT> completeness(std::true_type, AT&& ...at) : std::remove_reference_t<T>(static_cast<const Assistant::completeness_head&>(*this), std::forward<AT>(at)...)
-			{
-				Assistant::completeness_head::data->finish_construct();
-			}
-			template< typename ...AT> completeness(std::false_type, AT&& ...at) : std::remove_reference_t<T>(std::forward<AT>(at)...)
-			{
-				Assistant::completeness_head::data->finish_construct();
-			}
-
-		public:
-
-			template<typename ...AT> completeness(AT&& ...at) : completeness(
-				std::integral_constant<bool, std::is_constructible<std::remove_reference_t<T>, const Assistant::completeness_head&, AT... >::value>(),
-				std::forward<AT>(at)...)
-			{
-
-			}
-
-			~completeness()
-			{
-				Assistant::completeness_head::data->start_destruct();
-			}
-		};
-
-
 		class completeness_ref
 		{
 			Assistant::completeness_head_data_struct* data;
@@ -116,8 +89,8 @@ namespace PO
 			}
 		public:
 			operator bool() const { return data != nullptr && *data; }
-			operator bool() 
-			{ 
+			operator bool()
+			{
 				if (data != nullptr)
 				{
 					if (*data)
@@ -134,8 +107,10 @@ namespace PO
 			{
 				data->add_ref();
 			}
+			/*
 			template<typename T>
 			completeness_ref(const completeness<T>& cpd) : completeness_ref(static_cast<const Assistant::completeness_head&>(cpd)) {}
+			*/
 			completeness_ref() :data(nullptr) {}
 			completeness_ref(const completeness_ref& cpd) :data(cpd.data)
 			{
@@ -161,9 +136,6 @@ namespace PO
 				}
 				return *this;
 			}
-
-			template<typename T>
-			completeness_ref& operator=(const completeness<T>& cpd) { return operator=(static_cast<const Assistant::completeness_head&>(cpd)); }
 
 			completeness_ref& operator=(completeness_ref&& cpf)
 			{
@@ -195,7 +167,7 @@ namespace PO
 					at_scope_exit ase([this]() {data->del_read_ref(); });
 					return{ return_optional_t(fun) };
 				}
-				return {};
+				return{};
 			}
 
 			template<typename T>
@@ -207,7 +179,7 @@ namespace PO
 					at_scope_exit ase([this]() {data->del_read_ref(); });
 					return{ return_optional_t(fun) };
 				}
-				return {};
+				return{};
 			}
 			~completeness_ref()
 			{
@@ -215,12 +187,56 @@ namespace PO
 			}
 		};
 
+		template<typename T>
+		class completeness :private Assistant::completeness_head, public std::remove_reference_t<T>
+		{
+			friend class completeness_ref;
+
+			template<typename ...AT> completeness(std::true_type, AT&& ...at) : std::remove_reference_t<T>(static_cast<const Assistant::completeness_head&>(*this), std::forward<AT>(at)...)
+			{
+				Assistant::completeness_head::data->finish_construct();
+			}
+			template< typename ...AT> completeness(std::false_type, AT&& ...at) : std::remove_reference_t<T>(std::forward<AT>(at)...)
+			{
+				Assistant::completeness_head::data->finish_construct();
+			}
+
+		public:
+
+			operator completeness_ref() const 
+			{
+				return completeness_ref{static_cast<Assistant::completeness_head&>(*this)};
+			}
+
+			template<typename ...AT> completeness(AT&& ...at) : completeness(
+				std::integral_constant<bool, std::is_constructible<std::remove_reference_t<T>, const Assistant::completeness_head&, AT... >::value>(),
+				std::forward<AT>(at)...)
+			{
+
+			}
+
+			~completeness()
+			{
+				Assistant::completeness_head::data->start_destruct();
+			}
+		};
+
+
+		
+
 		template<typename T, typename mutex = std::mutex> struct scope_lock
 		{
 			T data;
 			mutex lock_mutex;
 		public:
+			using type = T;
+			using mutex_type = mutex;
 			template<typename fun> auto lock(fun&& f) -> decltype(f(data))
+			{
+				std::lock_guard<mutex> lg(lock_mutex);
+				return f(data);
+			}
+			template<typename fun> auto lock(fun&& f) const -> decltype(f(data))
 			{
 				std::lock_guard<mutex> lg(lock_mutex);
 				return f(data);
@@ -234,12 +250,36 @@ namespace PO
 				}
 				return{};
 			}
+			template<typename fun> auto try_lock(fun&& f) const -> Tool::optional_t<decltype(f())>
+			{
+				if (lock_mutex.try_lock())
+				{
+					Tool::at_scope_exit ase({ &}() { lock_mutex.unlock(); })
+						return{ return_optional_t(f) };
+				}
+				return{};
+			}
 			template<typename ...AT> scope_lock(AT&&... at) :data(std::forward<AT>(at)...) {}
 		};
 
+		template<typename T, typename K, typename F>
+		auto lock_scope_look(T& t, K& k, F&& f)
+		{
+			return t.lock(
+				[&](auto& tt)
+			{
+				return k.lock(
+					[&](auto& kk)
+				{
+					return f(tt, kk);
+				}
+				);
+			}
+			);
+		}
+
 		namespace Implement
 		{
-
 			struct mail_control
 			{
 				bool avalible = true;
@@ -390,6 +430,26 @@ namespace PO
 				);
 			}
 		};
+
+		struct thread_task_operator
+		{
+			struct thread_task_data
+			{
+				bool need_joined;
+				std::vector<std::function<bool(void)>> task;
+			};
+			scope_lock<thread_task_data> task;
+			std::vector<std::function<bool(void)>> calling_buffer;
+			std::thread main_thread;
+			std::atomic_bool exit;
+			bool need_join;
+			std::chrono::milliseconds ref_duration;
+			void main_thread_execute();
+		public:
+			thread_task_operator() noexcept : exit(false), need_join(false), ref_duration(1000){}
+			~thread_task_operator() { exit = true; if (main_thread.joinable()) main_thread.join(); }
+			void add_task(std::function<bool(void)> f);
+		};
 	}
 }
 
@@ -410,5 +470,3 @@ namespace std
 		);
 	}
 }
-
-#include "thread_tool.hpp"

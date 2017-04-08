@@ -5,6 +5,9 @@
 #include <atomic>
 #include <list>
 #include <future>
+#include <typeindex>
+#include <map>
+#include <memory>
 namespace PO
 {
 	namespace Implement
@@ -20,16 +23,66 @@ namespace PO
 		template<typename ticker_t> class plugin_append;
 	}
 
+	/*
+	class io_operator
+	{
+		Tool::thread_task_operator ope;
+
+		struct request
+		{
+			std::u16string path;
+			std::u16string name;
+			bool save_raw_data;
+		};
+
+		struct function_block
+		{
+			std::function<Tool::any(std::fstream f, control_block)> analyze_stream;
+			//std::function<std::u16string(std::)>
+		};
+
+		std::map<std::type_index, std::function<Tool::any(control_block, io_operator&)>> method;
+
+		struct path_list
+		{
+			std::vector<std::u16string> top_path;
+			std::map<std::type_index, std::vector<std::u16string>> type_path;
+		};
+
+		Tool::scope_lock<path_list> paths;
+	public:
+		std::fstream find_fstream(std::type_index ti, std::u16string path);
+	};
+
+	class io_manager
+	{
+	public:
+	};
+	*/
+
+
+	class raw_scene
+	{
+		// make Tool::any(Tool::any&)
+		Tool::scope_lock<std::map<std::type_index, std::unordered_map<std::u16string, Tool::variant<std::shared_ptr<Tool::any>, std::future<Tool::any>>>>> store_map;
+	public:
+		std::shared_ptr<Tool::any> find(std::type_index, std::u16string, bool);
+	};
+
+
+	/*
 	class thread_task
 	{
 		enum class State :uint8_t
 		{
 			READY,
 			WAITING,
+			RUNNING,
 			FINISH
 		};
 
 		Tool::completeness_ref ref;
+
 		std::mutex task_mutex;
 		std::condition_variable cv;
 
@@ -43,11 +96,22 @@ namespace PO
 		thread_task(Tool::completeness_ref r) : ref(r), bad(false) , task_state(State::READY) {}
 		virtual bool operator()() = 0;
 		bool is_bad() const { return bad; }
-		bool is_finish() { return task_state == State::FINISH; task_state = State::READY; }
+		bool is_finish() const { return task_state == State::FINISH; }
+		bool is_ready() const { return task_state == State::READY; }
+		bool set_ready()
+		{
+			if (task_state == State::FINISH || task_state == State::READY)
+			{
+				task_state = State::READY;
+				return true;
+			}
+			return false;
+		}
 		void wait_finish()
 		{
 			std::unique_lock<std::mutex> lk(task_mutex);
-			cv.wait(lk, [this]() { return task_state == State::FINISH; });
+			if (task_state == State::WAITING || task_state == State::RUNNING)
+				cv.wait(lk, [this]() { return task_state == State::FINISH; });
 			task_state = State::READY;
 		}
 	};
@@ -68,8 +132,74 @@ namespace PO
 			~thread_task_runer();
 			bool push_task(std::weak_ptr<thread_task> task);
 		};
+
+		class file_io_task_runner : Implement::thread_task_runer
+		{
+			std::mutex handle_type_mutex; 
+			std::unordered_map<std::u16string, std::tuple<std::function<bool(std::u16string)> >> handle_type;
+			std::vector<std::u16string> search_patch;
+			friend class raw_scene_data;
+		public:
+			void add_search_pacth(std::u16string patch);
+			//void set_special_loader(std::u16string, std::function<std::u16string>,std::function<>)
+		};
+
+		struct raw_scene_request_t
+		{
+			std::type_index type;
+			std::u16string path;
+		};
+
+		enum class raw_scene_data_state
+		{
+			BAD,
+			LOADING,
+			WAITINT,
+			FINISH
+		};
+
+		struct raw_scene_data_t
+		{
+			Tool::any data;
+			std::u16string path;
+			bool is_bad;
+		};
+
+		class raw_scene_data
+		{
+			using request_t = raw_scene_request_t;
+			using request_list_t = std::vector<request_t>;
+			using store_t = raw_scene_data_t;
+			//type - name - (data, path)
+			using store_map_t = std::unordered_map<std::type_index, std::unordered_map<std::u16string, store_t>>;
+
+			Tool::completeness_ref ref;
+
+			Tool::scope_lock<store_map_t> store_mapping;
+			Tool::scope_lock<request_list_t> request_list;
+
+			class task_operator :public thread_task
+			{
+				raw_scene_data* rsd;
+				request_list_t request_list;
+			public:
+				task_operator(Tool::completeness_ref c, raw_scene_data* r) : thread_task(std::move(c)), rsd(r) {}
+				bool operator()();
+			};
+
+			std::shared_ptr<task_operator> task_ptr;
+
+		public:
+			void load(std::initializer_list<request_t> il);
+			void load(request_t type);
+			//Tool::any get_
+			void start_task();
+			raw_scene_data(Tool::completeness_ref cr) : ref(std::move(cr)) {}
+		};
 	}
 
+	using raw_scena = Tool::completeness<Implement::raw_scene_data>;
+	*/
 	class form_self
 	{
 		std::mutex record_mutex;

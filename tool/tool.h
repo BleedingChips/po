@@ -1,5 +1,5 @@
 #pragma once
-#include "tmp.h"
+#include "tmpcall.h"
 #include <exception>
 #include <string>
 #include <functional>
@@ -115,7 +115,7 @@ namespace PO
 				template<typename T, typename equal_func, typename default_func>
 				decltype(auto) operator()(T&& t, equal_func&& ef, default_func&& df) const
 				{
-					using pick_type = TmpCall::call<TmpCall::in_t<input...>, TmpCall::pick_single_t<(s + o) / 2>, TmpCall::self_t>;
+					using pick_type = TmpCall::call<TmpCall::append<input...>, TmpCall::select_index<std::integral_constant<size_t, (s + o) / 2>>, TmpCall::self>;
 					if (equal_ope{}(Tmp::itself<pick_type>(), std::forward<T>(t)))
 					{
 						return ef(Tmp::itself<pick_type>());
@@ -161,7 +161,7 @@ namespace PO
 			{
 				template<typename T, typename L> bool operator()(T t, L l)
 				{
-					return Tmp::type_extract_t<T>::label_t::value == l;
+					return Tmp::type_extract_t<T>::label::value == l;
 				}
 			};
 
@@ -169,7 +169,7 @@ namespace PO
 			{
 				template<typename T, typename L> bool operator()(T t, L l)
 				{
-					return l < Tmp::type_extract_t<T>::label_t::value;
+					return l < Tmp::type_extract_t<T>::label::value;
 				}
 			};
 
@@ -227,30 +227,30 @@ namespace PO
 		template<typename ...T> class variant
 		{
 			static_assert(!Tmp::is_repeat<T...>::value, "type of variant can not repeat");
-			using void_index = TmpCall::call<TmpCall::in_t<T...>, TmpCall::localizer_t<0, Tmp::instant<std::is_same, void>::template in_t>, TmpCall::bind_i<Tmp::set_i>, TmpCall::self_t>;
-			static_assert(std::is_same<void_index, Tmp::set_i<>>::value, "varient can not include void");
+			using void_index = TmpCall::call<TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<std::is_void>>, TmpCall::self>;
+			static_assert(std::is_same<void_index, std::integer_sequence<size_t>>::value, "varient can not include void");
 
-			using mapping = TmpCall::call< TmpCall::in_t<T...>, TmpCall::label_serial_t<1>, make_static_mapping< Implement::variant_type_index_equal, Implement::variant_type_index_less > >;
+			using mapping = TmpCall::call<TmpCall::append<T...>, TmpCall::label<TmpCall::make_func<TmpCall::label_serial>>, make_static_mapping< Implement::variant_type_index_equal, Implement::variant_type_index_less > >;
 
-			using size_index = 
-				TmpCall::call<
-					TmpCall::in_t<T...>, TmpCall::label_size_t, TmpCall::replace_by_label_t,
-					TmpCall::combine_t<Tmp::bigger_value>, TmpCall::self_t
+			using size_index =
+				TmpCall::call <
+				TmpCall::append<T...>, TmpCall::label<TmpCall::make_func<TmpCall::label_size>>, TmpCall::replace <TmpCall::make_func<TmpCall::replace_label>> ,
+					TmpCall::combine<TmpCall::make_func<Tmp::bigger_value>>, TmpCall::self
 				>;
 
 			template<template<typename ...> class relation, typename ...in> struct relation_type
 			{
 				using type = TmpCall::call<
-					TmpCall::in_t<T...>, TmpCall::localizer_t<1, Tmp::instant<relation, in...>::template front_in_t>, TmpCall::sperate_value_i<Tmp::set_i>,
-					TmpCall::append_t<Tmp::set_i<0>>, TmpCall::pick_single_t<0>, TmpCall::self_t
+					TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<relation, in...>>, TmpCall::sperate_value, TmpCall::append<std::integral_constant<size_t, sizeof...(T)>>,
+					TmpCall::select_index<std::integer_sequence<size_t, 0>>, TmpCall::self
 				>;
 			};
 
 			template<typename in> struct same_type
 			{
-				using type = TmpCall::call <
-					TmpCall::in_t<T...>, TmpCall::localizer_t<1, Tmp::instant<std::is_same, in>::template front_in_t>, TmpCall::sperate_value_i<Tmp::set_i>,
-					TmpCall::append_t<Tmp::set_i<0>>, TmpCall::pick_single_t<0>, TmpCall::self_t
+				using type = TmpCall::call<
+					TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<std::is_same, in>>, TmpCall::sperate_value,
+					TmpCall::append<std::integral_constant<size_t, sizeof...(T)>>, TmpCall::select_index<std::integer_sequence<size_t, 0>>, TmpCall::self
 				>;
 			};
 
@@ -261,12 +261,12 @@ namespace PO
 			template<typename K>
 			variant(std::true_type, K&& v) : index(v.index)
 			{
-				if (v.index != 0)
+				if (v.index != sizeof...(T))
 					mapping{}(
 						v.index,
 						[&v, this](auto self)
 				{
-					using type = typename Tmp::type_extract_t<decltype(self)>::original_t;
+					using type = typename Tmp::type_extract_t<decltype(self)>::type;
 					if(!Implement::variant_constructor<type>(data, std::forward<K>(v).template cast<type>()))
 						throw Error::tool_exeception("this kind of type can not construct form itself");
 				},
@@ -277,8 +277,8 @@ namespace PO
 			template<typename ...K>
 			variant(std::false_type, K&& ...k) : index(relation_type<std::is_constructible, K...>::type::value)
 			{
-				static_assert(relation_type<std::is_constructible, K...>::type::value != 0, "not avalible type construct form this");
-				using type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<relation_type<std::is_constructible, K...>::type::value - 1>, TmpCall::self_t>;
+				static_assert(relation_type<std::is_constructible, K...>::type::value != sizeof...(T), "not avalible type construct form this");
+				using type = TmpCall::call<TmpCall::append<T...>, TmpCall::select_index<typename relation_type<std::is_constructible, K...>::type>, TmpCall::self>;
 				if (!Implement::variant_constructor<type>(data, std::forward<K>(k)...))
 					throw Error::tool_exeception("unmatch mapping while construct form those parameter");
 			}
@@ -286,7 +286,7 @@ namespace PO
 
 		public:
 
-			operator bool() const noexcept { return index != 0; }
+			operator bool() const noexcept { return index != sizeof...(T); }
 
 			auto get_index() const noexcept { return index; }
 
@@ -317,7 +317,7 @@ namespace PO
 				return std::move(*reinterpret_cast<P*>(&data));
 			}
 
-			variant() noexcept : index(0){}
+			variant() noexcept : index(sizeof...(T)){}
 			template<typename P, typename ...K> variant(P&& p, K&& ...k) :
 				variant(
 					std::integral_constant<bool, sizeof...(K) == 0 && std::is_same<std::remove_const_t<std::remove_reference_t<P>>, variant>::value>(),
@@ -341,30 +341,30 @@ namespace PO
 			~variant()
 			{
 				if (index != 0)
-					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t; Implement::variant_destructor<type>(data); }, []() {});
+					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::type; Implement::variant_destructor<type>(data); }, []() {});
 			}
 
 			template<typename func>
 			void call(func&& f)
 			{
-				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::original_t; f(this->cast<type>()); }, []() {});
+				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::type; f(this->cast<type>()); }, []() {});
 			}
 
 			template<typename func, typename def>
 			void call(func&& f, def&& d)
 			{
-				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::original_t; f(this->cast<type>()); }, d);
+				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::type; f(this->cast<type>()); }, d);
 			}
 			
 			variant& operator= (const variant& v)
 			{
-				if (index == 0 && v.index == 0) return *this;
+				if (index == sizeof...(T) && v.index == sizeof...(T)) return *this;
 				if (index == v.index)
 				{
 					mapping{}(index, 
 						[&, this](auto ptr)
 					{
-						using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
+						using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
 						if(!Implement::variant_assignment<type>(data, v.template cast<type>()))
 							throw Error::tool_exeception("unable to assignment");
 					},
@@ -372,18 +372,18 @@ namespace PO
 					);
 					return *this;
 				}
-				if (index != 0)
+				if (index != sizeof...(T))
 					mapping{}(index, 
 						[&, this](auto ptr) 
 				{ 
-					using type = typename decltype(ptr)::type; 
+					using type = typename decltype(ptr)::type::type; 
 					Implement::variant_destructor<type>(data);
 				}, []() {});
-				if(v.index!=0)
+				if(v.index!= sizeof...(T))
 					mapping{}(v.index, 
 						[&, this](auto ptr) 
 				{ 
-					using type = typename decltype(ptr)::type;
+					using type = typename decltype(ptr)::type::type;
 					Implement::variant_constructor<type>(data, v.template cast<type>());
 				}, []() {});
 				index = v.index;
@@ -392,13 +392,13 @@ namespace PO
 			
 			variant& operator= (variant&& v)
 			{
-				if (index == 0 && v.index == 0) return *this;
+				if (index == sizeof...(T) && v.index == sizeof...(T)) return *this;
 				if (index == v.index)
 				{
 					mapping{}(index,
 						[&, this](auto ptr)
 					{
-						using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
+						using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
 						if (!Implement::variant_assignment<type>(data, std::move(v).template cast<type>()))
 							throw Error::tool_exeception("unable to assignment");
 					},
@@ -406,18 +406,18 @@ namespace PO
 					);
 						return *this;
 				}
-				if (index != 0)
+				if (index != sizeof...(T))
 					mapping{}(index,
 						[&, this](auto ptr)
 				{
-					using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
+					using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
 					Implement::variant_destructor<type>(data);
 				}, []() {});
-				if (v.index != 0)
+				if (v.index != sizeof...(T))
 					mapping{}(v.index,
 						[&, this](auto ptr)
 				{
-					using type = typename Tmp::type_extract_t<decltype(ptr)>::original_t;
+					using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
 					Implement::variant_constructor<type>(data, std::move(v).template cast<type>());
 				}, []() {});
 				index = v.index;
@@ -429,20 +429,21 @@ namespace PO
 			{
 				using type_ass = typename relation_type<Implement::is_assignable, K>::type;
 				using type_con = typename relation_type<std::is_constructible, K>::type;
-				static_assert(type_ass::value != 0 || type_con::value !=0, "variant can not cast to unbinded type.");
 				
-				using type_index = std::conditional_t< type_ass::value != 0, type_ass, type_con>;
-				using type = TmpCall::call<TmpCall::in_t<T...>, TmpCall::pick_single_t<type_index::value -1>, TmpCall::self_t>;
+				static_assert(type_ass::value != sizeof...(T) || type_con::value != sizeof...(T), "variant can not cast to unbinded type.");
+				using type_index = std::conditional_t< type_ass::value != sizeof...(T), type_ass, type_con>;
+				using type = TmpCall::call<TmpCall::append<T...>, TmpCall::select_index<std::integer_sequence<size_t, type_index::value>>, TmpCall::self>;
 				if (index == type_index::value)
 				{
 					if (!Implement::variant_assignment<type>(data, std::forward<K>(k)))
 						throw Error::tool_exeception("unable to assignment");
 					return *this;
 				}
-				if (index != 0)
-					mapping{}(index, [this](auto ptr) {Implement::variant_destructor<Tmp::type_extract_t<decltype(ptr)>>(data); }, []() {});
+				if (index != sizeof...(T))
+					mapping{}(index, [this](auto ptr) {Implement::variant_destructor<typename Tmp::type_extract_t<decltype(ptr)>::type>(data); }, []() {__debugbreak(); });
 				Implement::variant_constructor<type>(data, std::forward<K>(k));
 				index = type_index::value;
+				
 				return *this;
 			}
 		};

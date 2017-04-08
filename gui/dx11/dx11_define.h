@@ -41,28 +41,64 @@ namespace PO
 			using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
 		}
 
-		namespace Purpose
+		struct vertex_state
 		{
+			D3D11_RASTERIZER_DESC DRD = { D3D11_FILL_SOLID, D3D11_CULL_NONE, false, 0, 0.0f, 0.0f, true, false, false, false };
+			Implement::raterizer_state_ptr rsp;
+			bool need_update = true;
+			bool apply(Implement::context_ptr& cp);
+			bool update();
+		};
 
-			struct input
+		HRESULT create_buffer(Implement::resource_ptr& rp, Implement::buffer_ptr& bp, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides);
+
+		template<size_t count = 1>
+		struct vertex_factor
+		{
+			Implement::resource_ptr rp;
+			std::array<ID3D11Buffer*, count> ptr;
+			std::array<UINT, count> offset;
+			std::array<UINT, count> element;
+			Implement::buffer_ptr index_ptr;
+			UINT offset;
+			DXGI_FORMAT DF;
+			bool state = true;
+			binary vshader_binary;
+
+			Implement::vshader_ptr vshader;
+			Implement::gshader_ptr gshader;
+
+			Implement::layout_ptr layout;
+			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		public:
+			bool bind(Implement::resource_ptr& r)
 			{
-				
-			};
-
-
-
-			struct purpose
+				std::for_each(ptr.begin(), ptr.end(), [](ID3D11Buffer*& ptr) {if (ptr != nullptr) { ptr->Release(); ptr = nullptr; } });
+				index_ptr = nullptr;
+				rp = r;
+				//if(binary)
+			}
+			vertex_factor()
 			{
-				D3D11_USAGE usage;
-				UINT cpu_flag;
-				UINT additional_bind;
-			};
-			extern purpose input;
-			extern purpose output;
-			extern purpose constant;
-			extern purpose transfer;
-		}
+				std::for_each(ptr.begin(), ptr.end(), [](ID3D11Buffer* ptr) {ptr = nullptr; });
+			}
+			~vertex_factor()
+			{
+				std::for_each(ptr.begin(), ptr.end(), [](ID3D11Buffer*& ptr) {if (ptr != nullptr) { ptr->Release(); ptr = nullptr; } });
+			}
+			template<typename T>
+			bool create_const_index(T* d, size_t s)
+			{
+				if (rp == nullptr)return false;
+				Implement::buffer_ptr ptr;
+				if(create_buffer())
+			}
+		};
 
+		
+
+
+		/*
 		struct buffer
 		{
 			Implement::buffer_ptr ptr;
@@ -102,7 +138,9 @@ namespace PO
 			}
 			operator bool() const { return ptr != nullptr; }
 		};
+		*/
 
+		/*
 		struct index : buffer
 		{
 			size_t offset;
@@ -180,7 +218,7 @@ namespace PO
 			{
 				return create_value(rp, bp, data, sizeof(T), sizeof(T) * size);
 			}
-		};
+		};*/
 
 		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt);
 
@@ -203,22 +241,7 @@ namespace PO
 			return rp.IsEqualObject(r);
 		}
 
-		struct pixel_state
-		{
-			D3D11_RASTERIZER_DESC DRD = { D3D11_FILL_SOLID, D3D11_CULL_NONE, false, 0, 0.0f, 0.0f, true, false, false, false };
-			Implement::resource_ptr rp;
-			Implement::raterizer_state_ptr rsp;
-			bool need_update = true;
-
-			void bind(Implement::resource_ptr& r)
-			{
-				rsp = nullptr;
-				rp = r;
-				need_update = true;
-			}
-			bool apply(Implement::context_ptr& cp);
-			bool update();
-		};
+		
 
 		/*
 		struct pixel
@@ -247,12 +270,7 @@ namespace PO
 			bool update = false;
 		};
 		*/
-
-
-
-
-
-
+		/*
 		struct pixel_creater
 		{
 			Implement::resource_ptr rp;
@@ -315,7 +333,7 @@ namespace PO
 			void set_instance_range(size_t s, size_t e) { instance_r = range{ static_cast<UINT>(s), static_cast<UINT>(e) }; }
 			bool apply(Implement::context_ptr& cp);
 			bool draw(Implement::context_ptr& cp);
-		};
+		};*/
 
 		struct material_state
 		{
@@ -365,6 +383,7 @@ namespace PO
 			}
 		};
 
+		/*
 		struct material
 		{
 			Implement::resource_ptr rp;
@@ -387,7 +406,9 @@ namespace PO
 				return true;
 			}
 		};
+		*/
 
+		/*
 		struct constant_value
 		{
 			std::vector<ID3D11Buffer*> buffer;
@@ -417,6 +438,7 @@ namespace PO
 				clear();
 			}
 		};
+		*/
 
 		/*
 		struct sample_state

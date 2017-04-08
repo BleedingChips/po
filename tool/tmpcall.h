@@ -86,31 +86,64 @@ namespace PO
 			};
 		};
 
-		template<template<typename...> class f> struct make_func
+		template<typename F> struct first_match_each
 		{
-			template<typename ...i> struct in
+			template<typename T, typename ...AT> struct in
 			{
-				using type = f<i...>;
-				template<template<typename ...> class o> struct out
+				template<template<typename...> class o> struct out
 				{
-					using type = o<f<i...>>;
+					using type = o<typename F::template in<T, AT>::type... >;
 				};
 			};
 		};
 
-		template<template<typename...> class f> struct make_func_t
+		template<template<typename...> class f, typename ...AT> struct make_func
 		{
 			template<typename ...i> struct in
 			{
-				using type = typename f<i...>::type;
+				using type = f<i..., AT...>;
 				template<template<typename ...> class o> struct out
 				{
-					using type = o<typename f<i...>::type>;
+					using type = o<f<i..., AT...>>;
 				};
 			};
 		};
 
+		template<template<typename...> class f, typename ...AT> struct make_func_t
+		{
+			template<typename ...i> struct in
+			{
+				using type = typename f<i..., AT...>::type;
+				template<template<typename ...> class o> struct out
+				{
+					using type = o<typename f<i..., AT...>::type>;
+				};
+			};
+		};
 
+		template<template<typename...> class f, typename ...AT> struct make_func_front
+		{
+			template<typename ...i> struct in
+			{
+				using type = f<AT..., i...>;
+				template<template<typename ...> class o> struct out
+				{
+					using type = o<f<AT..., i...>>;
+				};
+			};
+		};
+
+		template<template<typename...> class f, typename ...AT> struct make_func_t_front
+		{
+			template<typename ...i> struct in
+			{
+				using type = typename f<AT..., i...>::type;
+				template<template<typename ...> class o> struct out
+				{
+					using type = o<typename f<AT..., i...>::type>;
+				};
+			};
+		};
 
 		template<typename ...T> struct front_append
 		{
@@ -134,7 +167,7 @@ namespace PO
 				using type = typename F::template in<T...>;
 				template<template<typename...> class o> struct out
 				{
-					using type = o<typename F::template in<T...>>;
+					using type = o<typename F::template in<T...>::type>;
 				};
 			};
 		};
@@ -212,7 +245,7 @@ namespace PO
 			template<typename ...result, template<typename...> class out, typename its, typename ...other>
 			struct sperate_value_implement<std::tuple<result...>, out, its, other...>
 			{
-				using type = typename sperate_value_implement<std::tuple<result..., its>, out, its, other...>::type;
+				using type = typename sperate_value_implement<std::tuple<result..., its>, out, other...>::type;
 			};
 			template<typename ...result, template<typename...> class out, typename its_type, its_type ...value, typename ...other>
 			struct sperate_value_implement<std::tuple<result...>, out, std::integer_sequence<its_type, value...>, other...>
@@ -281,6 +314,12 @@ namespace PO
 				};
 			};
 		};
+
+		template<typename T, typename L> struct label_pair
+		{
+			using type = T;
+			using label = L;
+		};
 		
 		namespace Implement
 		{
@@ -309,7 +348,7 @@ namespace PO
 				using type = typename label_implemenmt<s + 1, output, func, std::tuple
 					<
 						result..., 
-						std::pair<its, typename func::template in<its, std::integral_constant<size_t, s>>::type>
+						label_pair<its, typename func::template in<its, std::integral_constant<size_t, s>>::type>
 					>, other...>::type;
 			};
 		}
@@ -325,6 +364,10 @@ namespace PO
 				};
 			};
 		};
+
+		template<typename T, typename S> using label_size = std::integral_constant<size_t, sizeof(T)>;
+		template<typename T, typename S> using label_serial = S;
+		template<typename T> using replace_label = typename T::label;
 
 		namespace Implement
 		{
@@ -495,42 +538,5 @@ namespace PO
 				};
 			};
 		};
-
-
-
-
-
-
-		/*
-
-		namespace Implement
-		{
-			template<size_t s, template<typename...> class role, template<size_t ...> class o, typename out, typename ...i> struct localizer_implement;
-			template<size_t s, template<typename...> class role, template<size_t ...> class o, size_t ...out, typename this_type, typename ...i>
-			struct localizer_implement<s, role, o, Tmp::set_i<out...>, this_type, i...>
-			{
-				using type = typename localizer_implement<s + 1, role, o,
-					std::conditional_t<role<this_type>::value, Tmp::set_i<out..., s>, Tmp::set_i<out...>>,
-					i...
-				>::type;
-			};
-			template<size_t s, template<typename...> class role, template<size_t ...> class o, size_t ...out>
-			struct localizer_implement<s, role, o, Tmp::set_i<out...>>
-			{
-				using type = o<out...>;
-			};
-		}
-
-		template<size_t s, template<typename...> class role> struct localizer_t
-		{
-			template<typename ...i> struct in
-			{
-				template<template<size_t ...> class o> struct out
-				{
-					using type = typename Implement::localizer_implement<s, role, o, Tmp::set_i<>, i...>::type;
-				};
-			};
-		};
-		*/
 	}
 }

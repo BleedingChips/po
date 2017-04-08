@@ -56,9 +56,6 @@
     <ClInclude Include="..\tool\thread_tool.h">
       <Filter>tool</Filter>
     </ClInclude>
-    <ClInclude Include="..\tool\thread_tool.hpp">
-      <Filter>tool</Filter>
-    </ClInclude>
     <ClInclude Include="..\tool\tmp.h">
       <Filter>tool</Filter>
     </ClInclude>

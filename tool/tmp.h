@@ -73,15 +73,8 @@ namespace PO
 			template<typename ...other_input> using front_in_t_t = typename Implement::instant_implemenmt<output, other_input..., input...>::type::type;
 		};
 		template<template<typename ...> class output, typename ...input> using instant_t = typename Implement::instant_implemenmt<output, input... >::type;
-	
-		namespace Implement
-		{
-			template<typename T, typename K> struct bigger_value_implement
-			{
-				using type = std::conditional_t < (T::value < K::value), K, T >;
-			};
-		}
-		template<typename T, typename K> using bigger_value = typename Implement::bigger_value_implement<T, K>::type;
+
+		template<typename T, typename K> using bigger_value = std::conditional_t < (T::value < K::value), K, T >;
 
 		template<template<typename ...> class out> struct extract_lable
 		{
@@ -164,71 +157,7 @@ namespace PO
 
 		template<typename T> struct have_value : Implement::have_value_implement<T>::type {};
 		
-
-		/*----- function_detect -----*/
-		/*
-		template<bool able_detect, typename ret, typename owner, typename ...parameter> struct funtion_type :std::integral_constant<bool, able_detect>
-		{
-			using return_type = ret;
-			using owner_type = owner;
-			template<template<typename... > class output> using parameter_out = output<parameter...>;
-		};
-
-		template<typename ret, typename own, typename ...parameter> struct function_object_extract_type
-		{
-			using return_t = ret;
-			using owner_t = own;
-			using is_able_extract = std::integral_constant<bool, true>;
-			template<template<typename... > class output> using parameter_out = output<parameter...>;
-		};
-
-		template<> struct function_object_extract_type<void, void, void>
-		{
-			using return_t = void;
-			using owner_t = void;
-			using is_able_extract = std::integral_constant<bool, false>;
-			template<template<typename... > class output> using parameter_out = output<>;
-		};
-
-		namespace Implement
-		{
-			template<typename function> struct function_pointer_type;
-			template<typename ret, typename ...parameter > struct function_pointer_type<ret(parameter...)> { using type = function_object_extract_type<ret, void, parameter...>; };
-			template<typename ret, typename ...parameter > struct function_pointer_type<ret(*)(parameter...)> { using type = function_object_extract_type<ret, void, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...)> { using type = function_object_extract_type<ret, owner, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...)volatile> { using type = function_object_extract_type<ret, volatile owner, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) const> { using type = function_object_extract_type<ret, const owner, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) volatile const> { using type = function_object_extract_type<ret, const owner, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) &> { using type = function_object_extract_type<ret, owner&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) volatile &> { using type = function_object_extract_type<ret, owner&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) const &> { using type = function_object_extract_type<ret, const owner&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) volatile const &> { using type = function_object_extract_type< ret, const owner&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) && > { using type = function_object_extract_type<ret, owner&&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) volatile &&  > { using type = function_object_extract_type<ret, owner&&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) const &&> { using type = function_object_extract_type<ret, const owner&&, parameter...>; };
-			template<typename ret, typename owner, typename ...parameter > struct function_pointer_type<ret(owner::*)(parameter...) volatile const &&> { using type = function_object_extract_type<ret, const owner&&, parameter...>; };
-
-			template<typename translate> struct function_object_reset_normale_function;
-			template<typename ret, typename owner, typename ...parameter> struct function_object_reset_normale_function<function_object_extract_type<ret, owner, parameter...>>
-			{
-				using type = function_object_extract_type<ret, void, parameter...>;
-			};
-		}
-
-		template<typename function_type> class funtion_obejct_extract
-		{
-			using ft = std::remove_reference_t<function_type>;
-			template<typename K>
-			static typename Implement::function_object_reset_normale_function<typename Implement::function_pointer_type<decltype(&K::operator())>::type>::type
-				func(Implement::function_pointer_type<decltype(&K::operator())>*);
-			template<typename K> static typename Implement::function_pointer_type<K>::type func(Implement::function_pointer_type<K>*);
-			template<typename K> static function_object_extract_type<void, void, void> func(...);
-		public:
-			using type = decltype(func<ft>(nullptr));
-		};
-		template<typename function_type> using funtion_obejct_extract_t = typename funtion_obejct_extract<function_type>::type;
-		*/
-
+		/***** degenerate_func ********/
 		template<typename fun_type> struct pick_func;
 		template<typename ret, typename ...para> struct pick_func<ret(para...)>
 		{
@@ -251,9 +180,21 @@ namespace PO
 
 		template<typename fun_obj> struct extract_func
 		{
-			using type = typename extract_func<decltype(&std::remove_reference_t<std::remove_const_t<fun_obj>>::operator())>::type;
+			using type = typename extract_func<decltype(&(std::remove_reference_t<std::remove_const_t<fun_obj>>::operator()))>::type;
 		};
 		template<typename fun_re, typename ...fun_para> struct extract_func<fun_re(fun_para...)>
+		{
+			using type = fun_re(fun_para...);
+		};
+		template<typename fun_re, typename ...fun_para> struct extract_func<fun_re(*)(fun_para...)>
+		{
+			using type = fun_re(fun_para...);
+		};
+		template<typename fun_re, typename ...fun_para> struct extract_func<fun_re(*&)(fun_para...)>
+		{
+			using type = fun_re(fun_para...);
+		};
+		template<typename fun_re, typename ...fun_para> struct extract_func<fun_re(&)(fun_para...)>
 		{
 			using type = fun_re(fun_para...);
 		};
