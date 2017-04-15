@@ -36,18 +36,14 @@ namespace PO
 
 		struct Dx11_ticker
 		{
-			Implement::resource_ptr dev;
-			Implement::context_ptr dc;
 			Implement::chain_ptr swap;
-			CComPtr<ID3D11RenderTargetView> pView;
-			CComPtr<ID3D11DepthStencilView> pDepthView;
-			std::array<float, 4> clear_color = { 0.0, 0.0, 0.0, 1.0 };
-			std::pair<float, UINT> depth_sten_clear = {1.0f, 0};
-			Dx11_ticker(Dx11_form& Df) : dev(Df.dev), dc(Df.dc), pView(Df.pView), pDepthView(Df.pDepthView), swap(Df.swap){}
-			operator Implement::resource_ptr& () { return dev; }
-			operator Implement::context_ptr& () { return dc; }
+			PO::Dx11::resource res;
+			PO::Dx11::pipe_line pipe;
+			texture<2, texture_render_scr> back_buffer;
+			Dx11_ticker(Dx11_form& Df);
 		};
 
+		/*
 		class shader_loader
 		{
 			struct shader_loader_execute : thread_task
@@ -86,7 +82,7 @@ namespace PO
 				}
 				return{};
 			}
-		};
+		};*/
 
 
 	}

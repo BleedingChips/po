@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <iostream>
 namespace PO
 {
 	namespace Tool
@@ -227,20 +228,22 @@ namespace PO
 		template<typename T, typename mutex = std::mutex> struct scope_lock
 		{
 			T data;
-			mutex lock_mutex;
+			mutable mutex lock_mutex;
 		public:
 			using type = T;
 			using mutex_type = mutex;
-			template<typename fun> auto lock(fun&& f) -> decltype(f(data))
+
+			template<typename fun> decltype(auto) lock(fun&& f)
 			{
 				std::lock_guard<mutex> lg(lock_mutex);
 				return f(data);
 			}
-			template<typename fun> auto lock(fun&& f) const -> decltype(f(data))
+			template<typename fun> decltype(auto) lock(fun&& f) const
 			{
 				std::lock_guard<mutex> lg(lock_mutex);
 				return f(data);
 			}
+
 			template<typename fun> auto try_lock(fun&& f) -> Tool::optional_t<decltype(f())>
 			{
 				if (lock_mutex.try_lock())
@@ -263,19 +266,13 @@ namespace PO
 		};
 
 		template<typename T, typename K, typename F>
-		auto lock_scope_look(T& t, K& k, F&& f)
+		auto lock_scope_look(T&& t, K&& k, F&& f)
 		{
-			return t.lock(
-				[&](auto& tt)
-			{
-				return k.lock(
-					[&](auto& kk)
-				{
+			return t.lock([&f, &k](auto& tt) mutable {
+				return k.lock([&tt, &f](auto& kk) mutable{
 					return f(tt, kk);
-				}
-				);
-			}
-			);
+				});
+			});
 		}
 
 		namespace Implement

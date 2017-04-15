@@ -7,21 +7,600 @@ namespace PO
 	namespace Dx11
 	{
 
-		HRESULT create_buffer(Implement::resource_ptr& rp, Implement::buffer_ptr& ptr, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides)
+		namespace Implement
 		{
-			ptr = nullptr;
-			D3D11_BUFFER_DESC DBD
+			HRESULT create_buffer(Implement::resource_ptr& rp, Implement::buffer_ptr& ptr, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides)
 			{
-				static_cast<UINT>(data_size),
-				usage,
-				bind_flag,
-				cpu_flag,
-				misc_flag,
-				static_cast<UINT>(StructureByteStrides)
-			};
-			D3D11_SUBRESOURCE_DATA DSD{ data, 0, 0 };
-			return rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK;
+				D3D11_BUFFER_DESC DBD
+				{
+					static_cast<UINT>(data_size),
+					usage,
+					bind_flag,
+					cpu_flag,
+					misc_flag,
+					static_cast<UINT>(StructureByteStrides)
+				};
+				D3D11_SUBRESOURCE_DATA DSD{ data, 0, 0 };
+				return rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK;
+			}
+			
+			HRESULT create_texture_implement(resource_ptr& cp, texture1D_ptr& t, size_t w, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, bool cpu_r, UINT mis)
+			{
+				if (cp == nullptr) return false;
+				D3D11_TEXTURE1D_DESC DTD
+				{
+					static_cast<UINT>(w),
+					static_cast<UINT>(miplevel),
+					static_cast<UINT>(s),
+					DF,
+					DU,
+					BIND,
+					(cpu_w ? D3D11_CPU_ACCESS_WRITE : 0) | (cpu_r ? D3D11_CPU_ACCESS_READ : 0),
+					mis
+				};
+				Implement::texture1D_ptr tp;
+				if (data == nullptr)
+				{
+					cp->CreateTexture1D(&DTD, nullptr, )
+				}
+				D3D11_SUBRESOURCE_DATA 
+				
+			}
+			HRESULT create_texture_implement(resource_ptr& cp, texture2D_ptr& t, size_t w, size_t h, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, UINT mis);
+			
+			bool avalible_depth_texture_format(DXGI_FORMAT DF)
+			{
+				switch (DF)
+				{
+				case DXGI_FORMAT::DXGI_FORMAT_D16_UNORM:
+				case DXGI_FORMAT::DXGI_FORMAT_D24_UNORM_S8_UINT:
+				case DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT:
+				case DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+				case DXGI_FORMAT::DXGI_FORMAT_UNKNOWN:
+					return true;
+				default:
+					return false;
+				}
+			}
 		}
+
+
+
+
+
+
+
+
+
+
+
+		
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt)
+		{
+			Implement::resource_view_ptr ptr;
+			if (pt != nullptr)
+			{
+				D3D11_TEXTURE2D_DESC tem;
+				pt->GetDesc(&tem);
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
+				if ((tem.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) == D3D11_RESOURCE_MISC_TEXTURECUBE)
+				{
+					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+					SRVD.TextureCube = D3D11_TEXCUBE_SRV{ 0 ,  tem.MipLevels };
+				}
+				else if (tem.ArraySize > 1)
+				{
+					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+					SRVD.Texture2DArray = D3D11_TEX2D_ARRAY_SRV{ 0,  tem.MipLevels , 0, tem.ArraySize };
+				}
+				else {
+					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					SRVD.Texture2D = D3D11_TEX2D_SRV{ 0,  tem.MipLevels };
+				}
+				HRESULT re = rp->CreateShaderResourceView(pt, &SRVD, &ptr);
+				volatile int i = 0;
+			}
+			return ptr;
+		}
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture1D_ptr& pt)
+		{
+			Implement::resource_view_ptr ptr;
+			if (pt != nullptr)
+			{
+				D3D11_TEXTURE1D_DESC tem;
+				pt->GetDesc(&tem);
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
+				if (tem.ArraySize > 1)
+				{
+					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
+					SRVD.Texture1DArray = D3D11_TEX1D_ARRAY_SRV{ 0,  tem.MipLevels , 0, tem.ArraySize };
+				}
+				else {
+					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+					SRVD.Texture1D = D3D11_TEX1D_SRV{ 0,  tem.MipLevels };
+				}
+				rp->CreateShaderResourceView(pt, &SRVD, &ptr);
+			}
+			return ptr;
+		}
+
+		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture3D_ptr& pt)
+		{
+			Implement::resource_view_ptr ptr;
+			if (pt != nullptr)
+			{
+				D3D11_TEXTURE3D_DESC tem;
+				pt->GetDesc(&tem);
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
+				SRVD.ViewDimension = D3D11_SRV_DIMENSION::D3D10_1_SRV_DIMENSION_TEXTURE3D;
+				SRVD.Texture3D = D3D11_TEX3D_SRV{ 0, tem.MipLevels };
+				rp->CreateShaderResourceView(pt, &SRVD, &ptr);
+			}
+			return ptr;
+		}
+
+		namespace Implement
+		{
+			bool texture_ptr_type<1>::create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE1D_DESC DTD;
+				t->GetDesc(&DTD);
+				D3D11_RENDER_TARGET_VIEW_DESC RTVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{0, DTD.ArraySize} : pair_t{static_cast<UINT>(array_start), static_cast<UINT>(array_count)};
+					RTVD.Texture1DArray = D3D11_TEX1D_ARRAY_RTV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
+				}
+				else {
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE1D;
+					RTVD.Texture1D = D3D11_TEX1D_RTV{ static_cast<UINT>(mipslice) };
+				}
+				return SUCCEEDED(cp->CreateRenderTargetView(t, &RTVD, &rvp));
+			}
+
+			bool texture_ptr_type<1>::create_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE1D_DESC DTD;
+				t->GetDesc(&DTD);
+				if (!avalible_depth_texture_format(DTD.Format)) return false;
+				UINT FLAG = (dr ? D3D11_DSV_READ_ONLY_DEPTH : 0) | (sr ? D3D11_DSV_READ_ONLY_STENCIL : 0);
+				D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE1DARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{ 0, DTD.ArraySize } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+					DDSVD.Texture1DArray = D3D11_TEX1D_ARRAY_DSV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
+				}
+				else {
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE1D;
+					DDSVD.Texture1D = D3D11_TEX1D_DSV{ static_cast<UINT>(mipslice) };
+				}
+				DDSVD.Flags = FLAG;
+				return SUCCEEDED(cp->CreateDepthStencilView(t, &DDSVD, &dsv));
+			}
+
+			bool texture_ptr_type<1>::create(Implement::resource_ptr& cp, type& t, size_t w, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, UINT mis)
+			{
+				D3D11_TEXTURE1D_DESC DTD
+				{
+					static_cast<UINT>(w),
+					static_cast<UINT>(miplevel),
+					static_cast<UINT>(s),
+					DF,
+					DU,
+
+				};
+				cp->CreateTexture1D()
+			}
+
+			bool texture_ptr_type<2>::create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE2D_DESC DTD;
+				t->GetDesc(&DTD);
+				D3D11_RENDER_TARGET_VIEW_DESC RTVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{ 0, DTD.ArraySize } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+					RTVD.Texture2DArray = D3D11_TEX2D_ARRAY_RTV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
+				}
+				else {
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE2D;
+					RTVD.Texture2D = D3D11_TEX2D_RTV{ static_cast<UINT>(mipslice) };
+				}
+				return SUCCEEDED(cp->CreateRenderTargetView(t, &RTVD, &rvp));
+			}
+
+			bool texture_ptr_type<2>::create_ms_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE2D_DESC DTD;
+				t->GetDesc(&DTD);
+				D3D11_RENDER_TARGET_VIEW_DESC RTVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{ 0, DTD.ArraySize } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+					RTVD.Texture2DMSArray = D3D11_TEX2DMS_ARRAY_RTV{ pair.first, pair.second };
+				}
+				else {
+					RTVD.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE2DMS;
+					RTVD.Texture2DMS = D3D11_TEX2DMS_RTV{ };
+				}
+				return SUCCEEDED(cp->CreateRenderTargetView(t, &RTVD, &rvp));
+			}
+
+			bool texture_ptr_type<2>::create_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE2D_DESC DTD;
+				t->GetDesc(&DTD);
+				if (!avalible_depth_texture_format(DTD.Format)) return false;
+				UINT FLAG = (dr ? D3D11_DSV_READ_ONLY_DEPTH : 0) | (sr ? D3D11_DSV_READ_ONLY_STENCIL : 0);
+				D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{ 0, DTD.ArraySize } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+					DDSVD.Texture2DArray = D3D11_TEX2D_ARRAY_DSV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
+				}
+				else {
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE2D;
+					DDSVD.Texture2D = D3D11_TEX2D_DSV{ static_cast<UINT>(mipslice) };
+				}
+				DDSVD.Flags = FLAG;
+				return SUCCEEDED(cp->CreateDepthStencilView(t, &DDSVD, &dsv));
+			}
+
+			bool texture_ptr_type<2>::create_ms_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE2D_DESC DTD;
+				t->GetDesc(&DTD);
+				if (!avalible_depth_texture_format(DTD.Format)) return false;
+				UINT FLAG = (dr ? D3D11_DSV_READ_ONLY_DEPTH : 0) | (sr ? D3D11_DSV_READ_ONLY_STENCIL : 0);
+				D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format };
+				if (DTD.ArraySize > 1)
+				{
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+					using pair_t = std::pair<UINT, UINT>;
+					pair_t pair = all_range ? pair_t{ 0, DTD.ArraySize } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+					DDSVD.Texture2DMSArray = D3D11_TEX2DMS_ARRAY_DSV{ pair.first, pair.second };
+				}
+				else {
+					DDSVD.ViewDimension = D3D11_DSV_DIMENSION::D3D11_DSV_DIMENSION_TEXTURE2DMS;
+					DDSVD.Texture2DMS = D3D11_TEX2DMS_DSV{ };
+				}
+				DDSVD.Flags = FLAG;
+				return SUCCEEDED(cp->CreateDepthStencilView(t, &DDSVD, &dsv));
+			}
+
+			bool texture_ptr_type<3>::create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
+			{
+				if (cp == nullptr || t == nullptr) return false;
+				D3D11_TEXTURE3D_DESC DTD;
+				t->GetDesc(&DTD);
+				D3D11_RENDER_TARGET_VIEW_DESC RTVD{ DTD.Format, D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE3D };
+				using pair_t = std::pair<UINT, UINT>;
+				pair_t pair = all_range ? pair_t{ 0, DTD.Depth } : pair_t{ static_cast<UINT>(array_start), static_cast<UINT>(array_count) };
+				RTVD.Texture3D = D3D11_TEX3D_RTV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
+				return SUCCEEDED(cp->CreateRenderTargetView(t, &RTVD, &rvp));
+			}
+		}
+
+		void output_merge_d::set_render_implement(size_t o, Implement::render_view_ptr rv)
+		{
+			size_t cur = render_array.size();
+			if (o + 1 > cur)
+				render_array.insert(render_array.end(), o + 1 - cur, nullptr);
+			auto& yu = render_array[o];
+			if (yu != nullptr)
+				yu->Release();
+			yu = rv;
+			if(yu!=nullptr) yu->AddRef();
+		}
+
+		output_merge_d::~output_merge_d()
+		{
+			for (auto &i : render_array)
+				if (i != nullptr) i->Release();
+		}
+
+		input_assember_d::input_assember_d(const input_assember_d& ia)
+			: vertex_array(ia.vertex_array), offset_array(ia.offset_array), element_array(ia.element_array), input_element(ia.input_element),
+			primitive(ia.primitive), index_ptr(ia.index_ptr), offset(ia.offset), format(ia.format)
+		{
+			for (auto& itr : vertex_array)
+				if (itr != nullptr) itr->AddRef();
+		}
+
+		input_assember_d::input_assember_d(input_assember_d&& ia)
+			:vertex_array(std::move(ia.vertex_array)), offset_array(std::move(ia.offset_array)), element_array(std::move(ia.element_array)), input_element(std::move(ia.input_element)),
+			primitive(ia.primitive), index_ptr(ia.index_ptr), offset(ia.offset), format(ia.format)
+		{
+			ia.index_ptr = nullptr;
+		}
+
+		input_assember_d::~input_assember_d()
+		{
+			for (auto& itr : vertex_array)
+				if (itr != nullptr) itr->Release();
+		}
+
+		void input_assember_d::set_vertex_implement(Implement::buffer_ptr bp, size_t solt, const vertex_scr& vs)
+		{
+			size_t array_size = vertex_array.size();
+			if (array_size >= solt)
+			{
+				size_t append = solt + 1 - array_size;
+				vertex_array.reserve(solt + 1);
+				vertex_array.insert(vertex_array.end(), append, nullptr);
+				offset_array.reserve(solt + 1);
+				offset_array.insert(offset_array.end(), append, 0);
+				element_array.reserve(solt + 1);
+				element_array.insert(element_array.end(), append, 0);
+			}
+
+			input_element.erase(std::remove_if(input_element.begin(), input_element.end(), [solt](D3D11_INPUT_ELEMENT_DESC& DI) {
+				if (DI.InputSlot == solt)
+					return true;
+				return false;
+			}), input_element.end());
+
+			auto& arr = vertex_array[solt];
+			if (arr != nullptr)
+				arr->Release();
+			arr = bp;
+			if(arr != nullptr) arr->AddRef();
+			offset_array[solt] = vs.offset;
+			element_array[solt] = vs.element_size;
+			auto ite = input_element.insert(input_element.end(), vs.layout.begin(), vs.layout.end());
+			for (; ite != input_element.end(); ++ite)
+				ite->InputSlot = static_cast<UINT>(solt);
+		}
+
+		void input_assember_d::set_index_implement(Implement::buffer_ptr bp, const index_scr& is)
+		{
+			index_ptr = bp;
+			offset = is.offset;
+			format = is.format;
+		}
+
+		namespace Implement
+		{
+			bool input_assember_resource_t::create_vertex_implement(Implement::buffer_ptr& bp, vertex_scr& scr, void* data, size_t ele, size_t num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool cpu_write)
+			{
+				Implement::buffer_ptr tem;
+				if (SUCCEEDED(create_buffer(res, tem,
+					(cpu_write ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE),
+					(cpu_write ? D3D11_CPU_ACCESS_WRITE : 0),
+					D3D11_BIND_VERTEX_BUFFER, data, static_cast<UINT>(ele * num), 0, 0)))
+				{
+					bp = tem;
+					scr.element_size = static_cast<UINT>(ele);
+					scr.num = num;
+					scr.offset = 0;
+					scr.layout = std::move(layout);
+					return true;
+				}
+				return false;
+			}
+
+			bool input_assember_resource_t::create_index_implement(Implement::buffer_ptr& bp, index_scr& scr, void* data, size_t size, size_t num, DXGI_FORMAT DF, bool cpu_write)
+			{
+				Implement::buffer_ptr tem;
+				if (SUCCEEDED(create_buffer(res, tem,
+					(cpu_write ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE),
+					(cpu_write ? D3D11_CPU_ACCESS_WRITE : 0),
+					D3D11_BIND_INDEX_BUFFER, data, static_cast<UINT>(size * num), 0, 0))
+					)
+				{
+					bp = tem;
+					scr.format = DF;
+					scr.num = num;
+					scr.offset = 0;
+					return true;
+				}
+				return false;
+			}
+
+			bool input_assember_resource_t::update_layout(input_assember_d& iad, const vertex_shader_d& vs)
+			{
+				if (res == nullptr) return false;
+				Implement::layout_ptr lp;
+				if (SUCCEEDED(res->CreateInputLayout(iad.input_element.data(), static_cast<UINT>(iad.input_element.size()), vs.code, static_cast<UINT>(vs.code.size()), &lp)))
+				{
+					iad.layout = lp;
+					return true;
+				}
+				return false;
+			}
+
+			bool shader_resource_t::create_shader(vertex_shader_d& vsd, binary b)
+			{
+				if (res == nullptr) return false;
+				Implement::vshader_ptr tem;
+				size_t s = b.size();
+				if (SUCCEEDED(res->CreateVertexShader(b, static_cast<UINT>(b.size()), nullptr, &tem)))
+				{
+					vsd.ptr = tem;
+					vsd.code = std::move(b);
+					return true;
+				}
+				return false;
+			}
+
+			bool shader_resource_t::create_shader(pixel_shader_d& vsd, const binary& b)
+			{
+				if (res == nullptr) return false;
+				Implement::pshader_ptr tem;
+				if (SUCCEEDED(res->CreatePixelShader(b, static_cast<UINT>(b.size()), nullptr, &tem)))
+				{
+					vsd.ptr = tem;
+					return true;
+				}
+				return false;
+			}
+
+			bool output_merge_resource_t::create_render_view_ms(texture<2, texture_render_scr>& t, const texture_ptr_t<2>& p, size_t array_strat, size_t array_count)
+			{
+				if (texture_ptr_type<2>::create_ms_RTV(res, std::get<texture_render_scr>(t.scription).view, p, array_strat, array_count, false))
+					return (t.ptr = p, true);
+				return false;
+			}
+
+			bool output_merge_resource_t::create_render_view_ms(texture<2, texture_render_scr>& t, const texture_ptr_t<2>& p)
+			{
+				if (texture_ptr_type<2>::create_ms_RTV(res, std::get<texture_render_scr>(t.scription).view, p, 0, 0, true))
+					return (t.ptr = p, true);
+				return false;
+			}
+
+			bool output_merge_resource_t::create_depth_view_ms(texture<2, texture_depth_scr>& t, const texture_ptr_t<2>& p, bool dr, bool sr, size_t array_strat, size_t array_count)
+			{
+				if (texture_ptr_type<2>::create_ms_DSV(res, std::get<texture_depth_scr>(t.scription).view, p, dr, sr, array_strat, array_count, false))
+					return (t.ptr = p, true);
+				return false;
+			}
+	
+			bool output_merge_resource_t::create_depth_view_ms(texture<2, texture_depth_scr>& t, const texture_ptr_t<2>& p, bool dr, bool sr)
+			{
+				if (texture_ptr_type<2>::create_ms_DSV(res, std::get<texture_depth_scr>(t.scription).view, p, dr, sr, 0, 0, true))
+					return (t.ptr = p, true);
+				return false;
+			}
+
+			bool input_assember_context_t::bind(input_assember_d& id)
+			{
+				if (cp == nullptr) return false;
+				if (id.layout == nullptr) return false;
+				cp->IASetInputLayout(id.layout);
+				cp->IASetPrimitiveTopology(id.primitive);
+				cp->IASetVertexBuffers(0, static_cast<UINT>(id.vertex_array.size()), id.vertex_array.data(), id.element_array.data(), id.offset_array.data());
+				cp->IASetIndexBuffer(id.index_ptr, id.format, id.offset);
+				if (id.vertex_array.size() > max_buffer_solt)
+					max_buffer_solt = id.vertex_array.size();
+				return true;
+			}
+
+			bool input_assember_context_t::rebind_layout(Implement::layout_ptr lp) 
+			{ 
+				if (cp == nullptr || lp == nullptr) return false; 
+				cp->IASetInputLayout(lp);
+				return true;
+			}
+
+			void input_assember_context_t::unbind()
+			{
+				if (cp == nullptr) return;
+				static std::array<ID3D11Buffer*, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> null_array = {};
+				static std::array<UINT, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> index_array = {};
+				cp->IASetInputLayout(nullptr);
+				cp->IASetVertexBuffers(0, static_cast<UINT>(max_buffer_solt), null_array.data(), index_array.data(), index_array.data());
+				cp->IASetIndexBuffer(nullptr, DXGI_FORMAT::DXGI_FORMAT_A8_UNORM, 0);
+				max_buffer_solt = 0;
+			}
+
+			bool vertex_shader_context_t::bind(const vertex_shader_d& vs)
+			{
+				if (cp == nullptr || vs.ptr == nullptr) return false;
+				cp->VSSetShader(vs.ptr, nullptr, 0);
+				return true;
+			}
+
+			void vertex_shader_context_t::unbind()
+			{
+				cp->VSSetShader(nullptr, nullptr, 0);
+			}
+
+			bool pixel_shader_context_t::bind(const pixel_shader_d& vs)
+			{
+				if (cp == nullptr || vs.ptr == nullptr) return false;
+				cp->PSSetShader(vs.ptr, nullptr, 0);
+				return true;
+			}
+
+			void pixel_shader_context_t::unbind()
+			{
+				if (cp == nullptr) return;
+				cp->PSSetShader(nullptr, nullptr, 0);
+			}
+
+			bool output_merge_context_t::bind(const output_merge_d& od)
+			{
+				if (cp == nullptr) return false;
+				cp->OMSetRenderTargets(static_cast<UINT>(od.render_array.size()), od.render_array.data(), od.depth);
+				if (max_size < od.render_array.size())
+					max_size = od.render_array.size();
+				return true;
+			}
+
+			void output_merge_context_t::unbind()
+			{
+				if (cp == nullptr) return;
+				static std::array<ID3D11RenderTargetView*, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> view_array = {};
+				cp->OMSetRenderTargets(static_cast<UINT>(max_size), view_array.data(), nullptr);
+				max_size = 0;
+			}
+
+			bool draw_range_context_t::draw(const draw_range_d& d)
+			{
+				if (cp == nullptr || !d.vertex) return false;
+				if (d.index)
+				{
+					if (d.instance)
+						cp->DrawIndexedInstanced(d.index.count(), d.instance.count(), d.index.at(), d.vertex.at(), d.instance.at());
+					else
+						cp->DrawIndexed(d.index.count(), d.index.at(), d.vertex.at());
+				}
+				else if (d.instance)
+					cp->DrawInstanced(d.vertex.count(), d.instance.count(), d.vertex.at(), d.instance.at());
+				else
+					cp->Draw(d.vertex.count(), d.vertex.at());
+				return true;
+			}
+
+		}
+		
+
+		/*
+		bool vertex_factor::bind(Implement::resource_ptr& r)
+		{
+			std::for_each(vertex_ptr.begin(), vertex_ptr.end(), [](ID3D11Buffer*& ptr) {if (ptr != nullptr) { ptr->Release(); ptr = nullptr; } });
+			vertex_ptr.clear(); vertex_offset.clear(); vertex_element.clear(); vertex_input_element.clear();
+			vertex_layout = nullptr;
+			index_ptr = nullptr;
+			vshader = nullptr;
+			gshader = nullptr;
+			rp = r;
+		}
+
+		vertex_factor::~vertex_factor()
+		{
+			for (auto& itr : vertex_ptr)
+				if (itr != nullptr)
+					itr->Release();
+		}
+
+		bool vertex_factor::create_index(void* data, size_t element_size, size_t s, DXGI_FORMAT fo, D3D11_USAGE usage_flag, UINT cpu_falg, UINT flag)
+		{
+			if (rp == nullptr) return false;
+			index_ptr = nullptr;
+			HRESULT re = create_buffer(rp, index_ptr, usage_flag, cpu_falg, flag | D3D11_BIND_INDEX_BUFFER, data, s,  )
+		}
+		*/
+
 		/*
 		namespace Purpose
 		{
@@ -196,71 +775,6 @@ namespace PO
 					cp->Draw(vertex_r.count, vertex_r.start);
 			}
 			return true;
-		}
-
-		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt)
-		{
-			Implement::resource_view_ptr ptr;
-			if (pt != nullptr)
-			{
-				D3D11_TEXTURE2D_DESC tem;
-				pt->GetDesc(&tem);
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
-				if ((tem.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) == D3D11_RESOURCE_MISC_TEXTURECUBE)
-				{
-					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-					SRVD.TextureCube = D3D11_TEXCUBE_SRV{ 0 ,  tem.MipLevels };
-				}
-				else if (tem.ArraySize > 1)
-				{
-					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-					SRVD.Texture2DArray = D3D11_TEX2D_ARRAY_SRV{ 0,  tem.MipLevels , 0, tem.ArraySize };
-				}
-				else {
-					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-					SRVD.Texture2D = D3D11_TEX2D_SRV{ 0,  tem.MipLevels };
-				}
-				HRESULT re = rp->CreateShaderResourceView(pt, &SRVD, &ptr);
-				volatile int i = 0;
-			}
-			return ptr;
-		}
-
-		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture1D_ptr& pt)
-		{
-			Implement::resource_view_ptr ptr;
-			if (pt != nullptr)
-			{
-				D3D11_TEXTURE1D_DESC tem;
-				pt->GetDesc(&tem);
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
-				if (tem.ArraySize > 1)
-				{
-					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-					SRVD.Texture1DArray = D3D11_TEX1D_ARRAY_SRV{ 0,  tem.MipLevels , 0, tem.ArraySize };
-				}
-				else {
-					SRVD.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-					SRVD.Texture1D = D3D11_TEX1D_SRV{ 0,  tem.MipLevels };
-				}
-				rp->CreateShaderResourceView(pt, &SRVD, &ptr);
-			}
-			return ptr;
-		}
-
-		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture3D_ptr& pt)
-		{
-			Implement::resource_view_ptr ptr;
-			if (pt != nullptr)
-			{
-				D3D11_TEXTURE3D_DESC tem;
-				pt->GetDesc(&tem);
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRVD{ tem.Format };
-				SRVD.ViewDimension = D3D11_SRV_DIMENSION::D3D10_1_SRV_DIMENSION_TEXTURE3D;
-				SRVD.Texture3D = D3D11_TEX3D_SRV{ 0, tem.MipLevels };
-				rp->CreateShaderResourceView(pt, &SRVD, &ptr);
-			}
-			return ptr;
 		}
 
 		void material::bind(Implement::resource_ptr& r)

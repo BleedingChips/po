@@ -66,6 +66,7 @@ namespace PO
 		return std::u16string(reinterpret_cast<char16_t*>(&translate_char_buffer[0]));
 	}
 
+	/*
 	bool binary::load_file(std::u16string path)
 	{
 		ptr.reset();
@@ -83,5 +84,5 @@ namespace PO
 		}
 		return false;
 	}
-
+	*/
 }

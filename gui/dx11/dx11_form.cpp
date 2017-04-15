@@ -24,7 +24,7 @@ namespace PO
 				&dc
 			);
 			Win32::Error::fail_throw(re);
-
+			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),
 				(void **)&main_buffer));
@@ -61,6 +61,7 @@ namespace PO
 			viewport.TopLeftY = 0.0f;
 
 			dc->RSSetViewports(1, &viewport);
+			*/
 		}
 
 		void Dx11_form::tick(form_ticker& ft)
@@ -76,7 +77,13 @@ namespace PO
 			//swap->
 			//dc->ClearRenderTargetView(pView, color);
 		}
+
+		Dx11_ticker::Dx11_ticker(Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc) 
+		{
+
+		}
 		
+		/*
 		bool shader_loader::shader_loader_execute::operator()()
 		{
 			std::ifstream file(utf16_to_asc(path), std::ios::binary | std::ios::in);
@@ -94,6 +101,7 @@ namespace PO
 				set_bad();
 			return false;
 		}
+		*/
 		
 
 	}

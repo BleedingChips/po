@@ -465,7 +465,7 @@ namespace PO
 		public:
 			T& operator*() { return variant<T>::template cast<T>(); }
 			const T& operator*() const { return variant<T>::template cast<T>(); }
-			const T* operator->() const noexcept { return variant<T>::template cast_pointer<T>(); }
+			const T* operator->() const noexcept { return &(variant<T>::template cast<T>()); }
 			operator bool() const noexcept { return variant<T>::operator bool(); }
 
 			template<typename K>
@@ -516,83 +516,97 @@ namespace PO
 
 		namespace Implement
 		{
+			struct any_store_struct
+			{
+				std::vector<char> buffer;
+				template<typename T> T* alloc()
+				{
+					buffer.resize(sizeof(T) + alignof(T)- 1, 0);
+					return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(buffer.data()) + alignof(T)- 1) & ~(alignof(T)- 1));
+				}
+			};
+
 			struct any_interface
 			{
 				const std::type_info& info;
 				virtual ~any_interface() {}
 				any_interface(const std::type_info& ti) :info(ti) {}
-			};
-
-			template<typename T> struct any_implement_without_aligned : public any_interface, public T
-			{
-				template<typename ...AT> any_implement_without_aligned(AT&& ...at) : any_interface(typeid(T)), T(std::forward<AT>(at)...) {}
+				any_interface(const any_interface& ai) : info(ai.info) {}
+				virtual any_interface* clone(any_store_struct&) const = 0;
 			};
 
 			template<typename T>
-			struct alignas(std::alignment_of<T>::value) any_implement_aligned : public any_interface, public T
+			struct alignas(alignof(std::decay_t<T>) < 4 ? 0: alignof(std::decay_t<T>)) any_implement : public any_interface 
 			{
-				template<typename ...AT> any_implement_aligned(AT&& ...at) : any_interface(typeid(T)), T(std::forward<AT>(at)...) {}
+				
+				std::decay_t<T> data;
+				template<typename ...AT> any_implement(AT&& ...at) : any_interface(typeid(std::decay_t<T>)), data(std::forward<AT>(at)...) 
+				{
+					std::cout << typeid(std::decay_t<T>).name() << std::endl;
+				}
+				any_implement(const any_implement& ai) : any_interface(ai), std::decay_t<T>(ai) {}
+				any_interface* clone(any_store_struct& ass) const
+				{
+					any_implement<std::decay_t<T>>* ptr = ass.alloc<any_implement<std::decay_t<T>>>();
+					new (ptr) any_implement<std::decay_t<T>>{data};
+					return ptr;
+					/*
+					return statement_if<std::is_copy_constructible<std::decay_t<T>>::value>
+						(
+							[this](auto& ass, auto t) {
+						using type = typename std::decay_t<decltype(t)>::type;
+						any_implement<type>* ptr = ass.alloc<any_implement<type>>();
+						new (ptr) any_implement<type>{*this};
+						return ptr;
+					},
+							[](auto& ass, auto t) {return nullptr; },
+							ass, Tmp::itself<T>{}
+							);
+							*/
+				}
 			};
-
-			template<typename T> using any_implement = typename std::conditional_t< std::alignment_of<T>::value <= 4, Tmp::instant<any_implement_without_aligned>, Tmp::instant<any_implement_aligned>>::template in_t<T>;
 		}
 
 		//to do in c++ 17 : may be change to std::aligned_alloc or operator new (size_t ,.aligned)
 
 		class any
 		{
-			void* buffer = nullptr;
-			size_t buffer_size = 0;
+			Implement::any_store_struct ass;
 			Implement::any_interface* pointer = nullptr;
-
-			template<typename T> auto realloc()
-			{
-				if (pointer != nullptr)
-					pointer->~any_interface();
-				size_t require_size = std::alignment_of<T>::value + sizeof(T) - 1;
-				if (require_size > buffer_size)
-				{
-					std::free(buffer);
-					buffer = std::malloc(require_size);
-					if (buffer == nullptr)
-						throw std::bad_alloc{};
-					buffer_size = require_size;
-				}
-				T* ptr = reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(buffer) + std::alignment_of<T>::value - 1) & ~(std::alignment_of<T>::value - 1));
-				return ptr;
-			}
-
 		public:
 			operator bool() const noexcept {
 				return pointer != nullptr;
 			}
+
 			~any()
 			{
 				if (pointer != nullptr)
 					pointer->~any_interface();
-				std::free(buffer);
 			}
 			any() {}
-			any(any&& a) : buffer(a.buffer), buffer_size(a.buffer_size), pointer(a.pointer)
-			{
-				a.buffer = nullptr;
-				a.pointer = nullptr;
-				a.buffer_size = 0;
-			}
+			any(any&& a) :ass(std::move(a.ass)), pointer(a.pointer) { a.pointer = nullptr; }
 			template<typename T, typename ...AT>
 			any(Tmp::itself<T>, AT&&... at)
 			{
+				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
 				using any_type = Implement::any_implement<Tmp::pure_type<T>>;
-				any_type* ptr = realloc<any_type>();
+				any_type* ptr = ass.alloc<any_type>();
 				new (ptr) any_type{ std::forward<AT>(at)... };
 				pointer = ptr;
 			}
-			any(const any&) = delete;
 
-			template<typename T> any(T&& t)
+			any(const any& a)
 			{
-				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
-				any_type* ptr = realloc<any_type>();
+				if (a.pointer != nullptr)
+					pointer = a.pointer->clone(ass);
+			}
+
+			template<typename T, typename = std::enable_if_t<!std::is_same<std::decay_t<T>, any>::value && std::is_copy_constructible<std::decay_t<T>>::value>> any(T&& t)
+			{
+				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
+				using any_type = Implement::any_implement<std::decay_t<T>>;
+				std::cout << typeid(any_type).name() << std::endl;
+				any_type* ptr = ass.alloc<any_type>();
 				new (ptr) any_type{ std::forward<T>(t) };
 				pointer = ptr;
 			}
@@ -604,7 +618,7 @@ namespace PO
 
 			template<typename T, typename ...AT> void reconstruct(Tmp::itself<T>, AT&& ...at)
 			{
-				using any_type = Implement::any_implement<Tmp::pure_type<T>>;
+				using any_type = Implement::any_implement<std::decay_t<T>>;
 				any_type* ptr = realloc<any_type>();
 				new (ptr) any_type{ std::forward<AT>(at)... };
 				pointer = ptr;
@@ -615,45 +629,58 @@ namespace PO
 				any Tem(std::move(a));
 				if (pointer != nullptr)
 					pointer->~any_interface();
-				std::free(buffer);
-				buffer = Tem.buffer;
+				ass = std::move(Tem.ass);
 				pointer = Tem.pointer;
-				buffer_size = Tem.buffer_size;
-				Tem.buffer = nullptr;
-				Tem.buffer_size = 0;
 				Tem.pointer = nullptr;
 				return *this; 
 			}
 
-			any& operator=(const any&) = delete;
-			template<typename T> auto& operator=(T&& t)
+			any& operator=(const any& a)
 			{
-				using any_type = Implement::any_implement<std::remove_const_t<std::remove_reference_t<T>>>;
-				any_type* ptr = realloc<any_type>();
+				any Tem(a);
+				if(pointer!=nullptr)
+					pointer->~any_interface();
+				ass = std::move(Tem.ass);
+				pointer = Tem.pointer;
+				Tem.pointer = nullptr;
+				return *this;
+			}
+
+			template<typename T, typename = std::enable_if_t<!std::is_same<std::decay_t<T>, any>::value>> auto& operator=(T&& t)
+			{
+				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
+				using any_type = Implement::any_implement<std::decay_t<T>>;
+				if (pointer != nullptr)
+					pointer->~any_interface();
+				any_type* ptr = ass.alloc<any_type>();
 				new (ptr) any_type{ std::forward<T>(t) };
 				pointer = ptr;
 				return *this;
 			}
+
 			template<typename T> bool able_cast() const noexcept
 			{
 				if (pointer != nullptr)
 					return pointer->info == typeid(T);
 				return false;
 			}
+
 			template<typename T> T& cast()& noexcept
 			{
-				return *(static_cast<Implement::any_implement<T>*>(pointer));
+				return static_cast<Implement::any_implement<T>*>(pointer)->data;
 			}
+
 			template<typename T> const T& cast() const& noexcept
 			{
-				return *(static_cast<Implement::any_implement<T>*>(pointer));
+				return static_cast<Implement::any_implement<T>*>(pointer)->data;
 			}
 			template<typename T> T&& cast() && noexcept
 			{
-				return *(static_cast<Implement::any_implement<T>*>(pointer));
+				return static_cast<Implement::any_implement<T>*>(pointer)->data;
 			}
 		};
 
+		/*
 		template<typename T> class any_interface
 		{
 			any data;
@@ -693,6 +720,7 @@ namespace PO
 				inter = &data.cast<Tmp::pure_type<K>>();
 			}
 		};
+		*/
 
 	} 
 }

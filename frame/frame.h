@@ -8,6 +8,7 @@
 #include <typeindex>
 #include <map>
 #include <memory>
+#include <fstream>
 namespace PO
 {
 	namespace Implement
@@ -23,25 +24,35 @@ namespace PO
 		template<typename ticker_t> class plugin_append;
 	}
 
-	/*
-	class io_operator
+	class io_method;
+
+	struct io_block
 	{
-		Tool::thread_task_operator ope;
+		io_method& metho;
+		const std::u16string& path;
+		const std::u16string& name;
+		std::fstream& stream;
+		const Tool::any& parameter;
+	};
 
-		struct request
+	class io_method
+	{
+	public:
+
+		struct block
 		{
-			std::u16string path;
-			std::u16string name;
-			bool save_raw_data;
-		};
 
-		struct function_block
-		{
-			std::function<Tool::any(std::fstream f, control_block)> analyze_stream;
-			//std::function<std::u16string(std::)>
-		};
+			using analyze_t = std::function<Tool::any(io_block)>;
+			using filter_t = std::function<std::fstream(const std::u16string&, const std::u16string&)>;
+			using pair_t = std::pair<filter_t, analyze_t>;
+			using d_filter_t = std::function<Tool::any(io_method& ,const std::u16string&, const std::u16string&, const Tool::any&)>;
 
-		std::map<std::type_index, std::function<Tool::any(control_block, io_operator&)>> method;
+			Tool::variant<pair_t, analyze_t, d_filter_t> method;
+
+			static std::fstream default_filter(const std::u16string& path, const std::u16string& name);
+
+			Tool::optional<Tool::any> operator()(io_method& iom, const std::u16string& path, const std::u16string& name, const Tool::any& a);
+		};
 
 		struct path_list
 		{
@@ -49,24 +60,71 @@ namespace PO
 			std::map<std::type_index, std::vector<std::u16string>> type_path;
 		};
 
-		Tool::scope_lock<path_list> paths;
+	private:
+
+		Tool::scope_lock<std::map<std::type_index, block>, std::recursive_mutex> fun_map;
+		Tool::scope_lock<path_list, std::recursive_mutex> paths;
+
 	public:
-		std::fstream find_fstream(std::type_index ti, std::u16string path);
+		Tool::optional<Tool::any> calling_specified_path_execute(std::type_index ti, const std::u16string&, const std::u16string&, const Tool::any& a);
+		Tool::optional<Tool::any> calling_execute(std::type_index ti, const std::u16string&, const Tool::any& a);
+		void set_function(std::type_index ti, block b);
+		void set_function(std::type_index ti, block::analyze_t analyze) { set_function(ti, block{ std::move(analyze) }); }
+		void set_function(std::type_index ti, block::analyze_t analyze, block::filter_t filter) { set_function(ti, block{ std::make_pair(std::move(filter), std::move(analyze)) }); }
+		void set_function(std::type_index ti, block::d_filter_t d) { set_function(ti, block{ d }); }
+		void add_path(std::type_index ti, std::u16string pa);
+		void add_path(std::u16string pa);
+		void add_path(std::initializer_list<std::u16string> pa);
+		void add_path(std::initializer_list<std::pair<std::type_index, std::u16string>> pa);
+		void add_path(std::type_index ti, std::initializer_list<std::u16string> pa);
 	};
 
-	class io_manager
+
+	namespace Implement
 	{
-	public:
-	};
-	*/
-
+		class io_task_implement
+		{
+			Tool::thread_task_operator ope;
+			io_method method;
+			Tool::completeness_ref cr;
+		public:
+			void set_function(std::type_index ti, io_method::block b) { method.set_function(ti, std::move(b)); }
+			void set_function(std::type_index ti, io_method::block::analyze_t analyze) { method.set_function(ti, io_method::block{ std::move(analyze) }); }
+			void set_function(std::type_index ti, io_method::block::analyze_t analyze, io_method::block::filter_t filter) { method.set_function(std::move(ti), io_method::block{ std::make_pair(std::move(filter), std::move(analyze)) }); }
+			void set_function(std::type_index ti, io_method::block::d_filter_t filter) { method.set_function(std::move(ti), io_method::block{  std::move(filter) }); }
+			void add_path(std::type_index ti, std::u16string pa) { method.add_path(ti, std::move(pa)); }
+			void add_path(std::u16string pa) { method.add_path(std::move(pa)); }
+			void add_path(std::initializer_list<std::u16string> pa) { method.add_path(std::move(pa)); }
+			void add_path(std::initializer_list<std::pair<std::type_index, std::u16string>> pa) { method.add_path(std::move(pa)); }
+			void add_path(std::type_index ti, std::initializer_list<std::u16string> pa) { method.add_path(ti, std::move(pa)); }
+			std::future<Tool::optional<Tool::any>> add_request(std::type_index ti, std::u16string pa, Tool::any a);
+			decltype(auto) request(std::type_index ti, const std::u16string& pa, const Tool::any& a) { return method.calling_execute(ti, pa, a); }
+			io_task_implement(Tool::completeness_ref rf) :cr(rf) {}
+		};
+	}
+	
+	using io_task = Tool::completeness<Implement::io_task_implement>;
+	io_task& io_task_instance();
 
 	class raw_scene
 	{
+		struct request
+		{
+			std::type_index ti;
+			std::u16string path;
+			bool save_raw_data;
+		};
+
 		// make Tool::any(Tool::any&)
-		Tool::scope_lock<std::map<std::type_index, std::unordered_map<std::u16string, Tool::variant<std::shared_ptr<Tool::any>, std::future<Tool::any>>>>> store_map;
+		using store_type = Tool::variant<Tool::any, std::future<Tool::optional<Tool::any>>>;
+		Tool::scope_lock<std::map<std::type_index, std::map<std::u16string, store_type>>> store_map;
 	public:
-		std::shared_ptr<Tool::any> find(std::type_index, std::u16string, bool);
+		Tool::optional<Tool::any> find(std::type_index, const std::u16string&, const Tool::any& , bool save_data = true);
+		Tool::optional<Tool::any> find(std::type_index ti, const std::u16string& name, bool save_data = true) { return find(ti, name, Tool::any{}, save_data); }
+		void pre_load(std::type_index, const std::u16string& path, Tool::any a);
+		void pre_load(std::type_index ti, const std::u16string& path) { pre_load(ti, path, Tool::any{}); }
+		void pre_load(std::type_index, std::initializer_list<std::pair<std::u16string, Tool::any>> path);
+		void pre_load(std::type_index, std::initializer_list<std::u16string> path);
 	};
 
 
@@ -206,7 +264,7 @@ namespace PO
 		time_calculator record;
 		Tool::completeness_ref cr;
 		std::atomic_bool available;
-		Implement::thread_task_runer ttr;
+		//Implement::thread_task_runer ttr;
 
 		template<typename frame> friend struct Implement::form_packet;
 		template<typename ticker_t> friend class Implement::plugin_append;
@@ -228,7 +286,7 @@ namespace PO
 	public:
 
 		virtual Respond respond_event(event& f) = 0;
-		bool push_task(std::weak_ptr<thread_task> task) { return ttr.push_task(std::move(task)); }
+		//bool push_task(std::weak_ptr<thread_task> task) { return ttr.push_task(std::move(task)); }
 		operator bool() const noexcept { return available; }
 		operator const Tool::completeness_ref&() const { return cr; }
 		void close() { available = false; }

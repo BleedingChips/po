@@ -28,6 +28,7 @@ struct texcoord
 	const char* operator()() { return "TEXCOORD"; }
 };
 
+/*
 PO::Tool::variant<Implement::texture1D_ptr, Implement::texture2D_ptr, Implement::texture3D_ptr> 
 load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::purpose bp)
 {
@@ -105,7 +106,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::pu
 	}
 	return{};
 }
-
+*/
 Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, 
 	const PO::Tool::variant<Implement::texture1D_ptr, Implement::texture2D_ptr, Implement::texture3D_ptr>& v
 )
@@ -118,6 +119,24 @@ Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp,
 		return PO::Dx11::cast_resource(rp, v.cast<Implement::texture1D_ptr>());
 	return Implement::resource_view_ptr{};
 }
+
+struct start_init
+{
+	start_init()
+	{
+		PO::io_task_instance().set_function(typeid(PO::binary), [](PO::io_block ib) -> PO::Tool::any {
+			if (!ib.stream.good())
+				__debugbreak();
+			ib.stream.seekg(0, std::ios::end);
+			auto end_poi = ib.stream.tellg();
+			ib.stream.seekg(0, std::ios::beg);
+			auto sta_poi = ib.stream.tellg();
+			PO::binary info {static_cast<size_t>(end_poi - sta_poi) };
+			ib.stream.read(info, end_poi - sta_poi);
+			return std::move(info);
+		});
+	}
+} init;
 
 struct int_detect
 {
@@ -152,24 +171,47 @@ uint16_t ind[] =
 	0, 1, 2, 2,3,0
 };
 
+void faile_break(bool i)
+{
+	if (!i)
+		__debugbreak();
+}
 
 void test_plugin::init(ticker& op)
 {
+	auto res = rs.find(typeid(PO::binary), u"base_vshader.cso", PO::Tool::any{});
+
+	faile_break(res && res->able_cast<PO::binary>());
+	faile_break(res && op.tick().res.SR.create_shader(vs, res->cast<PO::binary>()));
+
+	res = rs.find(typeid(PO::binary), u"base_pshader.cso", PO::Tool::any{});
+	faile_break(res && res->able_cast<PO::binary>());
+	faile_break(op.tick().res.SR.create_shader(ps, res->cast<PO::binary>()));
+
+	faile_break(op.tick().res.IA.create_vertex(iad, 0, poi, 4, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>>{}));
+	faile_break(op.tick().res.IA.create_index(iad, ind, 6));
+	faile_break(op.tick().res.IA.update_layout(iad, vs));
+
+
+	/*
 	pc.create_vertex(0, poi, 4, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>>{});
 	pc.create_index(ind, 6);
 	pc.set_index_range(0, 6);
 	pc.set_vertex_range(0, 4);
 	pc.load_vshader(u"vs.cso");
 	ma.load_p(u"ps.cso");
+	*/
 }
 
 
 
 void test_plugin::tick(ticker& op)
 {
+	/*
 	pc.apply(op.tick());
 	ma.apply(op.tick());
 	pc.draw(op.tick());
+	*/
 
 
 

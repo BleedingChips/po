@@ -3,6 +3,7 @@
 #include "../../../gui/dx11/plugin/view_matrix.h"
 struct simul_debug
 {
+	/*
 	pixel_creater pc;
 	material m;
 	pixel_state ps;
@@ -25,6 +26,7 @@ struct simul_debug
 
 	PO::Dx11::view_matrix vm;
 	buffer b;
+	*/
 
 	simul_debug() {}
 	void init(ticker& t);

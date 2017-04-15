@@ -80,7 +80,6 @@ struct Data2
 	Data op = { 1,2 };
 };
 
-
 int main()
 
 {
@@ -111,7 +110,7 @@ int main()
 	fo.lock_if(
 		[](auto& ui)
 	{
-		ui.create_plugin(PO::plugin_type<simul_debug>{});
+		ui.create_plugin(PO::plugin_type<test_plugin>{});
 	}
 	);
 	con.wait_all_form_close();
