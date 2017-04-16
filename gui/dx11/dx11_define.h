@@ -45,9 +45,55 @@ namespace PO
 			using blend_state_ptr = CComPtr<ID3D11BlendState>;
 			using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
 
-			HRESULT create_texture_implement(resource_ptr& cp, texture1D_ptr& t, size_t w, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, UINT mis);
-			HRESULT create_texture_implement(resource_ptr& cp, texture2D_ptr& t, size_t w, size_t h, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, UINT mis);
+			UINT translate_usage_to_cpu_flag(D3D11_USAGE DU);
+
+
+			struct tex1_size
+			{
+				DXGI_FORMAT DF;
+				size_t w;
+				size_t count = 1;
+				size_t miplevel = 1;
+			};
+
+			struct tex2_size
+			{
+				DXGI_FORMAT DF;
+				size_t w;
+				size_t h;
+				size_t count = 1;
+				size_t miplevel = 1;
+			};
+
+			struct tex3_size
+			{
+				DXGI_FORMAT DF;
+				size_t w;
+				size_t h;
+				size_t z;
+				size_t miplevel = 1;
+			};
+
+			struct tex_sample
+			{
+				size_t num = 1;
+				size_t quality = 0;
+			};
+
+			struct res_usagne
+			{
+				D3D11_USAGE usage;
+				UINT cpu_bind;
+				UINT bind_flag;
+				UINT mis;
+			};
+
 			bool avalible_depth_texture_format(DXGI_FORMAT DF);
+
+			HRESULT create_texture_implement(resource_ptr& cp, texture1D_ptr& t, const tex1_size& size, const res_usagne& ru, void** data);
+			HRESULT create_texture_implement(resource_ptr& cp, texture2D_ptr& t, const tex2_size& size, const tex_sample& ts, const res_usagne& ru, void** data, size_t* line);
+			HRESULT create_texture_implement(resource_ptr& cp, texture3D_ptr& t, const tex3_size& size, const res_usagne& ru, void* data, size_t line, size_t slice);
+			
 		}
 
 		
@@ -133,33 +179,6 @@ namespace PO
 			~input_assember_d();
 		};
 
-		namespace Implement
-		{
-
-			template<size_t i> struct texture_ptr_type { static_assert(i > 0 && i < 4, "texture only receive 1,2,3"); };
-			template<> struct texture_ptr_type<1> 
-			{ 
-				using type = Implement::texture1D_ptr;
-				//using des_type = D3D11_TEXTURE1D_DESC;
-				static bool create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range);
-				static bool create_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t mipslice, size_t array_start, size_t array_count, bool all_range);
-				static bool create(Implement::resource_ptr& cp, type& t, size_t w, size_t h, size_t d)
-			};
-			template<> struct texture_ptr_type<2> 
-			{ 
-				using type = Implement::texture2D_ptr; 
-				static bool create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range);
-				static bool create_ms_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t array_start, size_t array_count, bool all_range);
-				static bool create_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t mipslice, size_t array_start, size_t array_count, bool all_range);
-				static bool create_ms_DSV(Implement::resource_ptr& cp, Implement::depth_stencil_view_ptr& dsv, const type& t, bool dr, bool sr, size_t array_start, size_t array_count, bool all_range);
-			};
-			template<> struct texture_ptr_type<3>
-			{ 
-				using type = Implement::texture3D_ptr; 
-				static bool create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range);
-			};
-			template<size_t i> using texture_ptr_t = typename texture_ptr_type<i>::type;
-		}
 
 		using texture1 = Implement::texture1D_ptr;
 		using texture2 = Implement::texture2D_ptr;
@@ -167,6 +186,32 @@ namespace PO
 
 		using render_target_v = Implement::render_view_ptr;
 		using depth_stencil_v = Implement::depth_stencil_view_ptr;
+
+		enum class DST_format
+		{
+			D16,
+			D24_UI8,
+			F32,
+			F32_UI8,
+			UNKNOW
+		};
+
+		inline DXGI_FORMAT translate_depth_stencil_format_to_dxgi_format(DST_format dsf)
+		{
+			switch (dsf)
+			{
+			case DST_format::D16:
+				return DXGI_FORMAT_D16_UNORM;
+			case DST_format::D24_UI8:
+				return DXGI_FORMAT_D24_UNORM_S8_UINT;
+			case DST_format::F32:
+				return DXGI_FORMAT_D32_FLOAT;
+			case DST_format::F32_UI8:
+				return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			default:
+				return DXGI_FORMAT_UNKNOWN;
+			}
+		}
 
 		struct shader_d
 		{
@@ -339,14 +384,26 @@ namespace PO
 					ReadOnly read_only = ReadOnly::NONE;
 				};
 
+				bool create_depth_tex1(DST_format DF, size_t w, size_t count, size_t mip, void** data);
+				bool create_depth_tex1(DST_format DF, size_t w, size_t mip, void* data);
+				bool create_depth_tex1_same_size_form(DST_format DF, const texture1&);
+				bool create_depth_tex2(DST_format DF, size_t w, size_t h, size_t count, size_t mip, void** data, size_t* len);
+				bool create_depth_tex2(DST_format DF, size_t w, size_t h, size_t mip, void* data, size_t len);
+				bool create_depth_tex2_same_size_form(DST_format DF, const texture2&);
+
+				bool create_render_target_tex1(DXGI_FORMAT DF, size_t w, size_t count, size_t mip, void** data);
+				bool create_depth_texture1(DST_format DF, size_t w, size_t mip, void* data);
+
 				bool create_render_target_view(render_target_v& rtv, const texture1&, const RTV_capture&);
 				bool create_render_target_view(render_target_v& rtv, const texture2&, const RTV_capture&);
 				bool create_render_target_view_ms(render_target_v& rtv, const texture2&, const RTV_capture::MS&);
 				bool create_render_target_view(render_target_v& rtv, const texture3&, const RTV_capture&);
 
-				bool create_depth_stencil_view(render_target_v& rtv, const texture1&, const RTV_capture&);
-				bool create_depth_stencil_view(render_target_v& rtv, const texture2&, const RTV_capture&);
-				bool create_depth_stencil_view_ms(render_target_v& rtv, const texture2&, const RTV_capture::MS&);
+				bool create_depth_stencil_view(render_target_v& rtv, const texture1&, const DSV_capture&);
+				bool create_depth_stencil_view(render_target_v& rtv, const texture2&, const DSV_capture&);
+				bool create_depth_stencil_view_ms(render_target_v& rtv, const texture2&, const DSV_capture::MS&);
+
+				//bool create_texture()
 
 				/*
 				template<size_t i>

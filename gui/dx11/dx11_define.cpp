@@ -9,6 +9,23 @@ namespace PO
 
 		namespace Implement
 		{
+
+			UINT translate_usage_to_cpu_flag(D3D11_USAGE DU)
+			{
+				switch (DU)
+				{
+				case D3D11_USAGE_DEFAULT:
+					return 0;
+				case D3D11_USAGE_IMMUTABLE:
+					return 0;
+				case D3D11_USAGE_DYNAMIC:
+					return D3D11_CPU_ACCESS_WRITE;
+				case D3D11_USAGE_STAGING:
+					return D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+				}
+				return 0;
+			}
+
 			HRESULT create_buffer(Implement::resource_ptr& rp, Implement::buffer_ptr& ptr, D3D11_USAGE usage, UINT cpu_flag, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides)
 			{
 				D3D11_BUFFER_DESC DBD
@@ -23,30 +40,50 @@ namespace PO
 				D3D11_SUBRESOURCE_DATA DSD{ data, 0, 0 };
 				return rp->CreateBuffer(&DBD, ((data == nullptr) ? nullptr : &DSD), &ptr) == S_OK;
 			}
-			
-			HRESULT create_texture_implement(resource_ptr& cp, texture1D_ptr& t, size_t w, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, bool cpu_r, UINT mis)
-			{
-				if (cp == nullptr) return false;
-				D3D11_TEXTURE1D_DESC DTD
-				{
-					static_cast<UINT>(w),
-					static_cast<UINT>(miplevel),
-					static_cast<UINT>(s),
-					DF,
-					DU,
-					BIND,
-					(cpu_w ? D3D11_CPU_ACCESS_WRITE : 0) | (cpu_r ? D3D11_CPU_ACCESS_READ : 0),
-					mis
-				};
-				Implement::texture1D_ptr tp;
-				if (data == nullptr)
-				{
-					cp->CreateTexture1D(&DTD, nullptr, )
-				}
-				D3D11_SUBRESOURCE_DATA 
 				
+			static Tool::scope_lock<std::vector<D3D11_SUBRESOURCE_DATA>> subresource_buffer;
+
+			HRESULT create_texture_implement(resource_ptr& cp, texture1D_ptr& t, const tex1_size& size, const res_usagne& ru, void** data)
+			{
+				if (cp == nullptr || size.count == 0) return E_INVALIDARG;
+				D3D11_TEXTURE1D_DESC DTD{ static_cast<UINT>(size.w), static_cast<UINT>(size.miplevel), static_cast<UINT>(size.count),
+					size.DF, ru.usage, ru.bind_flag, ru.cpu_bind, ru.mis
+				};
+				if(data == nullptr) return cp->CreateTexture1D(&DTD, nullptr, &t);
+				return subresource_buffer.lock([&](decltype(subresource_buffer)::type& buffer){
+					buffer.resize(size.count);
+					for (size_t i = 0; i < size.count; ++i)
+						buffer[i] = D3D11_SUBRESOURCE_DATA{ data[i] };
+					return cp->CreateTexture1D(&DTD, buffer.data(), &t);
+				});
 			}
-			HRESULT create_texture_implement(resource_ptr& cp, texture2D_ptr& t, size_t w, size_t h, size_t s, void* data, DXGI_FORMAT DF, size_t miplevel, D3D11_USAGE DU, UINT BIND, bool cpu_w, UINT mis);
+
+			HRESULT create_texture_implement(resource_ptr& cp, texture2D_ptr& t, const tex2_size& size, const tex_sample& ts, const res_usagne& ru, void** data, size_t* line)
+			{
+				if (cp == nullptr || size.count == 0) return E_INVALIDARG;
+				D3D11_TEXTURE2D_DESC DTD{ static_cast<UINT>(size.w), static_cast<UINT>(size.h), static_cast<UINT>(size.miplevel), static_cast<UINT>(size.count),
+					size.DF, DXGI_SAMPLE_DESC{static_cast<UINT>(ts.num), static_cast<UINT>(ts.quality)},
+					ru.usage, ru.bind_flag, ru.cpu_bind, ru.mis
+				};
+				if (data == nullptr) return cp->CreateTexture2D(&DTD, nullptr, &t);
+				return subresource_buffer.lock([&](decltype(subresource_buffer)::type& buffer) {
+					buffer.resize(size.count);
+					for (size_t i = 0; i < size.count; ++i)
+						buffer[i] = D3D11_SUBRESOURCE_DATA{ data[i], line[i] };
+					return cp->CreateTexture2D(&DTD, buffer.data(), &t);
+				});
+			}
+
+			HRESULT create_texture_implement(resource_ptr& cp, texture3D_ptr& t, const tex3_size& size, const res_usagne& ru, void* data, size_t line, size_t slice)
+			{
+				if (cp == nullptr) return E_INVALIDARG;
+				D3D11_TEXTURE3D_DESC DTD{ static_cast<UINT>(size.w), static_cast<UINT>(size.h), static_cast<UINT>(size.miplevel), static_cast<UINT>(size.z),
+					size.DF, ru.usage, ru.bind_flag, ru.cpu_bind, ru.mis
+				};
+				if (data == nullptr) return cp->CreateTexture3D(&DTD, nullptr, &t);
+				D3D11_SUBRESOURCE_DATA DSD{ data, line, slice };
+				return cp->CreateTexture3D(&DTD, &DSD, &t);
+			}
 			
 			bool avalible_depth_texture_format(DXGI_FORMAT DF)
 			{
@@ -63,17 +100,6 @@ namespace PO
 				}
 			}
 		}
-
-
-
-
-
-
-
-
-
-
-
 		
 
 		Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp, const Implement::texture2D_ptr& pt)
@@ -143,6 +169,7 @@ namespace PO
 
 		namespace Implement
 		{
+			/*
 			bool texture_ptr_type<1>::create_RTV(Implement::resource_ptr& cp, Implement::render_view_ptr& rvp, const type& t, size_t mipslice, size_t array_start, size_t array_count, bool all_range)
 			{
 				if (cp == nullptr || t == nullptr) return false;
@@ -297,6 +324,7 @@ namespace PO
 				RTVD.Texture3D = D3D11_TEX3D_RTV{ static_cast<UINT>(mipslice),  pair.first, pair.second };
 				return SUCCEEDED(cp->CreateRenderTargetView(t, &RTVD, &rvp));
 			}
+			*/
 		}
 
 		void output_merge_d::set_render_implement(size_t o, Implement::render_view_ptr rv)
