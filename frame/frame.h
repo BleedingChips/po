@@ -11,6 +11,82 @@
 #include <fstream>
 namespace PO
 {
+
+	struct form_control
+	{
+
+	};
+
+	template<typename T, typename T> struct plugins;
+
+	template<typename renderer_t = void, typename viewer_t = void>
+	struct self : virtual self<void, void>, self<renderer_t, void>, self<void, viewer_t>
+	{
+		std::function<void(self<renderer_t, viewer_t>&, form_control&, viewer_t&, renderer_t&, plugins<renderer_t, viewer_t>&)> init_function;
+		std::function<void(self<renderer_t, viewer_t>&, form_control&, viewer_t&, renderer_t&, plugins<renderer_t, viewer_t>&, duration da)> init_function;
+		virtual void bind_implement(std::function<void(form_control&, viewer_t&, renderer_t&, plugins<renderer_t, viewer_t>&)>);
+	};
+
+	template<> struct self<void, void>
+	{
+		virtual void bind_implement(std::function<void(self<void, void>& s, form_control&, plugins<void, void>&)>);
+	};
+
+	template<typename renderer_t> struct self<renderer_t, void> : virtual self<void, void>
+	{
+		virtual void bind_implement(std::function<void(form_control&, renderer_t&, plugins<renderer_t, void>&)>);
+	};
+
+	template<typename viewer_t> struct self<void, viewer_t> : virtual self<void, void>
+	{
+		virtual void bind_implement(std::function<void(form_control&, renderer_t&, plugins<renderer_t, void>&)>);
+	};
+
+
+
+	namespace Implement
+	{
+		template<typename form_t> class viewer_implement
+		{
+			template<typename T> static auto func(decltype(std::declval<T>().viewer())*) -> decltype(std::declval<form_t>().viewer());
+			template<typename T> static form_control func(...);
+		public:
+			using type = decltype(func<form_t>(nullptr));
+		};
+	}
+
+	template<typename form_t> using viewer = typename Implement::viewer_implement<form_t>::type;
+
+	struct plugins_tl
+	{
+
+	};
+
+	template<typename form_t, typename renderer_t>
+	struct plugins : public plugins_tl
+	{
+
+	};
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	namespace Implement
 	{
 		template<typename T> class plugin_interface;
