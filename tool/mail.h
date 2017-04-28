@@ -62,8 +62,6 @@ namespace PO
 			}
 		}*/
 
-
-		/*
 		namespace Assistant
 		{
 			template<typename target_type> struct mail_create_funtion_ptr_execute;
@@ -511,6 +509,5 @@ namespace PO
 			}
 
 		};
-		*/
 	}
 }

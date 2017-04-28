@@ -73,14 +73,14 @@ namespace PO
 			float a2 = abs(sin(all_time * 0.001f * 2));
 			float a3 = abs(sin(all_time * 0.001f * 3));
 			float color[4] = { a,a2,a3,1.0f };
-			swap->Present(0, 0);
+			//swap->Present(0, 0);
 			//swap->
 			//dc->ClearRenderTargetView(pView, color);
 		}
 
 		Dx11_ticker::Dx11_ticker(Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc) 
 		{
-
+			if (!SUCCEEDED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer))) __debugbreak();
 		}
 		
 		/*

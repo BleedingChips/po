@@ -680,6 +680,31 @@ namespace PO
 			}
 		};
 
+		template<typename T> struct align_store
+		{
+			std::aligned_union_t<1, T> data;
+			template<typename ...AT> align_store(AT&&... at) { new (data) T(std::forward<AT>(at)...); }
+			~align_store() { reinterpret_cast<T*>(data)->~T(); }
+			T* operator->() {
+				return reinterpret_cast<T*>(data);
+			}
+			const T* operator->() const {
+				return reinterpret_cast<T*>(data);
+			}
+			T& operator*() {
+				return (*reinterpret_cast<T*>(data));
+			}
+			const T* operator*() const {
+				return (*reinterpret_cast<T*>(data));
+			}
+			operator T&() {
+				return (*reinterpret_cast<T*>(data));
+			}
+			operator const T& () const{
+				return (*reinterpret_cast<T*>(data));
+			}
+		};
+
 		/*
 		template<typename T> class any_interface
 		{

@@ -1,7 +1,9 @@
 #pragma once
 #include "form_define.h"
-#include "../../../gui/dx11/dx11_define.h"
+#include "../../../gui/dx11/dx11_pipeline.h"
 #include <DirectXTex.h>
+#include "../../../tool/mail.h"
+#include "../../../gui/dx/move_style.h"
 using ticker = PO::ticker<PO::Dx11::Dx11_ticker>;
 using conveyer = PO::conveyer<PO::Dx11::Dx11_ticker>;
 using namespace PO::Dx11;
@@ -25,22 +27,30 @@ struct test_plugin
 	constant_value cv;
 	*/
 
-	PO::raw_scene rs;
-	PO::Dx11::input_assember_d iad;
-	PO::Dx11::vertex_shader_d vs;
-	PO::Dx11::pixel_shader_d ps;
+	PO::raw_scene scene;
 
-	test_plugin()
-	{
-		rs.pre_load(
-			typeid(PO::binary), 
-			{
-				u"base_vshader.cso",
-				u"base_pshader.cso"
-			}
-		);
-	}
+	texture3D_ptr vt;
+	texture3D_ptr vt_shadow;
 
+	input_assember_d cube_ia_d;
+	vertex_shader_d cube_vs_d;
+
+	raterizer_d cube_ra_d;
+	pixel_shader_d cube_ps_d;
+	
+	output_merge_d cube_m;
+
+	input_assember_d frame_cube_ia_d;
+	pixel_shader_d frame_cube_ps_d;
+
+	alignas(alignof(movement_interpolation)) movement_interpolation inter;
+
+	float angle_a = 0.0, angle_b = 0.0, dis = 2.0;
+
+	test_plugin();
+
+
+	PO::Respond respond(conveyer& c);
 	void tick(ticker& t);
 
 	void init(ticker& t);

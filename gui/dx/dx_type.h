@@ -15,6 +15,8 @@ namespace PO
 		using uint32_t2 = DirectX::XMUINT2;
 		using uint32_t3 = DirectX::XMUINT3;
 		using uint32_t4 = DirectX::XMUINT4;
+		using matrix = DirectX::XMMATRIX;
+		using vector = DirectX::XMVECTOR;
 	}
 
 	namespace DXGI

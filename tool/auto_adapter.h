@@ -132,10 +132,7 @@ namespace PO
 				);
 		}
 
-		//TODO need to finish auto bind
 
-
-		/*
 		template<typename func_object, typename ...input>
 		decltype(auto) auto_adapter_unorder(func_object&& fo, input&&... in)
 		{
@@ -150,8 +147,6 @@ namespace PO
 
 		namespace Implement
 		{
-
-			//template<typename target, >
 
 
 			template<typename ...AT> struct auto_bind_function_implement
@@ -196,7 +191,6 @@ namespace PO
 			},
 				std::forward<fun_obj>(fo), std::forward<input>(in)...
 				);
-				*/
 
 
 
@@ -223,6 +217,6 @@ namespace PO
 					std::forward<fun_obj>(fo), std::forward<input>(in)...
 					);
 					*/
-		//}
+		}
 	}
 }

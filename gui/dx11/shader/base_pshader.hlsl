@@ -1,19 +1,14 @@
-Texture2D colorMap_ : register(t0); 
-SamplerState colorSampler_ : register(s0);
-cbuffer inu: register(b1)
+
+struct input
 {
-	float4 color;
-	float4 input;
+	float4 poi : SV_POSITION;
+	float3 col :DIFFUSE;
 };
 
-struct main_output
+
+float4 main(in input i) : SV_TARGET
 {
-	float4 poi:SV_POSITION;
-	float2 dif:TEXCOORD;
-};
-float4 main(main_output mo) : SV_TARGET
-{
-	return  color;
+	return float4(i.col, 1.0);
 	
 	//colorMap_.Sample(colorSampler_, mo.dif);
 }

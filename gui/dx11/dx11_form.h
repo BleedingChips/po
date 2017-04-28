@@ -1,6 +1,6 @@
 #pragma once
 #include "../win32/win32_form.h"
-#include "dx11_define.h"
+#include "dx11_pipeline.h"
 #include "dx11_vertex.h"
 #include "../dxgi/dxgi.h"
 #include <DirectXMath.h>
@@ -21,14 +21,9 @@ namespace PO
 		struct Dx11_form
 		{
 			Win32::win32_form form;
-			Implement::resource_ptr dev;
-			Implement::context_ptr dc;
-			Implement::chain_ptr swap;
-
-			CComPtr<ID3D11Texture2D> main_buffer;
-			CComPtr<ID3D11RenderTargetView> pView;
-			CComPtr<ID3D11Texture2D> pDepthStencilBuffer;
-			CComPtr<ID3D11DepthStencilView> pDepthView;
+			device_ptr dev;
+			context_ptr dc;
+			swapchain_ptr swap;
 			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() {};
 			void tick(form_ticker& ft);
@@ -36,11 +31,12 @@ namespace PO
 
 		struct Dx11_ticker
 		{
-			Implement::chain_ptr swap;
-			PO::Dx11::resource res;
-			PO::Dx11::pipe_line pipe;
-			texture<2, texture_render_scr> back_buffer;
+			swapchain_ptr swap;
+			resource res;
+			pipe_line pipe;
+			texture2D_ptr back_buffer;
 			Dx11_ticker(Dx11_form& Df);
+			void update_screen() { swap->Present(0, 0); }
 		};
 
 		/*
