@@ -60,4 +60,8 @@ Temporary Items
 *.opendb
 *.ilk
 *.cso
-sample/develop/develop/sdsd.txt
+
+#Texture
+*.dds
+*.jpg
+*.tga
