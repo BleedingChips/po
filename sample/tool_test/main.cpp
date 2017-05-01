@@ -88,8 +88,43 @@ auto lock_scope_look(T&& t, K&& k, F&& f)
 	});
 }
 
+struct A1 {};
+struct A2 {};
+
+struct text_plugin
+{
+	text_plugin(PO::self_depute<A1, A2> po) 
+	{
+		cout << "create text_plugin" << endl;
+	}
+	text_plugin(PO::peek<A1, A2> c) { 
+		cout << "FUCK!!" << endl; 
+		c.self.bind_tick([](PO::self_depute<A1, A2>, PO::duration da) { cout << "functin" << endl;  });
+	}
+	~text_plugin()
+	{
+		cout << "~ text_plugin" << endl;
+	}
+};
+
 int main()
 {
+	{
+		A1 a1;
+		A2 a2;
+		//PO::Implement::plugins<A1, A2> pl;
+
+		PO::Implement::plugins<A1, A2> pl;
+		PO::Implement::plugins<void, A2>& pll = pl;
+		pl.outside_create(PO::plugin_t<text_plugin>{}, a2);
+	}
+	
+
+
+
+
+
+
 
 	PO::raw_scene rs;
 	std::fstream f("out.txt", std::ios::out);
@@ -112,12 +147,6 @@ int main()
 		return B{};
 	}
 	);
-
-	rs.pre_load(typeid(TXT),
-	{
-		{u"in1.txt", PO::Tool::any{}},
-		{u"in2.txt", PO::Tool::any{}},
-	});
 
 	cout << "====" << endl;
 

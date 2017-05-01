@@ -189,15 +189,15 @@ namespace PO
 		};
 
 		template<typename T>
-		class completeness :private Assistant::completeness_head, public std::remove_reference_t<T>
+		class completeness :private Assistant::completeness_head, public std::decay_t<T>
 		{
 			friend class completeness_ref;
 
-			template<typename ...AT> completeness(std::true_type, AT&& ...at) : std::remove_reference_t<T>(static_cast<const Assistant::completeness_head&>(*this), std::forward<AT>(at)...)
+			template<typename ...AT> completeness(std::true_type, AT&& ...at) : std::decay_t<T>(static_cast<const Assistant::completeness_head&>(*this), std::forward<AT>(at)...)
 			{
 				Assistant::completeness_head::data->finish_construct();
 			}
-			template< typename ...AT> completeness(std::false_type, AT&& ...at) : std::remove_reference_t<T>(std::forward<AT>(at)...)
+			template< typename ...AT> completeness(std::false_type, AT&& ...at) : std::decay_t<T>(std::forward<AT>(at)...)
 			{
 				Assistant::completeness_head::data->finish_construct();
 			}
@@ -206,11 +206,11 @@ namespace PO
 
 			operator completeness_ref() const 
 			{
-				return completeness_ref{static_cast<Assistant::completeness_head&>(*this)};
+				return completeness_ref{static_cast<const Assistant::completeness_head&>(*this)};
 			}
 
 			template<typename ...AT> completeness(AT&& ...at) : completeness(
-				std::integral_constant<bool, std::is_constructible<std::remove_reference_t<T>, const Assistant::completeness_head&, AT... >::value>(),
+				std::integral_constant<bool, std::is_constructible<std::decay_t<T>, const Assistant::completeness_head&, AT... >::value>(),
 				std::forward<AT>(at)...)
 			{
 

@@ -542,7 +542,6 @@ namespace PO
 				std::decay_t<T> data;
 				template<typename ...AT> any_implement(AT&& ...at) : any_interface(typeid(std::decay_t<T>)), data(std::forward<AT>(at)...) 
 				{
-					std::cout << typeid(std::decay_t<T>).name() << std::endl;
 				}
 				any_implement(const any_implement& ai) : any_interface(ai), std::decay_t<T>(ai) {}
 				any_interface* clone(any_store_struct& ass) const
@@ -605,7 +604,6 @@ namespace PO
 			{
 				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
 				using any_type = Implement::any_implement<std::decay_t<T>>;
-				std::cout << typeid(any_type).name() << std::endl;
 				any_type* ptr = ass.alloc<any_type>();
 				new (ptr) any_type{ std::forward<T>(t) };
 				pointer = ptr;
@@ -704,6 +702,11 @@ namespace PO
 				return (*reinterpret_cast<T*>(data));
 			}
 		};
+
+		template<typename T> T* find_align_adress(void* data)
+		{
+			return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(data) + alignof(T)-1) & ~(alignof(T)-1)))
+		}
 
 		/*
 		template<typename T> class any_interface

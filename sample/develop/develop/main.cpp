@@ -80,9 +80,11 @@ struct Data2
 	Data op = { 1,2 };
 };
 
-int main()
 
+
+int main()
 {
+
 	PO::Tool::mail<int(int)> mal;
 	auto ty = mal.bind(call6);
 	mal([](int) { return true; }, 122);
