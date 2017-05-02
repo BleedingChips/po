@@ -190,7 +190,7 @@ namespace PO
 						[&](auto ptr, auto&& ...pa)
 				{
 					using type = Tmp::type_extract_t<decltype(ptr)>;
-					new (&s) type{ std::forward<decltype(pa)&&>(pa)... };
+					new (&s) type( std::forward<decltype(pa)&&>(pa)... );
 					return true;
 				},
 						[&](auto ptr, auto&& ...pa)
@@ -340,7 +340,7 @@ namespace PO
 
 			~variant()
 			{
-				if (index != 0)
+				if (index != sizeof...(T))
 					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::type; Implement::variant_destructor<type>(data); }, []() {});
 			}
 

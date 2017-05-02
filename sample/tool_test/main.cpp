@@ -1,5 +1,32 @@
 #include <iostream>
 using namespace std;
+
+template<typename T> struct op233 
+{
+	void operator() () { cout << typeid(T).name() << endl; }
+};
+
+template<typename T> struct op233<T&>
+{
+	void operator() () { cout << typeid(T).name()<<"&" << endl; }
+};
+
+template<typename ...AT> struct call_AT 
+{
+	void operator() () {}
+};
+template<typename T, typename ...AT> struct call_AT<T, AT...> 
+{ 
+	void operator()() {
+		op233<T>{}();
+		call_AT<AT...>{}();
+	}
+};
+
+
+
+
+
 #include "../../tool/tmpcall.h"
 #include "../../tool/tool.h"
 #include "../../tool/auto_adapter.h"
@@ -107,18 +134,33 @@ struct text_plugin
 	}
 };
 
+void tet(int) {
+	cout << "fuck!!!!" << endl;
+
+};
+
+struct Da
+{
+	void tet(int) {
+		cout << "fuck!!!!" << endl;
+
+	};
+};
+
 int main()
 {
-	{
-		A1 a1;
-		A2 a2;
-		//PO::Implement::plugins<A1, A2> pl;
+	PO::Tool::auto_adapter<PO::Tool::unorder_adapt>(tet, 1, 1);
 
-		PO::Implement::plugins<A1, A2> pl;
-		PO::Implement::plugins<void, A2>& pll = pl;
-		pl.outside_create(PO::plugin_t<text_plugin>{}, a2);
-	}
-	
+	cout << std::is_convertible<int&, int&>::value << endl;
+
+	auto fu = PO::Tool::auto_bind_function<void(int, int, int), PO::Tool::unorder_adapt>(tet);
+	fu(1, 1, 1);
+
+	//Da p;
+
+	//std::function<void(int, int)> fun = PO::Tool::auto_bind_function<void(int, int), PO::Tool::unorder_adapt>(&Da::tet, p);
+
+	//fun(1, 1);
 
 
 

@@ -32,10 +32,10 @@ namespace PO
 			using tank = std::vector<event>;
 			Tool::scope_lock<tank> input_event;
 			Tool::scope_lock<tank> output_event;
-			win32_form(form_self&, const win32_initial& = win32_initial{});
+			win32_form(form_control&, const win32_initial& = win32_initial{});
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
-			void tick(form_ticker& ft);
+			void tick(form_control& ft, duration da);
 		};
 	}
 }

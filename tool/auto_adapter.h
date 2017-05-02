@@ -21,12 +21,18 @@ namespace PO
 				>::type;
 			};
 
-			template<typename T, typename K> using combine_implement_t = typename combine_implement<T, K>::type;
+			/*
+			template<size_t ...s1> struct combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t>>
+			{
+				static_assert(sizeof(s1) < 0, "unable to handle unbindable function");
+			};
+			*/
+			//template<typename T, typename K> using combine_implement_t = typename combine_implement<T, K>::type;
 		public:
 			template<typename T, typename K> using match = std::is_convertible<T, K>;
 			template<typename ...T> struct combine
 			{
-				using type = TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<combine_implement_t>>, TmpCall::self>;
+				using type = TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<unorder_adapt::template combine_implement>>, TmpCall::self>;
 			};
 		};
 		
@@ -61,7 +67,7 @@ namespace PO
 			template<typename T, typename K> using match = std::is_convertible<T, K>;
 			template<typename ...T> struct combine
 			{
-				using type = typename reverser<std::integer_sequence<size_t>, TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<combine_implement_t>>, TmpCall::self>>::type;
+				using type = typename reverser<std::integer_sequence<size_t>, TmpCall::call<TmpCall::append<std::integer_sequence<size_t>, T...>, TmpCall::combine<TmpCall::make_func_t<order_adapt::template combine_implement>>, TmpCall::self>>::type;
 			};
 		};
 
@@ -77,7 +83,7 @@ namespace PO
 			{
 				template<typename T, typename ...AT> struct in
 				{
-					using type = TmpCall::call<TmpCall::append<AT...>, TmpCall::localizer<TmpCall::make_func_front<role, T>>, TmpCall::self>;
+					using type = TmpCall::call<TmpCall::append<AT...>, TmpCall::localizer<TmpCall::make_func<role, T>>, TmpCall::self>;
 				};
 			};
 
@@ -117,6 +123,7 @@ namespace PO
 		template<typename adapter_type, typename func_object, typename ...input>
 		decltype(auto) auto_adapter(func_object&& fo, input&&... in)
 		{
+			//cout << typeid(func_object).name() << " " << typeid(std::tuple<input&&...>).name() << endl;
 			return statement_if<Tmp::is_callable<func_object, input...>::value>
 				(
 					[](auto&& fot, auto&& ...ini) { return std::invoke(std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...); },
@@ -147,13 +154,11 @@ namespace PO
 
 		namespace Implement
 		{
-
-
 			template<typename ...AT> struct auto_bind_function_implement
 			{
 				template<typename adapter_type, typename func, typename ...AK> decltype(auto) bind(func&& f, AK&& ...ak) const noexcept
 				{
-					return [=](AT ...a) { return auto_adapter<adapter_type>(f, ak..., a...); };
+					return [=](AT ...a) mutable { return auto_adapter<adapter_type>(f, ak..., a...); };
 				}
 			};
 
@@ -161,7 +166,7 @@ namespace PO
 			{
 				template<typename adapter_type, typename func, typename owner, typename ...AK> decltype(auto) bind(func&& f, owner&& o,AK&& ...ak) const noexcept
 				{
-					return [=, &o](AT ...a) { return auto_adapter<adapter_type>(f, o, ak..., a...); };
+					return [=, &o](AT ...a) mutable { return auto_adapter<adapter_type>(f, o, ak..., a...); };
 				}
 			};
 		}
@@ -169,7 +174,12 @@ namespace PO
 		template<typename target, typename adapter_type, typename fun_obj, typename ...input> decltype(auto) auto_bind_function(fun_obj&& fo, input&&... in)
 		{
 			static_assert(!std::is_member_function_pointer<fun_obj>::value || sizeof...(input) >= 1, "PO::Mail::Assistant::mail_create_funtion_ptr_execute need a ref of the owner of the member function");
-
+			return typename Tmp::pick_func<Tmp::degenerate_func_t<Tmp::extract_func_t<target>>>::template out<Implement::auto_bind_function_implement>{}.template bind<adapter_type>
+				(
+					std::forward<fun_obj>(fo),
+					std::forward<input>(in)...
+					);
+			/*
 			return statement_if<std::is_member_function_pointer<fun_obj>::value>
 				(
 					[](auto&& fun_objt, auto&& owner, auto&& ...inputt) mutable
@@ -191,6 +201,7 @@ namespace PO
 			},
 				std::forward<fun_obj>(fo), std::forward<input>(in)...
 				);
+				*/
 
 
 

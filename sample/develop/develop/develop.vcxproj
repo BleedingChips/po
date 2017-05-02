@@ -134,12 +134,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="simul_debug.cpp" />
     <ClCompile Include="test_plugin.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="form_define.h" />
-    <ClInclude Include="simul_debug.h" />
     <ClInclude Include="test_plugin.h" />
   </ItemGroup>
   <ItemGroup>

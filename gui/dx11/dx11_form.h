@@ -24,9 +24,13 @@ namespace PO
 			device_ptr dev;
 			context_ptr dc;
 			swapchain_ptr swap;
-			Dx11_form(const Dx11_initial& = Dx11_initial{});
+			Dx11_form(form_control& fc, const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() {};
-			void tick(form_ticker& ft);
+		};
+
+		struct Dx11_viewer
+		{
+			Dx11_viewer(Dx11_form&) {}
 		};
 
 		struct Dx11_ticker
@@ -35,7 +39,7 @@ namespace PO
 			resource res;
 			pipe_line pipe;
 			texture2D_ptr back_buffer;
-			Dx11_ticker(Dx11_form& Df);
+			Dx11_ticker(renderer_control& rc, Dx11_form& Df);
 			void update_screen() { swap->Present(0, 0); }
 		};
 

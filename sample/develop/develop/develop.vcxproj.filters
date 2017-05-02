@@ -24,18 +24,12 @@
     <ClCompile Include="test_plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="simul_debug.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="form_define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="test_plugin.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="simul_debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

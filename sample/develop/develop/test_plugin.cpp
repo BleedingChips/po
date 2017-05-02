@@ -127,8 +127,9 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::pu
 }
 */
 
-test_plugin::test_plugin()
+test_plugin::test_plugin(self_depute<Dx11_ticker> p)
 {
+	std::cout << "create test_plugin" << endl;
 	scene.pre_load(
 		typeid(PO::binary),
 		{
@@ -140,6 +141,9 @@ test_plugin::test_plugin()
 			u"ps.cso"
 		}
 	);
+	p.self.auto_bind_init(&test_plugin::init, this);
+	p.self.auto_bind_tick(&test_plugin::tick, this);
+	p.self.auto_bind_respond(&test_plugin::respond, this);
 }
 
 
@@ -248,13 +252,11 @@ struct PS_view
 	float nearz;
 };
 
-void test_plugin::init(ticker& op)
+void test_plugin::init(self_depute<Dx11_ticker> op)
 {
 
-	auto& re = op.tick().res;
-	auto& pipe = op.tick().pipe;
-
-	
+	auto& re = op.rt.res;
+	auto& pipe = op.rt.pipe;
 
 	std::vector<uint32_t> count = {128, 64, 32, 16, 8};
 	std::vector<texture3D_ptr> noise(count.size(), nullptr);
@@ -315,7 +317,7 @@ void test_plugin::init(ticker& op)
 	res = scene.find(typeid(PO::binary), u"vt_shadow_cs.cso", PO::Tool::any{});
 	faile_break(
 		res && res->able_cast<PO::binary>() &&
-		op.tick().res.CS.create_shader(vt_shadow_creator, res->cast<PO::binary>())
+		op.rt.res.CS.create_shader(vt_shadow_creator, res->cast<PO::binary>())
 	);
 
 	//shader_d template_sd;
@@ -342,27 +344,27 @@ void test_plugin::init(ticker& op)
 	res = scene.find(typeid(PO::binary), u"cube_vs.cso", PO::Tool::any{});
 	faile_break(
 		res && res->able_cast<PO::binary>() && 
-		op.tick().res.VS.create_shader(cube_vs_d, res->cast<PO::binary>())
+		op.rt.res.VS.create_shader(cube_vs_d, res->cast<PO::binary>())
 		);
 
 	res = scene.find(typeid(PO::binary), u"cube_ps.cso", PO::Tool::any{});
 	faile_break(
 		res && res->able_cast<PO::binary>() && 
-		op.tick().res.PS.create_shader(cube_ps_d, res->cast<PO::binary>())
+		op.rt.res.PS.create_shader(cube_ps_d, res->cast<PO::binary>())
 	);
 
 	faile_break(
-		op.tick().res.IA.create_vertex(cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
-		op.tick().res.IA.create_index(cube_ia_d, ind) &&
-		op.tick().res.IA.update_layout(cube_ia_d, cube_vs_d)
+		op.rt.res.IA.create_vertex(cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
+		op.rt.res.IA.create_index(cube_ia_d, ind) &&
+		op.rt.res.IA.update_layout(cube_ia_d, cube_vs_d)
 	);
 
 	texture2D_ptr depth_text;
 
 	faile_break(
-		re.OM.create_DST(depth_text, DST_format::F32, op.tick().back_buffer) &&
+		re.OM.create_DST(depth_text, DST_format::F32, op.rt.back_buffer) &&
 		re.OM.cast_DSV(cube_m, depth_text, 0) &&
-		re.OM.cast_RTV(cube_m, 0, op.tick().back_buffer, 0)
+		re.OM.cast_RTV(cube_m, 0, op.rt.back_buffer, 0)
 	);
 
 	faile_break(
@@ -372,7 +374,7 @@ void test_plugin::init(ticker& op)
 
 	raterizer_s rs;
 	//rs.stop_cull();
-	rs.view_fill_texture(0, op.tick().back_buffer, 0.0, 1.0);
+	rs.view_fill_texture(0, op.rt.back_buffer, 0.0, 1.0);
 	blend_s bs;
 	depth_stencil_s dss;
 
@@ -422,12 +424,12 @@ float lr = 0.0;
 float up = 0.0;
 float up2 = 0.0;
 
-PO::Respond test_plugin::respond(conveyer& c)
+PO::Respond test_plugin::respond(event& c)
 {
 	//return vm.capture_event(c.get_event());
-	if (c.get_event().is_key())
+	if (c.is_key())
 	{
-		auto& u = c.get_event();
+		auto& u = c;
 		if (u.is_key())
 		{
 			switch (u.key.get_asc())
@@ -472,30 +474,30 @@ PO::Respond test_plugin::respond(conveyer& c)
 
 
 
-void test_plugin::tick(ticker& op)
+void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 {
 
 	if (od.final_direction() != 0)
 	{
-		loca += od.final_direction() * op.time().count() / 1000.0f * 2.0f;
+		loca += od.final_direction() * da.count() / 1000.0f * 2.0f;
 		if (loca < 1.0) loca = 1.0;
 	}
 
 	if (left_right.final_direction() != 0)
-		lr += left_right.final_direction() * op.time().count() / 1000.0f * 2.0f;
+		lr += left_right.final_direction() * da.count() / 1000.0f * 2.0f;
 
 	if (up_down.final_direction() != 0)
-		up += up_down.final_direction() * op.time().count() / 1000.0f * 2.0f;
+		up += up_down.final_direction() * da.count() / 1000.0f * 2.0f;
 
 	if (pp2.final_direction() != 0)
-		up2 += pp2.final_direction() * op.time().count() / 1000.0f * 2.0f;
+		up2 += pp2.final_direction() * da.count() / 1000.0f * 2.0f;
 
 	inter.poi = float3(0.0, 0.0, loca);
 	inter.eul = float3(up2, lr, up);
 	//cout << inter.poi <<" ,  "<<inter.eul<< endl;
 	
-	auto& re = op.tick().res;
-	auto& pipe = op.tick().pipe;
+	auto& re = t.rt.res;
+	auto& pipe = t.rt.pipe;
 	//pipe.VS.write()
 	draw_range_d drd;
 	drd.set_index(UINT(ind.size()),0, 0);
@@ -540,7 +542,7 @@ void test_plugin::tick(ticker& op)
 	pipe.PS.bind(frame_cube_ps_d);
 	pipe.DR.draw(drd);
 
-	op.tick().update_screen();
+	t.rt.update_screen();
 	
 	pipe.unbing();
 

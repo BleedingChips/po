@@ -366,7 +366,7 @@ namespace PO
 {
 	namespace Win32
 	{
-		win32_form::win32_form(form_self& fs, const win32_initial& wi)
+		win32_form::win32_form(form_control& fs, const win32_initial& wi)
 		{
 			Error::fail_throw(manager.create(wi, this));
 		}
@@ -381,7 +381,7 @@ namespace PO
 			manager.destory(raw_handle);
 		}
 
-		void win32_form::tick(form_ticker& fs)
+		void win32_form::tick(form_control& fs, duration da)
 		{
 
 			output_event.lock(
@@ -396,11 +396,11 @@ namespace PO
 				);
 				for (auto& ev : o)
 				{
-					Respond re = fs.self().respond_event(ev);
+					Respond re = fs.respond_event(ev);
 					if (re == Respond::Pass)
 					{
 						if (ev.is_quit())
-							fs.self().close();
+							fs.available = false;
 					}
 					else if (re == Respond::Return)
 					{

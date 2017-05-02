@@ -4,7 +4,7 @@ namespace PO
 {
 	namespace Dx11
 	{
-		Dx11_form::Dx11_form(const Dx11_initial& di) : form()
+		Dx11_form::Dx11_form(form_control& fc, const Dx11_initial& di) : form()
 		{
 			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_0 };
 			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_0;
@@ -24,6 +24,7 @@ namespace PO
 				&dc
 			);
 			Win32::Error::fail_throw(re);
+			fc.pre_tick = [this](form_control& fc, duration da) {this->form.tick(fc, da); };
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),
@@ -64,23 +65,12 @@ namespace PO
 			*/
 		}
 
-		void Dx11_form::tick(form_ticker& ft)
-		{ 
-			form.tick(ft);
-			static float all_time = 0.0f;
-			all_time += ft.time().count();
-			float a = abs(sin(all_time * 0.001f));
-			float a2 = abs(sin(all_time * 0.001f * 2));
-			float a3 = abs(sin(all_time * 0.001f * 3));
-			float color[4] = { a,a2,a3,1.0f };
-			//swap->Present(0, 0);
-			//swap->
-			//dc->ClearRenderTargetView(pView, color);
-		}
-
-		Dx11_ticker::Dx11_ticker(Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc) 
+		Dx11_ticker::Dx11_ticker(renderer_control& rc, Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc)
 		{
 			if (!SUCCEEDED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer))) __debugbreak();
+			rc.auto_bind_pos_tick([this]() {
+				swap->Present(0, 0);
+			});
 		}
 		
 		/*

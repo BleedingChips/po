@@ -210,7 +210,7 @@ namespace PO
 			}
 
 			template<typename ...AT> completeness(AT&& ...at) : completeness(
-				std::integral_constant<bool, std::is_constructible<std::decay_t<T>, const Assistant::completeness_head&, AT... >::value>(),
+				std::integral_constant<bool, std::is_constructible<std::decay_t<T>, const completeness_ref&, AT... >::value>(),
 				std::forward<AT>(at)...)
 			{
 
@@ -221,10 +221,7 @@ namespace PO
 				Assistant::completeness_head::data->start_destruct();
 			}
 		};
-
-
 		
-
 		template<typename T, typename mutex = std::mutex> struct scope_lock
 		{
 			T data;
