@@ -17,6 +17,14 @@ namespace PO
 		using uint32_t4 = DirectX::XMUINT4;
 		using matrix = DirectX::XMMATRIX;
 		using vector = DirectX::XMVECTOR;
+
+		struct tex_sample
+		{
+			UINT count = 1;
+			UINT quality = 0;
+		};
+
+		
 	}
 
 	namespace DXGI

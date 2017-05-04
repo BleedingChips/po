@@ -218,7 +218,7 @@ namespace PO
 		class weak_ref
 		{
 			std::weak_ptr<std::vector<char>> ptr;
-			friend class bindary;
+			friend class binary;
 		public:
 			weak_ref() = default;
 			weak_ref(const binary& b) : ptr(b.ptr) {}

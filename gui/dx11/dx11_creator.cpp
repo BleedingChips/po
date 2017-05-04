@@ -76,6 +76,57 @@ namespace PO
 				}
 			}
 
+			bool shader_resource_t::create_sbuffer(sbuffer& sb, size_t element_size, size_t element_num, const void* data, bool write_able)
+			{
+				buffer_ptr tem;
+				if (SUCCEEDED(create_buffer(res, tem, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_SHADER_RESOURCE, data, element_size * element_num, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size)))
+					return sb.ptr = tem, true;
+				return false;
+			}
+
+			bool shader_resource_t::cast_SRV(SRV& srv, const sbuffer& s, size_t bit_offset, size_t element_count) {
+				SRV_ptr tem;
+				if (SUCCEEDED(Dx11::cast_SRV_structured(res, tem, s.ptr, bit_offset, element_count)))
+					return srv.ptr = tem, true;
+				return false;
+			}
+
+			bool shader_resource_t::cast_SRV(SRV& srv, const sbuffer& s){
+				SRV_ptr tem;
+				if (SUCCEEDED(Dx11::cast_SRV_structured(res, tem, s.ptr)))
+					return srv.ptr = tem, true;
+				return false;
+			}
+
+			bool shader_resource_t::cast_SRV(shader_d& sd, size_t solt, const sbuffer& s, size_t bit_offset, size_t element_count)
+			{
+				SRV tem;
+				if (cast_SRV(tem, s, bit_offset, element_count))
+					return sd.set_SRV(solt, tem), true;
+				return false;
+			}
+			bool shader_resource_t::cast_SRV(shader_d& sd, size_t solt, const sbuffer& s)
+			{
+				SRV tem;
+				if (cast_SRV(tem, s))
+					return sd.set_SRV(solt, tem), true;
+				return false;
+			}
+
+			bool shader_resource_t::cast_SRV(SRV& srv, const texture2D_ptr& tp, size_t most_detail_mip, size_t miplevel) {
+				SRV_ptr tem;
+				if (SUCCEEDED(Dx11::cast_SRV(res, tem, tp, most_detail_mip, miplevel)))
+					return srv.ptr = tem, true;
+				return false;
+			}
+
+			bool shader_resource_t::cast_SRV(SRV& srv, const texture3D_ptr& tp, size_t most_detail_mip, size_t miplevel) {
+				SRV_ptr tem;
+				if (SUCCEEDED(Dx11::cast_SRV(res, tem, tp, most_detail_mip, miplevel)))
+					return srv.ptr = tem, true;
+				return false;
+			}
+
 			bool shader_resource_t::cast_SRV(shader_d& sd, size_t solt, const texture2D_ptr& tp, size_t most_detail_mip, size_t miplevel) {
 				SRV tem;
 				if (SUCCEEDED(Dx11::cast_SRV(res, tem.ptr, tp, most_detail_mip, miplevel)))

@@ -51,7 +51,7 @@ float4 main(in ps_input i) : SV_TARGET
 		{
 			float sc = shado_sam(p);
 			float cc = cloud_sam(p);
-			s = s + l * (1.0 - cc) * sc * 0.01;
+			s = s + l * (1.0 - cc) * sc * 0.015;
 			l = l * pow(cc, 1 / 256.0);
 		}
 	}

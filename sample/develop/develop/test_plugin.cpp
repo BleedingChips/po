@@ -254,163 +254,193 @@ struct PS_view
 
 void test_plugin::init(self_depute<Dx11_ticker> op)
 {
-
 	auto& re = op.rt.res;
 	auto& pipe = op.rt.pipe;
 
-	std::vector<uint32_t> count = {128, 64, 32, 16, 8};
+	std::vector<uint32_t> count = { 128, 64, 32, 16, 8 };
 	std::vector<texture3D_ptr> noise(count.size(), nullptr);
-	compute_d noise_cd;
-	auto res = scene.find(typeid(PO::binary), u"noise_creater.cso", PO::Tool::any{});
-	faile_break(
-		res && res->able_cast<PO::binary>() &&
-		re.CS.create_shader(noise_cd, res->cast<PO::binary>())
-	);
-	re.CS.create_cbuffer(noise_cd, 0, (uint32_t*)nullptr);
-	for (size_t i = 0; i < count.size(); ++i)
 	{
+		compute_d noise_cd;
+		auto res = scene.find(typeid(PO::binary), u"noise_creater.cso", PO::Tool::any{});
 		faile_break(
-			re.CS.create_UAT(noise[i], DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
-			re.CS.cast_UAV(noise_cd, 0, noise[i], 0, 0, 256) &&
-			pipe.CS.write(noise_cd, 0, [&](void* data, UINT, UINT u) {*(uint32_t*)(data) = count[i]; })
+			res && res->able_cast<PO::binary>() &&
+			re.CS.create_shader(noise_cd, res->cast<PO::binary>())
 		);
-		draw_range_d noise;
-		noise.set_dispatch_d(256, 256, 256);
-		pipe.CS.bind(noise_cd);
-		pipe.DR.draw(noise);
-		pipe.CS.unbind();
+		re.CS.create_cbuffer(noise_cd, 0, (uint32_t*)nullptr);
+		for (size_t i = 0; i < count.size(); ++i)
+		{
+			faile_break(
+				re.CS.create_UAT(noise[i], DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
+				re.CS.cast_UAV(noise_cd, 0, noise[i], 0, 0, 256) &&
+				pipe.write_cbuffer(noise_cd, 0, [&](void* data, UINT, UINT u) {*(uint32_t*)(data) = count[i]; })
+			);
+			draw_range_d noise;
+			noise.set_dispatch_d(256, 256, 256);
+			pipe.bind(noise_cd);
+			pipe.draw(noise);
+			pipe.unbind();
+		}
 	}
-
-	res = scene.find(typeid(PO::binary), u"vt_creator_cs.cso", PO::Tool::any{});
 	
+	{
+		compute_d noise_cd;
+		auto res = scene.find(typeid(PO::binary), u"vt_creator_cs.cso", PO::Tool::any{});
 		faile_break(res && res->able_cast<PO::binary>());
 		faile_break(re.CS.create_shader(noise_cd, res->cast<PO::binary>()));
 		faile_break(re.CS.create_UAT(vt, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1));
 		faile_break(re.CS.cast_UAV(noise_cd, 0, vt, 0, 0, 256));
-
-	for (size_t i = 0; i < noise.size(); ++i)
-		faile_break(re.CS.cast_SRV(noise_cd, i, noise[i], 0, 1));
-
-	{
+		for (size_t i = 0; i < noise.size(); ++i)
+			faile_break(re.CS.cast_SRV(noise_cd, i, noise[i], 0, 1));
 		draw_range_d noise;
 		noise.set_dispatch_d(256, 256, 256);
-		pipe.CS.bind(noise_cd);
-		pipe.DR.draw(noise);
-		pipe.CS.unbind();
+		pipe.bind(noise_cd);
+		pipe.draw(noise);
+		pipe.unbind();
 		DirectX::ScratchImage SI;
 		DirectX::CaptureTexture(re.dp, pipe.ptr, vt, SI);
 		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"valum_texture.dds"_wc);
 	}
 
-	float4x4 intee;
-	DirectX::XMStoreFloat4x4(&intee, DirectX::XMMatrixInverse(nullptr, inter));
-
-	shader_cbuffer sc
 	{
-		intee,
-		1.0,
-		uint32_t3{256,256,256},
-		float3{0.0, -1.0, 0.0}
-	};
+		const uint32_t center = 20;
+		std::mt19937 r_mt(200);
+		std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+		std::vector<float3> poi23333;
+		for (uint32_t i = 0; i < center; ++i)
+		{
+			float3 cur = float3{ nd(r_mt), nd(r_mt), nd(r_mt) };
+			poi23333.push_back(cur);
+			cout << cur << endl;
+		}
+		compute_d new_vt;
+		auto res = scene.find(typeid(PO::binary), u"new_vt_creater.cso", PO::Tool::any{});
+		faile_break(res && res->able_cast<PO::binary>());
+		faile_break(re.CS.create_shader(new_vt, res->cast<PO::binary>()));
+		sbuffer s;
+		
+		faile_break(
+			re.CS.create_sbuffer(s, poi23333) &&
+			re.CS.cast_SRV(new_vt,0 , s) &&
+			re.CS.create_UAT(t, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
+			re.CS.cast_UAV(new_vt, 0, t, 0, 0, 256)
+		);
+		draw_range_d noise;
+		noise.set_dispatch_d(256, 256, 256);
+		pipe.bind(new_vt);
+		pipe.draw(noise);
+		pipe.unbind();
+		DirectX::ScratchImage SI; 
+		DirectX::CaptureTexture(re.dp, pipe.ptr, t, SI);
+		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture.dds"_wc);
+	}
 
-	compute_d vt_shadow_creator;
-	res = scene.find(typeid(PO::binary), u"vt_shadow_cs.cso", PO::Tool::any{});
-	faile_break(
-		res && res->able_cast<PO::binary>() &&
-		op.rt.res.CS.create_shader(vt_shadow_creator, res->cast<PO::binary>())
-	);
+	
+	/*faile_break(
+	);*/
+
+	
 
 	//shader_d template_sd;
 	//uint32_t ran = 
 
-	faile_break(
-		re.CS.create_UAT(vt_shadow, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
-		re.CS.cast_UAV(vt_shadow_creator, 0, vt_shadow, 0, 0, 256) &&
-		re.CS.cast_SRV(vt_shadow_creator, 0, vt, 0, 1) &&
-		re.CS.create_cbuffer(vt_shadow_creator, 0, &sc)
-	);
-
 	{
-		pipe.CS.bind(vt_shadow_creator);
+		compute_d vt_shadow_creator;
+		auto res = scene.find(typeid(PO::binary), u"vt_shadow_cs.cso", PO::Tool::any{});
+		faile_break(
+			res && res->able_cast<PO::binary>() &&
+			op.rt.res.CS.create_shader(vt_shadow_creator, res->cast<PO::binary>())
+		);
+		float4x4 intee;
+		DirectX::XMStoreFloat4x4(&intee, DirectX::XMMatrixInverse(nullptr, inter));
+		shader_cbuffer sc
+		{
+			intee,
+			1.0,
+			uint32_t3{ 256,256,256 },
+			float3{ 0.0, -1.0, 0.0 }
+		};
+		faile_break(
+			re.CS.create_UAT(vt_shadow, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
+			re.CS.cast_UAV(vt_shadow_creator, 0, vt_shadow, 0, 0, 256) &&
+			re.CS.cast_SRV(vt_shadow_creator, 0, t, 0, 1) &&
+			re.CS.create_cbuffer(vt_shadow_creator, 0, &sc)
+		);
+		pipe.bind(vt_shadow_creator);
 		draw_range_d creator;
 		creator.set_dispatch_d(256, 256, 256);
-		pipe.DR.draw(creator);
+		pipe.draw(creator);
 		DirectX::ScratchImage SI;
 		DirectX::CaptureTexture(re.dp, pipe.ptr, vt_shadow, SI);
 		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"valum_texture_shadow.dds"_wc);
+		pipe.unbind();
 	}
-	pipe.CS.unbind();
-
-	res = scene.find(typeid(PO::binary), u"cube_vs.cso", PO::Tool::any{});
-	faile_break(
-		res && res->able_cast<PO::binary>() && 
-		op.rt.res.VS.create_shader(cube_vs_d, res->cast<PO::binary>())
+	
+	{
+		auto res = scene.find(typeid(PO::binary), u"cube_vs.cso", PO::Tool::any{});
+		faile_break(
+			res && res->able_cast<PO::binary>() &&
+			op.rt.res.VS.create_shader(cube_vs_d, res->cast<PO::binary>())
 		);
 
-	res = scene.find(typeid(PO::binary), u"cube_ps.cso", PO::Tool::any{});
-	faile_break(
-		res && res->able_cast<PO::binary>() && 
-		op.rt.res.PS.create_shader(cube_ps_d, res->cast<PO::binary>())
-	);
-
-	faile_break(
-		op.rt.res.IA.create_vertex(cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
-		op.rt.res.IA.create_index(cube_ia_d, ind) &&
-		op.rt.res.IA.update_layout(cube_ia_d, cube_vs_d)
-	);
-
-	texture2D_ptr depth_text;
-
-	faile_break(
-		re.OM.create_DST(depth_text, DST_format::F32, op.rt.back_buffer) &&
-		re.OM.cast_DSV(cube_m, depth_text, 0) &&
-		re.OM.cast_RTV(cube_m, 0, op.rt.back_buffer, 0)
-	);
-
-	faile_break(
-		re.VS.create_cbuffer(cube_vs_d, 0, (cube_cbuffer*)(nullptr)) &&
-		re.PS.create_cbuffer(cube_ps_d, 0, (PS_view*)(nullptr))
-	);
-
-	raterizer_s rs;
-	//rs.stop_cull();
-	rs.view_fill_texture(0, op.rt.back_buffer, 0.0, 1.0);
-	blend_s bs;
-	depth_stencil_s dss;
-
-	
-	bs.set_RT_blend_state([](D3D11_RENDER_TARGET_BLEND_DESC& D) {
-		D.BlendEnable = TRUE;
-		D.SrcBlend = D3D11_BLEND_ONE;
-		D.DestBlend = D3D11_BLEND_SRC_ALPHA;
-		D.BlendOp = D3D11_BLEND_OP_ADD;
-	});
-
-	faile_break(
-	re.RS.create_state(cube_ra_d, rs) &&
-	re.PS.cast_SRV(cube_ps_d, 0, vt, 0, 1) &&
-	re.PS.cast_SRV(cube_ps_d, 1, vt_shadow, 0, 1) &&
-	re.OM.create_state(cube_m, bs) &&
-	re.OM.create_state(cube_m, dss)
+		res = scene.find(typeid(PO::binary), u"cube_ps.cso", PO::Tool::any{});
+		faile_break(
+			res && res->able_cast<PO::binary>() &&
+			op.rt.res.PS.create_shader(cube_ps_d, res->cast<PO::binary>())
 		);
 
-	res = scene.find(typeid(PO::binary), u"ps.cso");
-	faile_break(
-		res && res->able_cast<PO::binary>() &&
-		re.PS.create_shader(frame_cube_ps_d, res->cast<PO::binary>()) &&
-		re.IA.create_vertex(frame_cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
-		re.IA.create_index(frame_cube_ia_d, ind_frame) &&
-		re.IA.update_layout(frame_cube_ia_d, cube_vs_d)
-	);
-	frame_cube_ia_d.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+		faile_break(
+			op.rt.res.IA.create_vertex(cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
+			op.rt.res.IA.create_index(cube_ia_d, ind) &&
+			op.rt.res.IA.update_layout(cube_ia_d, cube_vs_d)
+		);
 
-	
+		texture2D_ptr depth_text;
+
+		faile_break(
+			re.OM.create_DST(depth_text, DST_format::F32, op.rt.back_buffer) &&
+			re.OM.cast_DSV(cube_m, depth_text, 0) &&
+			re.OM.cast_RTV(cube_m, 0, op.rt.back_buffer, 0)
+		);
+
+		faile_break(
+			re.VS.create_cbuffer(cube_vs_d, 0, (cube_cbuffer*)(nullptr)) &&
+			re.PS.create_cbuffer(cube_ps_d, 0, (PS_view*)(nullptr))
+		);
+
+		raterizer_s rs;
+		//rs.stop_cull();
+		rs.view_fill_texture(0, op.rt.back_buffer, 0.0, 1.0);
+		blend_s bs;
+		depth_stencil_s dss;
 
 
+		bs.set_RT_blend_state([](D3D11_RENDER_TARGET_BLEND_DESC& D) {
+			D.BlendEnable = FALSE;
+			D.SrcBlend = D3D11_BLEND_ONE;
+			D.DestBlend = D3D11_BLEND_SRC_ALPHA;
+			D.BlendOp = D3D11_BLEND_OP_ADD;
+		});
 
-	//DirectX::ScratchImage SI;
-	//DirectX::CaptureTexture(re.dp, pipe.ptr, tp, SI);
-	//DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"lalalala.dds"_wc);
+		faile_break(
+			re.RS.create_state(cube_ra_d, rs) &&
+			re.PS.cast_SRV(cube_ps_d, 0, t, 0, 1) &&
+			re.PS.cast_SRV(cube_ps_d, 1, vt_shadow, 0, 1) &&
+			re.OM.create_state(cube_m, bs) &&
+			re.OM.create_state(cube_m, dss)
+		);
+	}
+
+	{
+		auto res = scene.find(typeid(PO::binary), u"ps.cso");
+		faile_break(
+			res && res->able_cast<PO::binary>() &&
+			re.PS.create_shader(frame_cube_ps_d, res->cast<PO::binary>()) &&
+			re.IA.create_vertex(frame_cube_ia_d, 0, poi, PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>{}) &&
+			re.IA.create_index(frame_cube_ia_d, ind_frame) &&
+			re.IA.update_layout(frame_cube_ia_d, cube_vs_d)
+		);
+		frame_cube_ia_d.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+	}
 
 }
 
@@ -506,7 +536,7 @@ void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 		float4x4 pro;
 		DirectX::XMStoreFloat4x4(&pro, DirectX::XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, 1024.0f / 768.0f, 0.01f, 1000.0f));
 
-		pipe.VS.write(cube_vs_d, 0, [&](void* data, UINT c, UINT k) {
+		pipe.write_cbuffer(cube_vs_d, 0, [&](void* data, UINT c, UINT k) {
 			*static_cast<cube_cbuffer*>(data) = cube_cbuffer{ static_cast<float4x4>(inter), pro };
 		});
 	}
@@ -521,118 +551,28 @@ void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 		float4x4 pro3;
 		DirectX::XMStoreFloat4x4(&pro3, DirectX::XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, 1024.0f / 768.0f, 0.01f, 1000.0f));
 
-		pipe.PS.write(cube_ps_d, 0, [&](void* data, UINT c, UINT k) {
+		pipe.write_cbuffer(cube_ps_d, 0, [&](void* data, UINT c, UINT k) {
 			*static_cast<PS_view*>(data) = PS_view{ pro, pro3, 0.01f };
 		});
 	}
 
  	D3D11_VIEWPORT view = { 0.0f, 0.0f, 1024.0f, 768.0f, 0.0f, 1.0f };
 	
-	pipe.OM.clear_render_target(cube_m, { 0.0f, 0.0f, 0.5f, 1.0f });
-	pipe.OM.clear_depth(cube_m, 1.0);
-	pipe.RA.bind(cube_ra_d);
-	pipe.IA.bind(cube_ia_d);
-	pipe.VS.bind(cube_vs_d);
-	pipe.PS.bind(cube_ps_d);
-	pipe.OM.bind(cube_m);
-	pipe.DR.draw(drd);
+	pipe.clear_render_target(cube_m, { 0.0f, 0.0f, 0.5f, 1.0f });
+	pipe.clear_depth(cube_m, 1.0);
+
+	pipe.bind(cube_ra_d);
+	pipe.bind(cube_ia_d);
+	pipe.bind(cube_vs_d);
+	pipe.bind(cube_ps_d);
+	pipe.bind(cube_m);
+	pipe.draw(drd);
 
 	drd.set_index(UINT(ind_frame.size()), 0, 0);
-	pipe.IA.bind(frame_cube_ia_d);
-	pipe.PS.bind(frame_cube_ps_d);
-	pipe.DR.draw(drd);
-
-	t.rt.update_screen();
+	pipe.bind(frame_cube_ia_d);
+	pipe.bind(frame_cube_ps_d);
+	pipe.draw(drd);
 	
-	pipe.unbing();
-
-
-
-
-
-
-	/*
-	float color[4] = { 0.5,0.5,0.5,1.0 };
-	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
-	op.tick().dc->ClearDepthStencilView(op.tick().pDepthView, D3D11_CLEAR_FLAG::D3D11_CLEAR_DEPTH | D3D11_CLEAR_FLAG::D3D11_CLEAR_STENCIL, 1.0, 0);
-	
-
-
-	ma.apply(op.tick());
-	ID3D11ShaderResourceView* tem[] = { rvp };
-	op.tick().dc->PSSetShaderResources(0, 1, tem);
-	ID3D11SamplerState* temss[] = { ss };
-	op.tick().dc->PSSetSamplers(0, 1, temss);
-	pc.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	ID3D11DepthStencilState* DSS;
-	D3D11_DEPTH_STENCIL_DESC tds
-	{
-		true,
-		D3D11_DEPTH_WRITE_MASK_ALL,
-		D3D11_COMPARISON_LESS,
-		false,
-		0,
-		0,
-		D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
-	};
-	
-	HRESULT re = op.tick().dev->CreateDepthStencilState(&tds, &DSS);
-	op.tick().dc->OMSetDepthStencilState(DSS, 0);
-	ID3D11RasterizerState* RS;
-
-	D3D11_RASTERIZER_DESC DRD
-	{
-		D3D11_FILL_SOLID,
-		D3D11_CULL_NONE,
-		true,
-		0,
-		0,
-		0,
-		false
-	};
-
-	re = op.tick().dev->CreateRasterizerState(&DRD, &RS);
-	op.tick().dc->RSSetState(RS);
-
-
-	pc.draw(op.tick());
-
-	//op.tick().swap->Present(0, 0);
-	DSS->Release();
-	RS->Release();
-	*/
-	/*
-	float color[4] = { 0.5,0.5,0.5,1.0 };
-	op.tick().dc->ClearRenderTargetView(op.tick().pView, color);
-	op.tick().dc->ClearDepthStencilView(op.tick().pDepthView, D3D11_CLEAR_FLAG::D3D11_CLEAR_DEPTH | D3D11_CLEAR_FLAG::D3D11_CLEAR_STENCIL, 1.0, 0);
-	ID3D11ShaderResourceView* t[] = { sv };
-	op.tick().dc->PSSetShaderResources(0, 1, t);
-	D3D11_BUFFER_DESC BD
-	{
-		sizeof(ConstBuffer),
-		D3D11_USAGE_DYNAMIC,
-		D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER,
-		D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE,
-		0,// D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-		0//sizeof(ConstBuffer)
-	};
-	ID3D11Buffer* IB;
-	ConstBuffer opc{ {1.0,0.0,1.0,1.0},{0.0,1.0,1.0,1.0} };
-	D3D11_SUBRESOURCE_DATA SD{static_cast<void*>(&opc), 0 ,0};
-	try {
-		PO::Win32::Error::fail_throw(op.tick().dev->CreateBuffer(&BD, &SD, &IB));
-		op.tick().dc->PSSetConstantBuffers(1, 1, &IB);
-	}
-	catch (...)
-	{
-		__debugbreak();
-	}
-	
-		pl.draw(op.tick().dc, vp, 6);
-	op.tick().swap->Present(0, 0);
-	//op.tick().dc->CSSetConstantBuffers()
-
-	//op.form().close();
-	*/
+	pipe.unbind();
 }
 

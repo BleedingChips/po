@@ -102,6 +102,17 @@ namespace PO
 			return cp->CreateShaderResourceView(t, &DSRVD, &rtv);
 		}
 
+		HRESULT cast_SRV_structured(device_ptr& cp, SRV_ptr& rtv, const buffer_ptr& t)
+		{
+			if (cp == nullptr || t == nullptr) return E_INVALIDARG;
+			D3D11_BUFFER_DESC DBD;
+			t->GetDesc(&DBD);
+			if ((DBD.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) != D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) return false;
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DXGI_FORMAT::DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_BUFFER };
+			DSRVD.Buffer = D3D11_BUFFER_SRV{ 0, DBD.ByteWidth / DBD.StructureByteStride };
+			return cp->CreateShaderResourceView(t, &DSRVD, &rtv);
+		}
+
 		HRESULT cast_SRV(device_ptr& cp, SRV_ptr& rtv, const texture1D_ptr& t, size_t most_detailed_mip, size_t miplevel)
 		{
 			if (cp == nullptr || t == nullptr) return E_INVALIDARG;

@@ -23,6 +23,7 @@ struct alignas(alignof(movement_interpolation)) test_plugin
 
 	texture3D_ptr vt;
 	texture3D_ptr vt_shadow;
+	texture3D_ptr t;
 
 	input_assember_d cube_ia_d;
 	vertex_shader_d cube_vs_d;

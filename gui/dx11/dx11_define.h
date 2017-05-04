@@ -16,6 +16,16 @@ namespace PO
 {
 	namespace Dx11
 	{
+
+
+
+
+
+
+
+
+
+
 		using namespace Dx;
 
 		using device_ptr = CComPtr<ID3D11Device>;
@@ -65,7 +75,8 @@ namespace PO
 		
 		HRESULT cast_SRV(device_ptr& cp, SRV_ptr& rtv, const buffer_ptr& t, DXGI_FORMAT DF, size_t start_start, size_t array_count);
 		HRESULT cast_SRV_structured(device_ptr& cp, SRV_ptr& rtv, const buffer_ptr& t, size_t bit_offset, size_t element_count);
-		
+		HRESULT cast_SRV_structured(device_ptr& cp, SRV_ptr& rtv, const buffer_ptr& t);
+
 		HRESULT cast_SRV(device_ptr& cp, SRV_ptr& rtv, const texture1D_ptr& t, size_t most_detailed_mip, size_t miplevel);
 		HRESULT cast_SRV_array(device_ptr& cp, SRV_ptr& rtv, const texture1D_ptr& t, size_t most_detailed_mip, size_t miplevel, size_t array_start, size_t array_count);
 
@@ -186,6 +197,11 @@ namespace PO
 		};
 
 		struct cbuffer
+		{
+			buffer_ptr ptr;
+		};
+
+		struct sbuffer
 		{
 			buffer_ptr ptr;
 		};

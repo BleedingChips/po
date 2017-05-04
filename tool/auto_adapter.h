@@ -8,26 +8,19 @@ namespace PO
 		
 		class unorder_adapt
 		{
-			template<typename T, typename K> struct combine_implement;//TODO static_assert
+
+			template<typename T, typename K> struct combine_implement
+			{
+				static_assert(!std::is_same<K, std::integer_sequence<size_t>>::value, "unable to handle unbindable function");
+			};
 			template<size_t ...s1, size_t s2, size_t... s2o> struct combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t, s2, s2o...>>
 			{
-				using type = typename std::conditional_t<
-					Tmp::is_one_of<
-						std::integral_constant<size_t, s2>, 
-						std::integral_constant<size_t, s1>...
-					>::value,
-					combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t, s2o...>>,
-					Tmp::itself<std::integer_sequence<size_t, s1..., s2>>
-				>::type;
+				using type = typename std::conditional_t<Tmp::is_one_of<std::integral_constant<size_t, s2>, std::integral_constant<size_t, s1>...>::value,
+					Tmp::instant<unorder_adapt::template combine_implement, std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t, s2o...>>, 
+					Tmp::instant<Tmp::itself, std::integer_sequence<size_t, s1..., s2>>
+				>::template in_t_t<>;
 			};
 
-			/*
-			template<size_t ...s1> struct combine_implement<std::integer_sequence<size_t, s1...>, std::integer_sequence<size_t>>
-			{
-				static_assert(sizeof(s1) < 0, "unable to handle unbindable function");
-			};
-			*/
-			//template<typename T, typename K> using combine_implement_t = typename combine_implement<T, K>::type;
 		public:
 			template<typename T, typename K> using match = std::is_convertible<T, K>;
 			template<typename ...T> struct combine
@@ -48,7 +41,10 @@ namespace PO
 				using type = std::integer_sequence<size_t, out...>;
 			};
 
-			template<typename T, typename K> struct combine_implement;//TODO static_assert
+			template<typename T, typename K> struct combine_implement
+			{
+				static_assert(!std::is_same<K, std::integer_sequence<size_t>>::value, "unable to handle unbindable function");
+			};
 			template<size_t s2, size_t... s2o> struct combine_implement<std::integer_sequence<size_t>, std::integer_sequence<size_t, s2, s2o...>>
 			{
 				using type = std::integer_sequence<size_t, s2>;

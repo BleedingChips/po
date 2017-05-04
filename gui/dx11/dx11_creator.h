@@ -51,24 +51,26 @@ namespace PO
 				bool create_cbuffer(cbuffer& cb, size_t buffer_size, void* data = nullptr, bool write_able = true);
 				template<typename T> bool create_cbuffer(cbuffer& cb, T* data, bool write_able = true) { return create_cbuffer(cb, sizeof(T), data, write_able); }
 				template<typename T> bool create_cbuffer(shader_d& cb, size_t solt, T* data = nullptr, bool write_able = true) { cbuffer tem; if (create_cbuffer(tem, sizeof(T), data, write_able)) return cb.set_cbuffer(solt, tem), true; return false; }
+				template<typename T> bool create_cbuffer(shader_d& cb, size_t solt, size_t size) { cbuffer tem; if (create_cbuffer(tem, size, nullptr, true)) return cb.set_cbuffer(solt, tem), true; return false; }
+
+				bool create_sbuffer(sbuffer& sb, size_t element_size, size_t element_num, const void* data = nullptr, bool write_able = true);
+				template<typename T> bool create_sbuffer(sbuffer& cb, T* data, size_t num, bool write_able = true) { return create_sbuffer(cb, sizeof(T), num, data, write_able); }
+				template<typename T, typename K> bool create_sbuffer(sbuffer& cb, const std::vector<T, K>& v, bool write_able = true) { return create_sbuffer(cb, v.data(), v.size(), write_able); }
 
 				bool create_tex2(texture2D_ptr& tp, DXGI_FORMAT DF, size_t w, size_t h, size_t miplevel, void* data = nullptr, size_t size = 0, bool write_able = true) {
 					//create_tex2(device_ptr& cp, texture2D_ptr& t, DXGI_FORMAT format, size_t width, size_t height, size_t miplevel, D3D11_USAGE usage, UINT bind, void* data = nullptr, size_t line = 0)
 					return SUCCEEDED(Dx11::create_tex2(res, tp, DF, w, h, miplevel, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_SHADER_RESOURCE, data, size));
 				}
 
-				bool cast_SRV(SRV& srv, const texture2D_ptr& tp, size_t most_detail_mip, size_t miplevel) {
-					return SUCCEEDED(Dx11::cast_SRV(res, srv.ptr, tp, most_detail_mip, miplevel));
-				}
+				bool cast_SRV(SRV& srv, const sbuffer& s, size_t bit_offset, size_t element_count);
+				bool cast_SRV(SRV& srv, const sbuffer& s);
+				bool cast_SRV(SRV& srv, const texture2D_ptr& tp, size_t most_detail_mip, size_t miplevel);
+				bool cast_SRV(SRV& srv, const texture3D_ptr& tp, size_t most_detail_mip, size_t miplevel);
 
-				bool cast_SRV(SRV& srv, const texture3D_ptr& tp, size_t most_detail_mip, size_t miplevel) {
-					return SUCCEEDED(Dx11::cast_SRV(res, srv.ptr, tp, most_detail_mip, miplevel));
-				}
-
+				bool cast_SRV(shader_d& sd, size_t solt, const sbuffer& s, size_t bit_offset, size_t element_count);
+				bool cast_SRV(shader_d& sd, size_t solt, const sbuffer& s);
 				bool cast_SRV(shader_d& sd, size_t solt, const texture2D_ptr& tp, size_t most_detail_mip, size_t miplevel);
-
 				bool cast_SRV(shader_d& sd, size_t solt, const texture3D_ptr& tp, size_t most_detail_mip, size_t miplevel);
-
 				bool create_sample(sample_d& sd, const sample_s& ss);
 				bool create_sample(shader_d& sd, size_t solt, const sample_s& ss);
 			};
