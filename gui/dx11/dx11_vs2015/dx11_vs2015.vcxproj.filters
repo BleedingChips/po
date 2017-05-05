@@ -66,6 +66,9 @@
     <ClCompile Include="..\..\dx\move_style.cpp">
       <Filter>dx</Filter>
     </ClCompile>
+    <ClCompile Include="..\dx11_frame.cpp">
+      <Filter>dx11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\win32\win32_form.h">
@@ -117,6 +120,9 @@
       <Filter>dx</Filter>
     </ClInclude>
     <ClInclude Include="..\dx11_vertex.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dx11_frame.h">
       <Filter>dx11</Filter>
     </ClInclude>
   </ItemGroup>

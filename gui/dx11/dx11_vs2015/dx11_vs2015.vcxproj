@@ -135,6 +135,7 @@
     <ClCompile Include="..\dx11_define.cpp" />
     <ClCompile Include="..\dx11_form.cpp" />
     <ClCompile Include="..\dx11_pipeline.cpp" />
+    <ClCompile Include="..\dx11_frame.cpp" />
     <ClCompile Include="..\plugin\view_matrix.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -153,6 +154,7 @@
     <ClInclude Include="..\dx11_math.h" />
     <ClInclude Include="..\dx11_pipeline.h" />
     <ClInclude Include="..\dx11_vertex.h" />
+    <ClInclude Include="..\dx11_frame.h" />
     <ClInclude Include="..\plugin\camera.h" />
     <ClInclude Include="..\plugin\view_matrix.h" />
   </ItemGroup>

@@ -71,6 +71,65 @@ namespace PO
 			operator T**() { clear(); return data; }
 		};
 
+		template<typename T, typename K = std::allocator<T>> struct com_vector
+		{
+			std::vector<T*, K> ptr;
+			UINT size() const { return static_cast<UINT>(ptr.size()); }
+			T*const* data() const { return ptr.data(); }
+			T** data() { return ptr.data(); }
+			bool empty() const { return ptr.empty(); }
+			void set(size_t solt, const T* da)
+			{
+				if (ptr.size() <= solt)
+					ptr.insert(ptr.end(), solt + 1 - ptr.size(), nullptr);
+				auto& p = ptr[solt];
+				if (p != nullptr) p->Release();
+				p = const_cast<T*>(da);
+				if (p != nullptr) p->AddRef();
+			}
+			void clear() { for (auto ui : ptr) if (ui != nullptr) ui->Release(); ptr.clear(); }
+			~com_vector() { for (auto ui : ptr) if (ui != nullptr) ui->Release(); }
+			com_vector() {}
+			com_vector(const com_vector& dre)
+			{
+				ptr = dre.ptr;
+				for (auto ui : ptr)
+					if (ui != nullptr) ui->AddRef();
+			}
+			com_vector& operator=(const com_vector& dra) {
+				clear(); ptr = dre.ptr;
+				for (auto ui : ptr)
+					if (ui != nullptr) ui->AddRef();
+				return *this;
+			}
+			com_vector& operator=(const com_vector&& dra) {
+				clear(); ptr = std::move(dre.ptr);
+				return *this;
+			}
+			auto begin() { return ptr.begin(); }
+			auto end() { return ptr.end(); }
+			decltype(auto) operator[](size_t s) { return ptr[s]; }
+		};
+
+		template<typename T> struct com_ptr
+		{
+			T* ptr;
+			com_ptr(const com_ptr& p) : ptr(p.ptr) { if (ptr != nullptr) ptr->AddRef(); }
+			com_ptr(com_ptr&& p) : ptr(p.ptr) { p.ptr = nullptr; }
+			com_ptr() : ptr(nullptr) {}
+			operator T* () { return ptr; }
+			operator const T*() const { return ptr; }
+			operator bool() const { return ptr != nullptr; }
+			T** adress() { return &ptr; }
+			const T** adress() const { return &ptr; }
+			com_ptr& operator= (com_ptr&& c) { com_ptr tem(std::move(c)); if (ptr != nullptr) ptr->Release(); ptr = tem.ptr; tem.ptr = nullptr; return *this; };
+			com_ptr& operator= (const com_ptr& c) { com_ptr tem(c); if (ptr != nullptr) ptr->Release(); ptr = tem.ptr; tem.ptr = nullptr; return *this; };
+			com_ptr& operator= (const T* p) { if (ptr != nullptr) ptr->Release(); ptr = p; }
+			T& operator*() { return *ptr; }
+			const T& operator*() const { return *ptr; }
+			T* operator->() { return ptr; }
+			const T* operator->() const { return ptr; }
+		};
 	}
 
 }

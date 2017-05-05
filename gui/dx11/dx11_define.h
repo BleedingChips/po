@@ -16,16 +16,6 @@ namespace PO
 {
 	namespace Dx11
 	{
-
-
-
-
-
-
-
-
-
-
 		using namespace Dx;
 
 		using device_ptr = CComPtr<ID3D11Device>;
@@ -54,6 +44,7 @@ namespace PO
 		using blend_state_ptr = CComPtr<ID3D11BlendState>;
 		using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
 
+		
 		UINT translate_usage_to_cpu_flag(D3D11_USAGE DU);
 
 		HRESULT create_buffer(device_ptr& rp, buffer_ptr& ptr, D3D11_USAGE usage, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides);
@@ -166,10 +157,11 @@ namespace PO
 			auto end() { return ptr.end(); }
 			decltype(auto) operator[](size_t s) { return ptr[s]; }
 		};
+		
 
 		struct vertex
 		{
-			buffer_ptr ptr;
+			CComPtr<ID3D11Buffer> ptr;
 			UINT offset;
 			UINT element_size;
 			size_t num;
@@ -178,7 +170,7 @@ namespace PO
 
 		struct index
 		{
-			buffer_ptr ptr;
+			CComPtr<ID3D11Buffer> ptr;
 			UINT offset;
 			DXGI_FORMAT format;
 			size_t num;
