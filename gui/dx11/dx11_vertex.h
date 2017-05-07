@@ -1,5 +1,7 @@
 #pragma once
-#include "dx11_define.h"
+#include <d3d11.h>
+#include <dxgi.h>
+#include "../dx/dx_type.h"
 namespace PO
 {
 	namespace Dx11

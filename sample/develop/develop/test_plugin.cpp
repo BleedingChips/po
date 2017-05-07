@@ -254,52 +254,9 @@ struct PS_view
 
 void test_plugin::init(self_depute<Dx11_ticker> op)
 {
+	
 	auto& re = op.rt.res;
 	auto& pipe = op.rt.pipe;
-
-	std::vector<uint32_t> count = { 128, 64, 32, 16, 8 };
-	std::vector<texture3D_ptr> noise(count.size(), nullptr);
-	{
-		compute_d noise_cd;
-		auto res = scene.find(typeid(PO::binary), u"noise_creater.cso", PO::Tool::any{});
-		faile_break(
-			res && res->able_cast<PO::binary>() &&
-			re.CS.create_shader(noise_cd, res->cast<PO::binary>())
-		);
-		re.CS.create_cbuffer(noise_cd, 0, (uint32_t*)nullptr);
-		for (size_t i = 0; i < count.size(); ++i)
-		{
-			faile_break(
-				re.CS.create_UAT(noise[i], DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
-				re.CS.cast_UAV(noise_cd, 0, noise[i], 0, 0, 256) &&
-				pipe.write_cbuffer(noise_cd, 0, [&](void* data, UINT, UINT u) {*(uint32_t*)(data) = count[i]; })
-			);
-			draw_range_d noise;
-			noise.set_dispatch_d(256, 256, 256);
-			pipe.bind(noise_cd);
-			pipe.draw(noise);
-			pipe.unbind();
-		}
-	}
-	
-	{
-		compute_d noise_cd;
-		auto res = scene.find(typeid(PO::binary), u"vt_creator_cs.cso", PO::Tool::any{});
-		faile_break(res && res->able_cast<PO::binary>());
-		faile_break(re.CS.create_shader(noise_cd, res->cast<PO::binary>()));
-		faile_break(re.CS.create_UAT(vt, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1));
-		faile_break(re.CS.cast_UAV(noise_cd, 0, vt, 0, 0, 256));
-		for (size_t i = 0; i < noise.size(); ++i)
-			faile_break(re.CS.cast_SRV(noise_cd, i, noise[i], 0, 1));
-		draw_range_d noise;
-		noise.set_dispatch_d(256, 256, 256);
-		pipe.bind(noise_cd);
-		pipe.draw(noise);
-		pipe.unbind();
-		DirectX::ScratchImage SI;
-		DirectX::CaptureTexture(re.dp, pipe.ptr, vt, SI);
-		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"valum_texture.dds"_wc);
-	}
 
 	{
 		const uint32_t center = 20;
@@ -312,10 +269,18 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 			poi23333.push_back(cur);
 			cout << cur << endl;
 		}
-		compute_d new_vt;
+		compute_stage new_vt;
 		auto res = scene.find(typeid(PO::binary), u"new_vt_creater.cso", PO::Tool::any{});
 		faile_break(res && res->able_cast<PO::binary>());
-		faile_break(re.CS.create_shader(new_vt, res->cast<PO::binary>()));
+		new_vt = re.create_compute_shader(res->cast<PO::binary>());
+		structed_buffer sb = re.create_struct_buffer(poi23333);
+		new_vt.set_shader_resource_view(re.cast_shader_resource_view(sb), 0);
+		t = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+		new_vt.set_unordered_access_view(re.cast_unordered_access_view(t), 0);
+
+
+
+
 		sbuffer s;
 		
 		faile_break(
@@ -333,6 +298,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 		DirectX::CaptureTexture(re.dp, pipe.ptr, t, SI);
 		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture.dds"_wc);
 	}
+	*/
 
 	
 	/*faile_break(
@@ -343,6 +309,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 	//shader_d template_sd;
 	//uint32_t ran = 
 
+	/*
 	{
 		compute_d vt_shadow_creator;
 		auto res = scene.find(typeid(PO::binary), u"vt_shadow_cs.cso", PO::Tool::any{});
@@ -441,6 +408,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 		);
 		frame_cube_ia_d.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 	}
+	*/
 
 }
 
@@ -506,7 +474,7 @@ PO::Respond test_plugin::respond(event& c)
 
 void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 {
-
+	/*
 	if (od.final_direction() != 0)
 	{
 		loca += od.final_direction() * da.count() / 1000.0f * 2.0f;
@@ -574,5 +542,6 @@ void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 	pipe.draw(drd);
 	
 	pipe.unbind();
+	*/
 }
 

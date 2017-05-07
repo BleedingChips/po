@@ -82,7 +82,7 @@ namespace PO
 			UINT stencil_ref = 0;
 		};
 
-		struct shader_resource_d
+		struct shader_stage
 		{
 			Win32::com_vector<ID3D11Buffer> cbuffer_array;
 			Win32::com_vector<ID3D11ShaderResourceView> shader_resource_view_array;
@@ -92,7 +92,7 @@ namespace PO
 			void set_sample_state(const sample_state& sd, size_t solt);
 		};
 
-		struct input_assember_d
+		struct input_assember_stage
 		{
 			Win32::com_vector<ID3D11Buffer> vertex_array;
 			std::vector<UINT> offset_array;
@@ -110,18 +110,27 @@ namespace PO
 			void set_index_vertex(const index_vertex& iv, size_t solt);
 		};
 
-		struct vertex_shader_d : shader_resource_d
+		struct vertex_shader
 		{
 			binary code;
 			Win32::com_ptr<ID3D11VertexShader> ptr;
 		};
 
-		struct pixel_shader_d : shader_resource_d
+		struct vertex_stage : shader_stage, vertex_shader
 		{
-			Win32::com_ptr<ID3D11VertexShader> ptr;
 		};
 
-		struct output_merge_d : shader_resource_d
+		struct pixel_shader
+		{
+			Win32::com_ptr<ID3D11PixelShader> ptr;
+		};
+
+		struct pixel_stage : shader_stage, pixel_shader
+		{
+
+		};
+
+		struct output_merge_stage : shader_stage
 		{
 			Win32::com_vector<ID3D11RenderTargetView> render_array;
 			depth_stencil_view depth;
@@ -133,12 +142,18 @@ namespace PO
 			void set_state(depth_stencil_state dss) { depth_stencil = std::move(dss); }
 		};
 
-		struct compute_shader_d : shader_resource_d
+		struct compute_shader
+		{
+			Win32::com_ptr<ID3D11ComputeShader> ptr;
+		};
+
+		struct compute_stage : shader_stage , compute_shader
 		{
 			Win32::com_vector<ID3D11UnorderedAccessView> UAV_array;
 			std::vector<UINT> offset;
-			Win32::com_ptr<ID3D11ComputeShader> ptr;
+			
 			void set_unordered_access_view(const unordered_access_view& uav, size_t solt);
+			using compute_shader::operator=;
 		};
 
 		enum class DST_format
@@ -163,21 +178,28 @@ namespace PO
 			blend_state create_blend_state(const blend_state::scription& scri = blend_state::default_scription, std::array<float, 4> bind_factor = { 1.0f, 1.0f, 1.0f, 1.0f }, UINT sample_mask = 0xffffffff);
 			depth_stencil_state create_depth_stencil_state(const depth_stencil_state::scription& scri = depth_stencil_state::default_scription, UINT stencil_ref = 0);
 
-			void update_layout(input_assember_d& ia, const vertex_shader_d& vd);
+			void update_layout(input_assember_stage& ia, const vertex_shader& vd);
 
 			Win32::com_ptr<ID3D11Buffer> create_buffer_implement(UINT width, D3D11_USAGE DU, UINT BIND, UINT misc_flag, UINT struct_byte,  const void* data);
 
-			constant_buffer create_constant_buffer(UINT width, D3D11_USAGE DU, const void* data = nullptr);
-			structed_buffer create_struct_buffer(UINT element_size, UINT element_num, D3D11_USAGE DU = D3D11_USAGE_DYNAMIC, const void* data = nullptr) {
+			constant_buffer create_constant_buffer(UINT width, const void* data = nullptr, bool write_enable = true);
+			structed_buffer create_struct_buffer(UINT element_size, UINT element_num, const void* data = nullptr, bool write_enable = true) {
 				structed_buffer sb;
-				sb.ptr = create_buffer_implement(element_size * element_num, DU, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
+				sb.ptr = create_buffer_implement(element_size * element_num, (write_enable ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
 				return sb;
+			}
+			template<typename T, typename K> structed_buffer create_struct_buffer(const std::vector<T, K>& v, bool write_enable = true) {
+				return create_struct_buffer(static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), v.data(), write_enable);
 			}
 			structed_buffer create_struct_buffer_unorder_access(UINT element_size, UINT element_num, const void* data = nullptr) {
 				structed_buffer sb;
 				sb.ptr = create_buffer_implement(element_size * element_num, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
 				return sb;
 			}
+
+			vertex_shader create_vertex_shader(binary b);
+			pixel_shader create_pixel_shader(const binary& b);
+			compute_shader create_compute_shader(const binary& b);
 
 			tex1 create_tex1_implement(DXGI_FORMAT DF, UINT length, UINT miplevel, UINT count, D3D11_USAGE DU, UINT BIND, UINT misc, void** data);
 			tex2 create_tex2_implement(DXGI_FORMAT DF, UINT width, UINT height, UINT miplevel, UINT count, UINT sample_num, UINT sample_quality, D3D11_USAGE usage, UINT bind, UINT mis, void** data, UINT* line);
@@ -262,11 +284,11 @@ namespace PO
 			depth_stencil_view cast_depth_setncil_view_ms_array(const tex2& t, Tool::optional<UINT2> array_range = {}, Tool::optional<bool> depth_read_only = {});
 
 			unordered_access_view cast_unordered_access_view(const structed_buffer& tp);
-			unordered_access_view cast_unordered_access_view(const tex1& tp, size_t mipslice = 0);
-			unordered_access_view cast_unordered_access_view_array(const tex1& tp, size_t mipslice = 0, Tool::optional<UINT2> array = {});
-			unordered_access_view cast_unordered_access_view(const tex2& tp, size_t mipslice = 0);
-			unordered_access_view cast_unordered_access_view_array(const tex2& tp, size_t mipslice = 0, Tool::optional<UINT2> array = {});
-			unordered_access_view cast_unordered_access_view(const tex3& tp, size_t mipslice = 0, Tool::optional<UINT2> z_range = {});
+			unordered_access_view cast_unordered_access_view(const tex1& tp, UINT mipslice = 0);
+			unordered_access_view cast_unordered_access_view_array(const tex1& tp, UINT mipslice = 0, Tool::optional<UINT2> array = {});
+			unordered_access_view cast_unordered_access_view(const tex2& tp, UINT mipslice = 0);
+			unordered_access_view cast_unordered_access_view_array(const tex2& tp, UINT mipslice = 0, Tool::optional<UINT2> array = {});
+			unordered_access_view cast_unordered_access_view(const tex3& tp, UINT mipslice = 0, Tool::optional<UINT2> z_range = {});
 		};
 
 		namespace Implement
@@ -275,47 +297,47 @@ namespace PO
 			struct input_assember_context_t
 			{
 				size_t max_buffer_solt = 0;
-				void bind(ID3D11DeviceContext* cp, const input_assember_d& id);
-				void unbind(ID3D11DeviceContext* cp);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_assember_stage& id);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
 			struct vertex_shader_context_t
 			{
 				size_t max_cbuffer = 0;
-				void bind(ID3D11DeviceContext* cp, const vertex_shader_d&);
-				void unbind(ID3D11DeviceContext* cp);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_stage&);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
 			struct raterizer_context_t
 			{
 				size_t max_view = 0;
-				void bind(ID3D11DeviceContext* cp, const raterizer_state& rs);
-				void unbind(ID3D11DeviceContext* cp);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const raterizer_state& rs);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
 			struct pixel_shader_context_t
 			{
 				size_t max_cbuffer = 0;
-				void bind(ID3D11DeviceContext* cp, const pixel_shader_d&);
-				void unbind(ID3D11DeviceContext* cp);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_stage&);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
 			struct output_merge_context_t
 			{
-				void clear_render_target(ID3D11DeviceContext* cp, output_merge_d& omd, size_t solt, const std::array<float, 4>& color);
-				void clear_render_target(ID3D11DeviceContext* cp, output_merge_d& omd, const std::array<float, 4>& color);
-				void clear_depth(ID3D11DeviceContext* cp, output_merge_d& omd, float depth);
-				void clear_stencil(ID3D11DeviceContext* cp, output_merge_d& omd, uint8_t ref);
-				void clear_depth_stencil(ID3D11DeviceContext* cp, output_merge_d& omd, float depth, uint8_t ref);
-				void bind(ID3D11DeviceContext* cp, const output_merge_d&);
-				void unbind(ID3D11DeviceContext* cp);
+				void clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, size_t solt, const std::array<float, 4>& color);
+				void clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, const std::array<float, 4>& color);
+				void clear_depth(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, float depth);
+				void clear_stencil(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, uint8_t ref);
+				void clear_depth_stencil(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, float depth, uint8_t ref);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const output_merge_stage&);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
 			struct compute_shader_context_t
 			{
 				size_t max_cbuffer = 0;
-				void bind(ID3D11DeviceContext* cp, const compute_shader_d& cd);
-				void unbind(ID3D11DeviceContext* cp);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_stage& cd);
+				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 		}
 
@@ -331,25 +353,37 @@ namespace PO
 			Implement::compute_shader_context_t CS;
 
 			pipe_line(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {}
+
+			enum DrawMode
+			{
+				PIPELINE,
+				COMPLUTE,
+				NONE
+			};
+
+			DrawMode last_mode = DrawMode::NONE;
+
+			void dispatch(UINT x, UINT y, UINT z);
+
+			void draw_vertex(UINT count, UINT start);
+			void draw_index(UINT index_count, UINT index_start, UINT vertex_count);
+			void draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start);
+			void draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start);
+
 			void unbind();
 
-			void clear_bind() {
-				CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
-				PS.unbind(ptr); OM.unbind(ptr);
-			}
-
-			void bind(const input_assember_d& d) { IA.bind(ptr, d); }
-			void bind(const vertex_shader_d& d) { VS.bind(ptr, d); }
-			void bind(const pixel_shader_d& d) { PS.bind(ptr, d); }
-			void bind(const output_merge_d& d) { OM.bind(ptr, d); }
+			void bind(const input_assember_stage& d) { IA.bind(ptr, d); }
+			void bind(const vertex_stage& d) { VS.bind(ptr, d); }
+			void bind(const pixel_stage& d) { PS.bind(ptr, d); }
+			void bind(const output_merge_stage& d) { OM.bind(ptr, d); }
 			void bind(const raterizer_state& rs) { RA.bind(ptr, rs); }
-			void bind(const compute_shader_d& cd) { CS.bind(ptr, cd); }
+			void bind(const compute_stage& cd) { CS.bind(ptr, cd); }
 
-			void clear_render_target(output_merge_d& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); }
-			void clear_render_target(output_merge_d& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); }
-			void clear_depth(output_merge_d& omd, float depth) { OM.clear_depth(ptr, omd, depth); }
-			void clear_stencil(output_merge_d& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); }
-			void clear_depth_stencil(output_merge_d& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); }
+			void clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); }
+			void clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); }
+			void clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); }
+			void clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); }
+			void clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); }
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
 			{
@@ -363,7 +397,7 @@ namespace PO
 				return false;
 			}
 
-			template<typename T> bool write_constant_buffer(shader_resource_d& b, size_t o, T&& t)
+			template<typename T> bool write_constant_buffer(shader_stage& b, size_t o, T&& t)
 			{
 				if (b.cbuffer_array.size() <= o) return false;
 				cbuffer ptr;

@@ -1,6 +1,6 @@
 #pragma once
 #include "../win32/win32_form.h"
-#include "dx11_pipeline.h"
+#include "dx11_frame.h"
 #include "dx11_vertex.h"
 #include "../dxgi/dxgi.h"
 #include <DirectXMath.h>
@@ -21,9 +21,9 @@ namespace PO
 		struct Dx11_form
 		{
 			Win32::win32_form form;
-			device_ptr dev;
-			context_ptr dc;
-			swapchain_ptr swap;
+			Win32::com_ptr<ID3D11Device> dev;
+			Win32::com_ptr<ID3D11DeviceContext> dc;
+			Win32::com_ptr<IDXGISwapChain> swap;
 			Dx11_form(form_control& fc, const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() {};
 		};
@@ -35,10 +35,10 @@ namespace PO
 
 		struct Dx11_ticker
 		{
-			swapchain_ptr swap;
-			resource res;
+			Win32::com_ptr<IDXGISwapChain> swap;
+			creator res;
 			pipe_line pipe;
-			texture2D_ptr back_buffer;
+			tex2 back_buffer;
 			Dx11_ticker(renderer_control& rc, Dx11_form& Df);
 			void update_screen() { swap->Present(0, 0); }
 		};

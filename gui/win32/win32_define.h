@@ -78,13 +78,13 @@ namespace PO
 			T*const* data() const { return ptr.data(); }
 			T** data() { return ptr.data(); }
 			bool empty() const { return ptr.empty(); }
-			void set(size_t solt, const T* da)
+			void set(size_t solt, T* da)
 			{
 				if (ptr.size() <= solt)
 					ptr.insert(ptr.end(), solt + 1 - ptr.size(), nullptr);
 				auto& p = ptr[solt];
 				if (p != nullptr) p->Release();
-				p = const_cast<T*>(da);
+				p = da;
 				if (p != nullptr) p->AddRef();
 			}
 			void clear() { for (auto ui : ptr) if (ui != nullptr) ui->Release(); ptr.clear(); }
@@ -118,7 +118,7 @@ namespace PO
 			com_ptr(com_ptr&& p) : ptr(p.ptr) { p.ptr = nullptr; }
 			com_ptr() : ptr(nullptr) {}
 			operator T* () { return ptr; }
-			operator const T*() const { return ptr; }
+			operator T*() const { return ptr; }
 			operator bool() const { return ptr != nullptr; }
 			T** adress() { return &ptr; }
 			const T** adress() const { return &ptr; }

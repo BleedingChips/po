@@ -1,11 +1,12 @@
 #pragma once
 #include <iostream>
 #include "form_define.h"
-#include "../../../gui/dx11/dx11_pipeline.h"
+#include "../../../gui/dx11/dx11_frame.h"
 #include <DirectXTex.h>
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/move_style.h"
 #include "../../../gui/dx11/dx11_form.h"
+using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;
 /*
@@ -21,20 +22,20 @@ struct alignas(alignof(movement_interpolation)) test_plugin
 
 	PO::raw_scene scene;
 
-	texture3D_ptr vt;
-	texture3D_ptr vt_shadow;
-	texture3D_ptr t;
+	tex3 vt;
+	tex3 vt_shadow;
+	tex3 t;
 
-	input_assember_d cube_ia_d;
-	vertex_shader_d cube_vs_d;
+	input_assember_stage cube_ia_d;
+	vertex_stage cube_vs_d;
 
-	raterizer_d cube_ra_d;
-	pixel_shader_d cube_ps_d;
+	raterizer_state cube_ra_d;
+	pixel_stage cube_ps_d;
 	
-	output_merge_d cube_m;
+	output_merge_stage cube_m;
 
-	input_assember_d frame_cube_ia_d;
-	pixel_shader_d frame_cube_ps_d;
+	input_assember_stage frame_cube_ia_d;
+	pixel_stage frame_cube_ps_d;
 
 	 movement_interpolation inter;
 

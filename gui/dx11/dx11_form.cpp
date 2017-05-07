@@ -18,10 +18,10 @@ namespace PO
 				1,
 				D3D11_SDK_VERSION,
 				&swc,
-				&swap,
-				&dev,
+				swap.adress(),
+				dev.adress(),
 				&lel2,
-				&dc
+				dc.adress()
 			);
 			Win32::Error::fail_throw(re);
 			fc.pre_tick = [this](form_control& fc, duration da) {this->form.tick(fc, da); };
