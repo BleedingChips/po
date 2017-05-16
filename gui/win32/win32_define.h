@@ -117,8 +117,11 @@ namespace PO
 			com_ptr(const com_ptr& p) : ptr(p.ptr) { if (ptr != nullptr) ptr->AddRef(); }
 			com_ptr(com_ptr&& p) : ptr(p.ptr) { p.ptr = nullptr; }
 			com_ptr() : ptr(nullptr) {}
+			~com_ptr() { if (ptr != nullptr) ptr->Release(); }
 			operator T* () { return ptr; }
 			operator T*() const { return ptr; }
+			T* data() { return ptr; }
+			T* data() const { return ptr; }
 			operator bool() const { return ptr != nullptr; }
 			T** adress() { return &ptr; }
 			const T** adress() const { return &ptr; }
@@ -128,7 +131,7 @@ namespace PO
 			T& operator*() { return *ptr; }
 			const T& operator*() const { return *ptr; }
 			T* operator->() { return ptr; }
-			const T* operator->() const { return ptr; }
+			T* operator->() const { return ptr; }
 		};
 	}
 

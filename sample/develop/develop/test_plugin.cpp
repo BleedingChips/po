@@ -47,6 +47,66 @@ struct start_init
 	}
 } init;
 
+
+opposite_direct od;
+opposite_direct left_right;
+opposite_direct up_down;
+opposite_direct pp2;
+
+PO::Respond test_plugin::respond(event& c)
+{
+	//return vm.capture_event(c.get_event());
+	if (c.is_key())
+	{
+		auto& u = c;
+		if (u.is_key())
+		{
+			switch (u.key.get_asc())
+			{
+			case 'r':
+				od.positive(u.key.is_down());
+				break;
+			case 'f':
+				od.negetive(u.key.is_down());
+				break;
+			case 'a':
+				left_right.negetive(u.key.is_down());
+				break;
+			case 'd':
+				left_right.positive(u.key.is_down());
+				break;
+			case 'w':
+				up_down.positive(u.key.is_down());
+				break;
+			case 's':
+				up_down.negetive(u.key.is_down());
+				break;
+			case 'q':
+				pp2.positive(u.key.is_down());
+				break;
+			case 'e':
+				pp2.negetive(u.key.is_down());
+				break;
+			case 'z':
+				mfo.qua = quaternions{};
+				break;
+			case 'p':
+				if (u.key.is_up())
+				{
+					float4x4 p = mfo;
+					cout << p << endl;
+					cout << mfo.poi << endl;
+					cout << mfo.sca << endl;
+					cout << mfo.qua << endl;
+
+				}
+				break;
+			}
+		}
+	}
+	return PO::Respond::Pass;
+}
+
 /*
 PO::Tool::variant<Implement::texture1D_ptr, Implement::texture2D_ptr, Implement::texture3D_ptr> 
 load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::purpose bp)
@@ -130,27 +190,28 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::pu
 test_plugin::test_plugin(self_depute<Dx11_ticker> p)
 {
 	std::cout << "create test_plugin" << endl;
+	/*
 	scene.pre_load(
 		typeid(PO::binary),
 		{
 			u"cube_vs.cso",
 			u"cube_ps.cso",
-			u"vt_creator_cs.cso",
-			u"vt_shadow_cs.cso",
-			u"noise_creater.cso",
-			u"ps.cso"
+			u"volum_cs.cso",
+			u"screen_vs.cso",
+			u"screen_ps.cso"
 		}
 	);
+	*/
 	p.self.auto_bind_init(&test_plugin::init, this);
 	p.self.auto_bind_tick(&test_plugin::tick, this);
 	p.self.auto_bind_respond(&test_plugin::respond, this);
 }
 
-
 struct cube_ver
 {
 	float3 poi;
 	float3 col;
+	using type = PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>;
 };
 
 std::vector<cube_ver> poi =
@@ -187,9 +248,10 @@ std::vector<cube_ver> poi =
 	{ { 0.5, -0.5, 0.5 },{ 0.0, 1.0, 1.0 } },
 
 	{ { -0.5, -0.5, 0.5 },{ 0.0, 1.0, 1.0 } }
+
+	
+
 };
-
-
 
 std::vector<uint16_t> ind =
 {
@@ -222,83 +284,275 @@ std::vector<uint16_t> ind_frame =
 	20,21,21,22,22,23,23,20
 };
 
+struct screen_vertex_t
+{
+	float2 poi;
+	float2 tex;
+	using type = PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float2>, PO::Dx11::syntax<texcoord, 0, float2>>;
+};
+
+std::vector<screen_vertex_t> screen_vertex =
+{
+	{ { -1.0, -1.0 },{ 0.0, 1.0 } },
+	{ { -1.0, 1.0 },{ 0.0, 0.0 } },
+	{ { 1.0, 1.0 },{ 1.0, 0.0 } },
+	{ { 1.0, -1.0 },{ 1.0, 1.0 } }
+};
+
+std::vector<uint16_t> screen_index = {
+	0 , 1, 2,
+	2, 3, 0
+};
+
 void faile_break(bool i)
 {
 	if (!i)
 		__debugbreak();
 }
 
-float3 poi_shift = { 0.0, 0.0, 0.0 };
 
 
-struct cube_cbuffer
-{
-	float4x4 view_matrix;
-	float4x4 project;
-};
-
-struct shader_cbuffer
-{
-	float4x4 inverse_view;
-	float sample_step;
-	uint32_t3 tex_size;
-	float3 light_direction;
-};
-
-struct PS_view
-{
-	float4x4 matrix;
-	float4x4 pro_matrix;
-	float nearz;
-};
 
 void test_plugin::init(self_depute<Dx11_ticker> op)
 {
 	
 	auto& re = op.rt.res;
 	auto& pipe = op.rt.pipe;
+	pipe << op.rt;
 
-	{
-		const uint32_t center = 20;
-		std::mt19937 r_mt(200);
-		std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
-		std::vector<float3> poi23333;
-		for (uint32_t i = 0; i < center; ++i)
-		{
-			float3 cur = float3{ nd(r_mt), nd(r_mt), nd(r_mt) };
-			poi23333.push_back(cur);
-			cout << cur << endl;
-		}
-		compute_stage new_vt;
-		auto res = scene.find(typeid(PO::binary), u"new_vt_creater.cso", PO::Tool::any{});
-		faile_break(res && res->able_cast<PO::binary>());
-		new_vt = re.create_compute_shader(res->cast<PO::binary>());
-		structed_buffer sb = re.create_struct_buffer(poi23333);
-		new_vt.set_shader_resource_view(re.cast_shader_resource_view(sb), 0);
-		t = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
-		new_vt.set_unordered_access_view(re.cast_unordered_access_view(t), 0);
-
-
-
-
-		sbuffer s;
+	try {
 		
-		faile_break(
-			re.CS.create_sbuffer(s, poi23333) &&
-			re.CS.cast_SRV(new_vt,0 , s) &&
-			re.CS.create_UAT(t, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256, 1) &&
-			re.CS.cast_UAV(new_vt, 0, t, 0, 0, 256)
-		);
-		draw_range_d noise;
-		noise.set_dispatch_d(256, 256, 256);
-		pipe.bind(new_vt);
-		pipe.draw(noise);
-		pipe.unbind();
-		DirectX::ScratchImage SI; 
-		DirectX::CaptureTexture(re.dp, pipe.ptr, t, SI);
-		DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture.dds"_wc);
+
+		back = re.create_tex2_depth_stencil(PO::Dx11::DST_format::D24_UI8, op.rt.back_buffer);
+		g_poi = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
+		g_col = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
+
+		{
+			std::mt19937 r_mt(200);
+			std::array<float4, 8> ran;
+#undef max;
+			for (size_t i = 0; i < 8; ++i)
+			{
+				ran[i] = float4{
+					r_mt() / static_cast<float>(decltype(r_mt)::max()),
+					r_mt() / static_cast<float>(decltype(r_mt)::max()),
+					r_mt() / static_cast<float>(decltype(r_mt)::max()),
+					r_mt() / static_cast<float>(decltype(r_mt)::max())
+				};
+				cout << ran[i] << endl;
+			}
+				
+			compute_stage cs;
+			auto res = scene.find(typeid(PO::binary), u"volum_noise_cs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			da = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 256, 256, 256);
+			cs.set(re.create_compute_shader(res->cast<PO::binary>()))
+				.set(re.cast_unordered_access_view(da), 0)
+				.set(re.create_constant_buffer(sizeof(float4) * 8, ran.data()), 0);
+			pipe << cs;
+			pipe.dispatch(256, 256, 256);
+			pipe.unbind();
+
+			/*
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(re.dev, pipe.ptr, da.ptr, SI);
+			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"noise.dds"_wc);
+			*/
+		}
+
+		{
+			std::mt19937 r_mt(189);
+			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+			compute_stage new_vt;
+			auto res = scene.find(typeid(PO::binary), u"volum_cs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			volum = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+			std::vector<float4> point;
+			for (size_t i = 0; i < 30; ++i)
+				point.push_back(
+					float4{
+				nd(r_mt),
+				nd(r_mt),
+				nd(r_mt),
+				r_mt() / static_cast<float>(decltype(r_mt)::max())
+			}
+				);
+			structed_buffer sb = re.create_struct_buffer(point);
+			new_vt.set(re.create_compute_shader(res->cast<PO::binary>()))
+				.set(re.cast_shader_resource_view(da), 0)
+				.set(re.cast_shader_resource_view(sb), 1)
+				.set(re.cast_unordered_access_view(volum), 0);
+			pipe << new_vt;
+			pipe.dispatch(256, 256, 256);
+			pipe.unbind();
+		}
+
+		
+		{
+			/*
+			const uint32_t center = 20;
+			std::mt19937 r_mt(200);
+			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+			std::vector<float3> poi23333;
+			poi23333.reserve(center);
+			for (uint32_t i = 0; i < center; ++i)
+			{
+				float3 cur = float3{ nd(r_mt), nd(r_mt), nd(r_mt) };
+				poi23333.push_back(cur);
+			}
+			compute_stage new_vt;
+			auto res = scene.find(typeid(PO::binary), u"volum_cs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			new_vt.set(re.create_compute_shader(res->cast<PO::binary>()));
+			structed_buffer sb = re.create_struct_buffer(poi23333);
+			new_vt.set(re.cast_shader_resource_view(sb), 0);
+			volum = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+			new_vt.set(re.cast_unordered_access_view(volum), 0);
+			pipe.bind(new_vt);
+			//pipe.dispatch(256, 256, 256);
+			pipe.unbind();
+			//DirectX::ScratchImage SI;
+			//DirectX::CaptureTexture(re.dev, pipe.ptr, volum.ptr, SI);
+			//DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture.dds"_wc);
+			*/
+		}
+
+		/*
+		{
+			//fractal
+			compute_stage fractal;
+			auto res = scene.find(typeid(PO::binary), u"fractal.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			fractal.set(re.create_compute_shader(res->cast<PO::binary>()));
+			const uint32_t count = 256 * 256 * 256;
+			std::mt19937 r_mt(200);
+			std::tuple<float4, float4> random_data = {
+				{ ((r_mt() % 256) / 256.0f), ((r_mt() % 256) / 256.0f), ((r_mt() % 256) / 256.0f), ((r_mt() % 256) / 256.0f) },
+				{ ((r_mt() % 256) / 256.0f) ,((r_mt() % 256) / 256.0f) ,((r_mt() % 256) / 256.0f) ,((r_mt() % 256) / 256.0f) }
+			};
+			tex3 output = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+			fractal.set(re.create_constant_buffer(&random_data), 0);
+			for (size_t i = 0; i < 2; ++i)
+			{
+				fractal.set(re.cast_shader_resource_view(((i % 2) == 0) ? volum : output), 0)
+					.set(re.cast_unordered_access_view(((i % 2) == 0) ? output : volum), 0);
+				pipe << fractal;
+				pipe.dispatch(256, 256, 256);
+				pipe.unbind();
+			}
+			
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(re.dev, pipe.ptr, output.ptr, SI);
+			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"fractal.dds"_wc);
+		}
+		*/
+
+		{
+			compute_stage shadow_shader;
+			auto res = scene.find(typeid(PO::binary), u"volum_shadow_cs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			volum_shadow = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+			shadow_shader.set(re.create_compute_shader(res->cast<PO::binary>()))
+				.set(re.cast_shader_resource_view(volum), 0)
+				.set(re.cast_unordered_access_view(volum_shadow), 0);
+			pipe.bind(shadow_shader);
+			pipe.dispatch(256, 256, 256);
+			pipe.unbind();
+			//DirectX::ScratchImage SI;
+			//DirectX::CaptureTexture(re.dev, pipe.ptr, volum_shadow.ptr, SI);
+			//DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture_shadow.dds"_wc);
+		}
+		
+		{
+			cube_ia.set(re.create_vertex(poi, decltype(poi)::value_type::type{}), 0);
+			cube_ia.set(re.create_index(ind));
+			auto res = scene.find(typeid(PO::binary), u"cube_vs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			cube_vs.set(re.create_vertex_shader(res->cast<PO::binary>()));
+			cube_vs.set(re.create_constant_buffer(sizeof(float4)), 0);
+			re.update_layout(cube_ia, cube_vs);
+			cube_ra = re.create_raterizer_state();
+		}
+		
+		{
+			auto res = scene.find(typeid(PO::binary), u"cube_ps.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			deffer_ps.set(re.create_pixel_shader(res->cast<PO::binary>()));
+			deffer_om.set(re.cast_render_target_view(g_col), 0)
+				.set(re.cast_render_target_view(g_poi), 1)
+				.set(re.cast_depth_setncil_view(back));
+		}
+
+		{
+			auto res = scene.find(typeid(PO::binary), u"screen_vs.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			screen_vs.set(re.create_vertex_shader(res->cast<PO::binary>()));
+			screen_ia.set(re.create_vertex(screen_vertex, decltype(screen_vertex)::value_type::type{}), 0)
+				.set(re.create_index(screen_index));
+			re.update_layout(screen_ia, screen_vs);
+			screen_ra = re.create_raterizer_state();
+		}
+		
+		{
+			auto res = scene.find(typeid(PO::binary), u"screen_ps.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			screen_ps.set(re.create_pixel_shader(res->cast<PO::binary>()))
+				.set(re.cast_shader_resource_view(g_col), 0)
+				.set(re.cast_shader_resource_view(g_poi), 1)
+				.set(re.create_sample_state(), 0);
+			depth_stencil_state::scription scr = depth_stencil_state::default_scription;
+			scr.DepthEnable = FALSE;
+			scr.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_ALWAYS;
+			scr.StencilEnable = FALSE;
+			blend_state::scription scr_ble = blend_state::default_scription;
+			scr_ble.RenderTarget[0].BlendEnable = FALSE;
+			screen_om.set(re.cast_render_target_view(op.rt.back_buffer), 0);
+			screen_bs = re.create_blend_state(scr_ble);
+			screen_dss = re.create_depth_stencil_state(scr);
+		}
+		
+		{
+			frame_ia.set(re.create_vertex(poi, decltype(poi)::value_type::type{}), 0);
+			frame_ia.primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINELIST;
+			frame_ia.set(re.create_index(ind_frame));
+			re.update_layout(frame_ia, cube_vs);
+			auto res = scene.find(typeid(PO::binary), u"frame_ps.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			frame_ps.set(re.create_pixel_shader(res->cast<PO::binary>()));
+			frame_dss = re.create_depth_stencil_state();
+			frame_bs = re.create_blend_state();
+		}
+
+		{
+			auto res = scene.find(typeid(PO::binary), u"volum_ps.cso", PO::Tool::any{});
+			faile_break(res && res->able_cast<PO::binary>());
+			sample_state::scription scr_sample = sample_state::default_scription;
+			scr_sample.Filter = D3D11_FILTER::D3D11_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR;
+			volum_ps.set(re.create_pixel_shader(res->cast<PO::binary>()))
+				.set(re.cast_shader_resource_view(volum), 0)
+				.set(re.cast_shader_resource_view(volum_shadow), 1)
+				.set(re.create_sample_state(scr_sample), 0)
+				.set(re.create_constant_buffer(sizeof(float4x4) + sizeof(float)), 0);
+			blend_state::scription scr = blend_state::default_scription;
+			scr.RenderTarget[0].BlendEnable = TRUE;
+			scr.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+			scr.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_ALPHA;
+			scr.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+			depth_stencil_state::scription scr22 = depth_stencil_state::default_scription;
+			scr22.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+			volum_bs = re.create_blend_state(scr);
+			volum_dss = re.create_depth_stencil_state(scr22);
+			
+		}
+
 	}
-	*/
+	catch (HRESULT re)
+	{
+		HRESULT res = re;
+		__debugbreak();
+	}
+
+	
 
 	
 	/*faile_break(
@@ -412,68 +666,80 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 
 }
 
-opposite_direct od;
-opposite_direct left_right;
-opposite_direct up_down;
-opposite_direct pp2;
-
-float loca = 4.0;
-float lr = 0.0;
-float up = 0.0;
-float up2 = 0.0;
-
-PO::Respond test_plugin::respond(event& c)
-{
-	//return vm.capture_event(c.get_event());
-	if (c.is_key())
-	{
-		auto& u = c;
-		if (u.is_key())
-		{
-			switch (u.key.get_asc())
-			{
-			case 'r':
-				od.positive(u.key.is_down());
-				break;
-			case 'f':
-				od.negetive(u.key.is_down());
-				break;
-			case 'a':
-				left_right.negetive(u.key.is_down());
-				break;
-			case 'd':
-				left_right.positive(u.key.is_down());
-				break;
-			case 'w':
-				up_down.positive(u.key.is_down());
-				break;
-			case 's':
-				up_down.negetive(u.key.is_down());
-				break;
-			case 'q':
-				pp2.positive(u.key.is_down());
-				break;
-			case 'e':
-				pp2.negetive(u.key.is_down());
-				break;
-			case 'z':
-				if (u.key.is_up())
-				{
-					lr = 0.0;
-					up = 0.0;
-					up2 = 0.0;
-				}
-				break;
-			}
-		}
-	}
-	return PO::Respond::Pass;
-}
-
-
+float loc = 5.0f;
 
 void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 {
+
+	PO::Dx::quaternions_template qt = mfo.qua;
+
+	float angle_speed = da.count() / 1000.0f / 3.141592653f * 180.0f * 1.0f;
+
+	if (left_right.final_direction() != 0)
+		qt = qt * PO::Dx::rotation_axis{ left_right.final_direction() * angle_speed , {0.0, 1.0, 0.0} };
+
+	if (up_down.final_direction() != 0)
+		qt = qt * PO::Dx::rotation_axis{ up_down.final_direction() * angle_speed ,{ -1.0, 0.0, 0.0 } };
+
+	if (pp2.final_direction() != 0)
+		qt = qt * PO::Dx::rotation_axis{ pp2.final_direction() * angle_speed , { 0.0, 0.0, -1.0 } };
+
+	loc += od.final_direction() * da.count() / 1000.0f * 5.0f;
+
+	mfo.qua = qt;
+
+	mfo.poi = float3(0.0, 0.0, loc);
+
+
+	auto& re = t.rt.res;
+	auto& pipe = t.rt.pipe;
+
+	pipe.clear_render_target(deffer_om, { 0.0, 0.0, 0.8f, 1.0 });
+	pipe.clear_depth(deffer_om, 1.0f);
+
+	float4x4 pro;
+	DirectX::XMStoreFloat4x4(&pro, DirectX::XMMatrixMultiply(mfo, DirectX::XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, 1024.0f / 768.0f, 0.01f, 1000.0f)));
+
+	
+	if(!pipe.write_constant_buffer(cube_vs, 0, [&](void* data, UINT c, UINT k) {
+		*static_cast<float4x4*>(data) = pro;
+	}))__debugbreak();
+
+	DirectX::XMStoreFloat4x4(&pro, DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixMultiply(mfo, DirectX::XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, 1024.0f / 768.0f, 0.01f, 1000.0f))));
+
+	if (!pipe.write_constant_buffer(volum_ps, 0, [&](void* data, UINT c, UINT k) {
+		if (c <= sizeof(float4x4) + sizeof(float)) __debugbreak();
+		*static_cast<float4x4*>(data) = pro;
+		*reinterpret_cast<float*>(static_cast<float4x4*>(data) + 1) = 0.01f;
+	}))__debugbreak();
+
+	pipe.clear_render_target(screen_om, { 0.0, 0.0, 0.0, 1.0 });
+	pipe.clear_depth(screen_om, 1.0f);
+
+
+	pipe << cube_ia << cube_vs << cube_ra << deffer_om;
+	pipe << volum_ps << volum_bs << volum_dss;
+	pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
+
+	pipe << frame_ia << frame_bs << frame_dss << frame_ps;
+	pipe.draw_index(static_cast<UINT>(ind_frame.size()), 0, 0);
+	pipe.unbind();
+	
+	pipe << screen_om << screen_vs << screen_ra << screen_ps << screen_ia << screen_bs << screen_dss;
+	pipe.draw_index(static_cast<UINT>(screen_index.size()), 0, 0);
+	pipe.unbind();
+
+	
+
+
+	
+
+
+
+
+
+
+
 	/*
 	if (od.final_direction() != 0)
 	{

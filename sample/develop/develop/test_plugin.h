@@ -4,7 +4,7 @@
 #include "../../../gui/dx11/dx11_frame.h"
 #include <DirectXTex.h>
 #include "../../../tool/mail.h"
-#include "../../../gui/dx/move_style.h"
+#include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
 using namespace PO::Dx;
 using namespace PO::Dx11;
@@ -17,29 +17,48 @@ Implement::resource_view_ptr cast_resource(Implement::resource_ptr& rp,
 );
 */
 
-struct alignas(alignof(movement_interpolation)) test_plugin
+struct test_plugin
 {
 
 	PO::raw_scene scene;
 
-	tex3 vt;
-	tex3 vt_shadow;
-	tex3 t;
+	tex2 back;
+	tex2 g_poi;
+	tex2 g_col;
 
-	input_assember_stage cube_ia_d;
-	vertex_stage cube_vs_d;
+	tex3 da;
 
-	raterizer_state cube_ra_d;
-	pixel_stage cube_ps_d;
+	tex3 volum;
+	tex3 volum_shadow;
+
+	input_assember_stage cube_ia;
+	vertex_stage cube_vs;
+	raterizer_state cube_ra;
+
+	pixel_stage deffer_ps;
+	output_merge_stage deffer_om;
 	
-	output_merge_stage cube_m;
 
-	input_assember_stage frame_cube_ia_d;
-	pixel_stage frame_cube_ps_d;
+	input_assember_stage frame_ia;
+	pixel_stage frame_ps;
+	blend_state frame_bs;
+	depth_stencil_state frame_dss;
 
-	 movement_interpolation inter;
+	pixel_stage volum_ps;
+	blend_state volum_bs;
+	depth_stencil_state volum_dss;
 
-	float angle_a = 0.0, angle_b = 0.0, dis = 2.0;
+	input_assember_stage screen_ia;
+	vertex_stage screen_vs;
+	raterizer_state screen_ra;
+	pixel_stage screen_ps;
+	output_merge_stage screen_om;
+	blend_state screen_bs;
+	depth_stencil_state screen_dss;
+
+	
+
+	movement_free_object mfo;
 
 	test_plugin(self_depute<Dx11_ticker> p);
 

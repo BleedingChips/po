@@ -1,4 +1,36 @@
+struct vs_output
+{
+	float4 poi:SV_POSITION;
+	float3 col:DISSUSE;
+	float3 ori_poi : ORI_POSITION;
+};
 
+struct ps_out
+{
+	float4 col : SV_TARGET0;
+	float4 poi : SV_TARGET1;
+};
+
+ps_out main(in vs_output vo)
+{
+	ps_out po;
+	po.col = float4(vo.col, 1.0);
+	po.poi = float4(vo.poi.x / 1024.0 / vo.poi.w, vo.poi.y / 768.0 / vo.poi.w, vo.poi.z / vo.poi.w, 1.0);
+	return po;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 cbuffer view
 {
 	float4x4 view;
@@ -58,3 +90,4 @@ float4 main(in ps_input i) : SV_TARGET
 	return float4(s, s, s, l);
 	//return float4(shadow[uint3(0, 0, 0)].x, 0.0, 0.0, 1.0);
 }
+*/

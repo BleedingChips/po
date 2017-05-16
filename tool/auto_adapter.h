@@ -110,9 +110,14 @@ namespace PO
 				>;
 			};
 
-			template<bool is_member_func, size_t ...i, typename fun, typename par> decltype(auto) auto_adapter_implement(std::integral_constant<bool, is_member_func>, std::integer_sequence<size_t, i...>, fun&& f, par pa)
+			template<size_t ...i, typename fun, typename par> decltype(auto) auto_adapter_implement(std::true_type, std::integer_sequence<size_t, i...>, fun&& f, par pa)
 			{
-				return std::invoke(std::forward<fun>(f), std::get<is_member_func ? (i + 1) : (i)>(pa)...);
+				return std::invoke(std::forward<fun>(f), std::get<0>(pa), std::get<(i + 1)>(pa)...);
+			}
+
+			template<size_t ...i, typename fun, typename par> decltype(auto) auto_adapter_implement(std::false_type, std::integer_sequence<size_t, i...>, fun&& f, par pa)
+			{
+				return std::invoke(std::forward<fun>(f), std::get<(i)>(pa)...);
 			}
 		}		
 		

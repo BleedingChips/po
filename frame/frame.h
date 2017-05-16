@@ -487,16 +487,16 @@ namespace PO
 		std::function<Respond(renderer_control&, event&)> pre_respond;
 		std::function<Respond(renderer_control&, event&)> pos_respond;
 		template<typename T, typename ...AK> void auto_bind_pre_tick(T&& t, AK&&... at) {
-			pre_tick = Tool::auto_bind_function<void(renderer_control& rc, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
+			pre_tick = Tool::auto_bind_function<void(renderer_control&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
 		}
 		template<typename T, typename ...AK> void auto_bind_pos_tick(T&& t, AK&&... at) {
-			pos_tick = Tool::auto_bind_function<void(renderer_control& rc, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
+			pos_tick = Tool::auto_bind_function<void(renderer_control&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
 		}
 		template<typename T, typename ...AK> void auto_bind_pre_respond(T&& t, AK&&... at) {
 			pre_respond = Tool::auto_bind_function<Respond(renderer_control&, event&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
 		}
 		template<typename T, typename ...AK> void auto_bind_pos_respond(T&& t, AK&&... at) {
-			pos_tick = Tool::auto_bind_function<Respond(renderer_control&, event&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
+			pos_respond = Tool::auto_bind_function<Respond(renderer_control&, event&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AK>(at)...);
 		}
 	};
 

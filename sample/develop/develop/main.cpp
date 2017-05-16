@@ -14,6 +14,7 @@ using namespace std;
 
 int main()
 {
+
 	PO::context con;
 	auto fo = con.create_frame(PO::frame<DX11_Test_Form>{});
 	fo.lock(

@@ -25,7 +25,7 @@ namespace PO
 			Win32::com_ptr<ID3D11DeviceContext> dc;
 			Win32::com_ptr<IDXGISwapChain> swap;
 			Dx11_form(form_control& fc, const Dx11_initial& = Dx11_initial{});
-			~Dx11_form() {};
+			~Dx11_form() { std::cout << "exit" << std::endl; };
 		};
 
 		struct Dx11_viewer
@@ -39,8 +39,14 @@ namespace PO
 			creator res;
 			pipe_line pipe;
 			tex2 back_buffer;
+			viewports vp;
 			Dx11_ticker(renderer_control& rc, Dx11_form& Df);
 			void update_screen() { swap->Present(0, 0); }
+			operator const tex2& () const { return back_buffer; }
+			operator const viewports& () const { return vp; }
+			void tick(renderer_control& rc) {
+				update_screen();
+			}
 		};
 
 		/*

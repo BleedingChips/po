@@ -6,57 +6,64 @@ namespace PO
 	namespace Dx
 	{
 
-		// for debug
-		inline std::ostream& operator<<(std::ostream& o, const float2& m)
+		struct alignas(alignof(DirectX::XMVECTOR)) quaternions_template
 		{
-			return o << "{" << m.x << "," << m.y << "}";
-		}
-
-		inline std::ostream& operator<<(std::ostream& o, const float3& m)
-		{
-			return o << "{" << m.x << "," << m.y << "," << m.z << "}";
-		}
-
-		inline std::ostream& operator<<(std::ostream& o, const float4& m)
-		{
-			return o << "{" << m.x << "," << m.y << "," << m.z << ","<< m.w << "}";
-		}
-
-		inline std::ostream& operator<<(std::ostream& o, const float4x4& m)
-		{
-			bool need_add = false;
-			o << "{";
-			for (size_t i =0 ; i < 4; ++i)
-			{
-				if (!need_add)
-					need_add = true;
-				else
-					o << ",";
-				o << DirectX::XMFLOAT4{ m.m[i][0],m.m[i][1],m.m[i][2],m.m[i][3] };
-			}
-			return o << "}";
-		}
+			// { {v -> }, s }
+			DirectX::XMVECTOR store;
+			quaternions_template operator* (const quaternions_template& qt) const;
+		};
 
 		struct quaternions
 		{
-			struct alignas(alignof(DirectX::XMVECTOR)) quaternions_tem
-			{
-				DirectX::XMVECTOR real;
-				DirectX::XMVECTOR imaginary;
-			};
-			float real;
-			float3 imaginary;
-		public:
+			// { {v -> }, s }
+			float4 store;
 			//quaternions operator* (const quaternions& m);
 			//float3 tarnfer(const float3& m);
-			quaternions(const quaternions_tem& qt);
+			operator float4x4() const { return to_float4x4({ 1.0, 1.0, 1.0 }, { 0.0f, 0.0f, 0.0f }); }
+			operator DirectX::XMMATRIX() const { return to_XMMATRIX({ 1.0, 1.0, 1.0 }, { 0.0f, 0.0f, 0.0f }); }
+			float4x4 to_float4x4(float3 scale, float3 posi) const;
+			DirectX::XMMATRIX to_XMMATRIX(float3 scale, float3 posi) const;
+			quaternions(const quaternions_template& qt);
+			operator quaternions_template() const;
 			quaternions(const quaternions&) = default;
-			quaternions(float angle, float3 nor);
+			quaternions(float r = 1.0f, float3 i = {0.0, 0.0, 0.0}) : store(i.x, i.y, i.z, r) {}
+			quaternions_template operator* (const quaternions_template& q) const { return static_cast<quaternions_template>(*this) * q; }
 		};
 
-		inline std::ostream& operator<<(std::ostream& o, const quaternions& m)
+		struct eulerian_angle
 		{
-			return o << "{" << m.real << "," << m.imaginary << "}";
-		}
+			float3 angle;
+			operator float4x4() const;
+			operator DirectX::XMMATRIX() const;
+			//operator quaternions() const;
+			eulerian_angle(float3 a = { 0.0f, 0.0f, 0.0f }) : angle(a) {}
+			eulerian_angle(const eulerian_angle&) = default;
+			eulerian_angle(const quaternions_template& q);
+			operator quaternions_template() const;
+			quaternions_template operator* (const quaternions_template& q) const { return static_cast<quaternions_template>(*this) * q; }
+		};
+
+		struct rotation_axis
+		{
+			float angle;
+			float3 axis;
+			rotation_axis(float a, float3 ax) : angle(a), axis(ax) {}
+			operator quaternions_template() const;
+			quaternions_template operator* (const quaternions_template& q) const { return static_cast<quaternions_template>(*this) * q; }
+		};
+
 	}
 }
+
+std::ostream& operator<<(std::ostream& o, const PO::Dx::float2& m);
+std::ostream& operator<<(std::ostream& o, const PO::Dx::float3& m);
+std::ostream& operator<<(std::ostream& o, const PO::Dx::float4& m);
+std::ostream& operator<<(std::ostream& o, const PO::Dx::float4x4& m);
+inline std::ostream& operator<<(std::ostream& o, const PO::Dx::eulerian_angle& e) { return o << e.angle; }
+std::ostream& operator<<(std::ostream& o, const PO::Dx::quaternions& m);
+
+inline PO::Dx::quaternions_template operator*(const PO::Dx::quaternions& q1, const PO::Dx::quaternions& q2)
+{
+	return PO::Dx::quaternions_template(q1) * PO::Dx::quaternions_template(q2);
+}
+

@@ -10,6 +10,29 @@ namespace PO
 			D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX
 		};
 
+		//*************************************************************************  viewports
+		viewports& viewports::set(const D3D11_VIEWPORT& port, size_t solt)
+		{
+			if (views.size() <= solt)
+				views.resize(solt + 1);
+			views[solt] = port;
+			return *this;
+		}
+		viewports& viewports::fill_texture(size_t solt, const tex2& t, float min_depth, float max_depth)
+		{
+			if (!t.ptr) throw E_INVALIDARG;
+			D3D11_TEXTURE2D_DESC DTD;
+			t.ptr->GetDesc(&DTD);
+			return set(D3D11_VIEWPORT{0.0f, 0.0f, static_cast<float>(DTD.Width), static_cast<float>(DTD.Height), min_depth, max_depth}, solt);
+		}
+		viewports& viewports::capture_texture(size_t solt, const tex2& t, float top_left_x_rate, float top_left_y_rate, float button_right_x_rate, float button_right_y_rate, float min_depth, float max_depth)
+		{
+			if (!t.ptr) throw E_INVALIDARG;
+			D3D11_TEXTURE2D_DESC DTD;
+			t.ptr->GetDesc(&DTD);
+			return set(D3D11_VIEWPORT{ DTD.Width * top_left_x_rate, DTD.Height * button_right_x_rate, DTD.Width * button_right_x_rate, DTD.Height * button_right_y_rate, min_depth, max_depth }, solt);
+		}
+
 		//*************************************************************************  raterizer_state
 		raterizer_state::scription raterizer_state::default_scription = raterizer_state::scription{
 			D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE, 0,0.0f, 0.0f, TRUE, FALSE,FALSE
@@ -28,12 +51,12 @@ namespace PO
 		};
 
 		//*************************************************************************  shader_resource_d
-		void shader_stage::set_constant_buffer(const constant_buffer& cb, size_t solt) { cbuffer_array.set(solt, cb.ptr); }
-		void shader_stage::set_shader_resource_view(const shader_resource_view& ptr, size_t solt) { shader_resource_view_array.set(solt, ptr.ptr); }
-		void shader_stage::set_sample_state(const sample_state& sd, size_t solt) { sample_array.set(solt, sd.ptr); }
+		void shader_stage::set(const constant_buffer& cb, size_t solt) { cbuffer_array.set(solt, cb.ptr); }
+		void shader_stage::set(const shader_resource_view& ptr, size_t solt) { shader_resource_view_array.set(solt, ptr.ptr); }
+		void shader_stage::set(const sample_state& sd, size_t solt) { sample_array.set(solt, sd.ptr); }
 
 		//*************************************************************************  input_assember_d
-		void input_assember_stage::set_vertex(const vertex& v, size_t solt)
+		input_assember_stage& input_assember_stage::set(const vertex& v, size_t solt)
 		{
 			size_t array_size = vertex_array.size();
 			vertex_array.set(solt, v.ptr);
@@ -55,16 +78,18 @@ namespace PO
 			auto ite = input_element.insert(input_element.end(), v.layout.begin(), v.layout.end());
 			for (; ite != input_element.end(); ++ite)
 				ite->InputSlot = static_cast<UINT>(solt);
+			return *this;
 		}
 
-		void input_assember_stage::set_index(const index& ind)
+		input_assember_stage& input_assember_stage::set(const index& ind)
 		{
 			index_ptr = ind.ptr;
 			offset = ind.offset;
 			format = ind.format;
+			return *this;
 		}
 
-		void input_assember_stage::set_index_vertex(const index_vertex& s, size_t solt)
+		input_assember_stage& input_assember_stage::set(const index_vertex& s, size_t solt)
 		{
 			size_t array_size = vertex_array.size();
 			vertex_array.set(solt, s.ptr);
@@ -89,18 +114,20 @@ namespace PO
 			index_ptr = s.ptr;
 			offset = s.i_offset;
 			format = s.i_format;
+			return *this;
 		}
 
 		//*************************************************************************  output_merge_d
-		void output_merge_stage::set_render_target_view(render_target_view& rtv, size_t o) { render_array.set(o, rtv.ptr); }
+		output_merge_stage& output_merge_stage::set(const render_target_view& rtv, size_t o) { render_array.set(o, rtv.ptr); return *this; }
 
 		//*************************************************************************  compute_shader_d
-		void compute_stage::set_unordered_access_view(const unordered_access_view& uav, size_t solt)
+		compute_stage& compute_stage::set(const unordered_access_view& uav, size_t solt)
 		{
 			UAV_array.set(solt, uav.ptr);
 			if (solt >= offset.size())
 				offset.insert(offset.end(), solt + 1 - offset.size(), 0);
 			offset[solt] = uav.offset;
+			return *this;
 		}
 
 		//*************************************************************************  creator
@@ -145,6 +172,7 @@ namespace PO
 			if (SUCCEEDED(re)) return ss;
 			throw re;
 		}
+
 		raterizer_state creator::create_raterizer_state(const raterizer_state::scription& scri)
 		{
 			raterizer_state rs;
@@ -152,6 +180,7 @@ namespace PO
 			if (SUCCEEDED(re)) return rs;
 			throw re;
 		}
+
 		blend_state creator::create_blend_state(const blend_state::scription& scri, std::array<float, 4> bind_factor, UINT sample_mask)
 		{
 			blend_state bs;
@@ -181,9 +210,8 @@ namespace PO
 		{
 			Win32::com_ptr<ID3D11InputLayout> lp;
 			HRESULT re = dev->CreateInputLayout(ia.input_element.data(), static_cast<UINT>(ia.input_element.size()), vd.code, static_cast<UINT>(vd.code.size()), lp.adress());
-			if (SUCCEEDED(re))
-				ia.layout = lp;
-			throw re;
+			if (SUCCEEDED(re)) ia.layout = lp;
+			else throw re;
 		}
 
 		Win32::com_ptr<ID3D11Buffer> creator::create_buffer_implement(UINT width, D3D11_USAGE DU, UINT BIND, UINT misc_flag, UINT struct_byte, const void* data)
@@ -203,6 +231,22 @@ namespace PO
 			if (SUCCEEDED(re))
 				return tem;
 			throw re;
+		}
+
+		vertex creator::create_vertex(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able)
+		{
+			return vertex{
+				create_buffer_implement(ele * num, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_VERTEX_BUFFER, 0, 0, data),
+				0, ele, num, std::move(layout)
+			};
+		}
+
+		index creator::create_index(const void* data, UINT size, UINT num, DXGI_FORMAT DF, bool write_able)
+		{
+			return index{
+				create_buffer_implement(size * num, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_INDEX_BUFFER, 0, 0, data),
+				0, DF, num
+			};
 		}
 
 		vertex_shader creator::create_vertex_shader(binary b)
@@ -234,6 +278,7 @@ namespace PO
 		constant_buffer creator::create_constant_buffer(UINT width, const void* data, bool write_enable)
 		{
 			UINT aligned_size = (width + 15) & ~(UINT{ 15 });
+			aligned_size = aligned_size >= 64 ? aligned_size : 64;
 			constant_buffer cb;
 			if (aligned_size != width && data != nullptr)
 			{
@@ -245,7 +290,7 @@ namespace PO
 				});
 			}
 			else
-				cb.ptr = create_buffer_implement(aligned_size, (write_enable ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_CONSTANT_BUFFER, 0, 0, nullptr);
+				cb.ptr = create_buffer_implement(aligned_size, (write_enable ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_CONSTANT_BUFFER, 0, 0, data);
 			return cb;
 		}
 
@@ -308,12 +353,20 @@ namespace PO
 			throw re;
 		}
 
+		tex2 creator::create_tex2_render_target(DXGI_FORMAT DF, const tex2& t)
+		{
+			D3D11_TEXTURE2D_DESC DTD;
+			auto p = t.ptr;
+			p.ptr->GetDesc(&DTD);
+			return create_tex2_implement(DF, DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, DTD.MiscFlags, nullptr, nullptr);
+		}
+
 		tex2 creator::create_tex2_depth_stencil(DST_format DF, const tex2& t, void** data, UINT* line)
 		{
 			D3D11_TEXTURE2D_DESC DTD;
 			auto p = t.ptr;
 			p.ptr->GetDesc(&DTD);
-			return create_tex2_implement(translate_depth_stencil_format_to_dxgi_format(DF), DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, D3D11_RESOURCE_MISC_TEXTURECUBE, data, line);
+			return create_tex2_implement(translate_depth_stencil_format_to_dxgi_format(DF), DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, data, line);
 		}
 
 		shader_resource_view creator::cast_shader_resource_view(const structed_buffer& t, Tool::optional<UINT2> range)
@@ -637,15 +690,24 @@ namespace PO
 			throw re;
 		}
 
-		/*
-		unordered_access_view cast_unordered_access_view(const structed_buffer& tp, Tool::oi)
+		unordered_access_view creator::cast_unordered_access_view(const structed_buffer& tp, Tool::optional<UINT2> elemnt_start_and_count, Tool::optional<UINT> offset, bool is_append_or_consume)
 		{
 			unordered_access_view tem;
+			tem.offset = offset ? *offset : -1;
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_BUFFER };
-			DUAVD.Buffer = D3D11_BUFFER_UAV{ mipslice };
-			HRESULT re = dev->CreateUnorderedAccessView(ptr, &DUAVD, tem.ptr.adress());
+			UINT2 element;
+			if (elemnt_start_and_count)
+				element = *elemnt_start_and_count;
+			else {
+				D3D11_BUFFER_DESC DBD;
+				tp.ptr->GetDesc(&DBD);
+				element = UINT2{ 0, DBD.ByteWidth / DBD.StructureByteStride };
+			}
+			DUAVD.Buffer = D3D11_BUFFER_UAV{ element.x, element.y, static_cast<UINT>((is_append_or_consume ? D3D11_BUFFER_UAV_FLAG_APPEND : D3D11_BUFFER_UAV_FLAG_COUNTER)) };
+			HRESULT re = dev->CreateUnorderedAccessView(tp.ptr, &DUAVD, tem.ptr.adress());
+			if (SUCCEEDED(re)) return tem;
+			throw re;
 		}
-		*/
 
 		unordered_access_view creator::cast_unordered_access_view(const tex1& t, UINT mipslice)
 		{
@@ -663,13 +725,13 @@ namespace PO
 		unordered_access_view creator::cast_unordered_access_view_array(const tex1& t, UINT mipslice, Tool::optional<UINT2> array_range)
 		{
 			unordered_access_view tem;
-			auto ptr = t.ptr;
+			tem.offset = 0;
 			D3D11_TEXTURE1D_DESC DTD;
-			ptr->GetDesc(&DTD);
+			t.ptr->GetDesc(&DTD);
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DTD.Format, D3D11_UAV_DIMENSION_TEXTURE1DARRAY };
 			UINT2 arr = array_range ? *array_range : UINT2{ 0, DTD.ArraySize };
 			DUAVD.Texture1DArray = D3D11_TEX1D_ARRAY_UAV{ mipslice, arr.x, arr.y };
-			HRESULT re = dev->CreateUnorderedAccessView(ptr, &DUAVD, tem.ptr.adress());
+			HRESULT re = dev->CreateUnorderedAccessView(t.ptr, &DUAVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
 			throw re;
 		}
@@ -677,12 +739,12 @@ namespace PO
 		unordered_access_view creator::cast_unordered_access_view(const tex2& t, UINT mipslice)
 		{
 			unordered_access_view tem;
-			auto ptr = t.ptr;
+			tem.offset = 0;
 			D3D11_TEXTURE2D_DESC DTD;
-			ptr->GetDesc(&DTD);
+			t.ptr->GetDesc(&DTD);
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DTD.Format, D3D11_UAV_DIMENSION_TEXTURE2D };
 			DUAVD.Texture2D = D3D11_TEX2D_UAV{ mipslice };
-			HRESULT re = dev->CreateUnorderedAccessView(ptr, &DUAVD, tem.ptr.adress());
+			HRESULT re = dev->CreateUnorderedAccessView(t.ptr, &DUAVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
 			throw re;
 		}
@@ -690,13 +752,14 @@ namespace PO
 		unordered_access_view creator::cast_unordered_access_view_array(const tex2& t, UINT mipslice, Tool::optional<UINT2> array_range)
 		{
 			unordered_access_view tem;
+			tem.offset = 0;
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
-			ptr->GetDesc(&DTD);
+			t.ptr->GetDesc(&DTD);
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DTD.Format, D3D11_UAV_DIMENSION_TEXTURE2DARRAY };
 			UINT2 arr = array_range ? *array_range : UINT2{ 0, DTD.ArraySize };
 			DUAVD.Texture2DArray = D3D11_TEX2D_ARRAY_UAV{ mipslice, arr.x, arr.y };
-			HRESULT re = dev->CreateUnorderedAccessView(ptr, &DUAVD, tem.ptr.adress());
+			HRESULT re = dev->CreateUnorderedAccessView(t.ptr, &DUAVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
 			throw re;
 		}
@@ -704,13 +767,13 @@ namespace PO
 		unordered_access_view creator::cast_unordered_access_view(const tex3& t, UINT mipslice, Tool::optional<UINT2> z_range)
 		{
 			unordered_access_view tem;
-			auto ptr = t.ptr;
+			tem.offset = 0;
 			D3D11_TEXTURE3D_DESC DTD;
-			ptr->GetDesc(&DTD);
+			t.ptr->GetDesc(&DTD);
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DTD.Format, D3D11_UAV_DIMENSION_TEXTURE3D };
 			UINT2 arr = z_range ? *z_range : UINT2{ 0, DTD.Depth };
 			DUAVD.Texture3D = D3D11_TEX3D_UAV{ mipslice, arr.x, arr.y };
-			HRESULT re = dev->CreateUnorderedAccessView(ptr, &DUAVD, tem.ptr.adress());
+			HRESULT re = dev->CreateUnorderedAccessView(t.ptr, &DUAVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
 			throw re;
 		}
@@ -743,42 +806,82 @@ namespace PO
 				max_buffer_solt = 0;
 			}
 
-			static Tool::scope_lock < std::vector<ID3D11Buffer*> > nullptr_cbuffer;
+			void input_assember_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				unbind(cp);
+			}
+
+			static std::array<ID3D11Buffer*, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> nullptr_cbuffer;
+			static std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> nullptr_shader_resource_view;
+			static std::array<ID3D11SamplerState*, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> nullptr_sampler_state;
 
 			/*****  vertex_shader_context_t   ******************************************************************************************/
 			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_stage& vs)
 			{
-				auto p = vs.ptr;
-				cp->VSSetShader(p, nullptr, 0);
-				if (vs.cbuffer_array.size() < max_cbuffer)
-					nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer - vs.cbuffer_array.size(), nullptr);
-					cp->VSSetConstantBuffers(
-						static_cast<UINT>(vs.cbuffer_array.size()), static_cast<UINT>(max_cbuffer - vs.cbuffer_array.size()), b.data());
-				});
-				cp->VSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
-				max_cbuffer = vs.cbuffer_array.size();
+				cp->VSSetShader(vs.ptr, nullptr, 0);
+				if (!vs.cbuffer_array.empty())
+					cp->VSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
+
+				if (!vs.shader_resource_view_array.empty())
+				{
+					cp->VSSetShaderResources(0, static_cast<UINT>(vs.shader_resource_view_array.size()), vs.shader_resource_view_array.data());
+					max_shader_resource_view = max_shader_resource_view < vs.shader_resource_view_array.size() ? vs.shader_resource_view_array.size() : max_shader_resource_view;
+				}
+
+				if (!vs.sample_array.empty()) {
+					cp->VSSetSamplers(0, static_cast<UINT>(vs.sample_array.size()), vs.sample_array.data());
+					max_sample = max_sample < vs.sample_array.size() ? vs.sample_array.size() : max_sample;
+				}
+					
 			}
 
 			void vertex_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->VSSetShader(nullptr, nullptr, 0);
-				nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer, nullptr);
-					cp->VSSetConstantBuffers(0, static_cast<UINT>(max_cbuffer), b.data());
-				});
+				if (max_shader_resource_view != 0)
+				{
+					cp->VSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
+					max_shader_resource_view = 0;
+				}
+					
+			}
+			void vertex_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				cp->VSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
+				if (max_sample != 0)
+				{
+					cp->VSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
+					max_sample = 0;
+				}
 			}
 
 			/*****  raterizer_context_t   ******************************************************************************************/
 			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const raterizer_state& rs)
 			{
 				cp->RSSetState(rs.ptr);
+				//cp->RSSetScissorRects(static_cast<UINT>(rs.scissor.size()), rs.scissor.data());
+				//cp->RSSetViewports(static_cast<UINT>(rs.viewports.size()), rs.viewports.data());
+				//cp->PSS
+			}
+
+			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs)
+			{
+				//cp->RSSetState(rs.ptr);
 				cp->RSSetScissorRects(static_cast<UINT>(rs.scissor.size()), rs.scissor.data());
-				cp->RSSetViewports(static_cast<UINT>(rs.viewports.size()), rs.viewports.data());
+				cp->RSSetViewports(static_cast<UINT>(rs.views.size()), rs.views.data());
 				//cp->PSS
 			}
 
 			void raterizer_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				/*
+				cp->RSSetState(nullptr);
+				cp->RSSetScissorRects(0, nullptr);
+				cp->RSSetViewports(0, nullptr);
+				*/
+			}
+
+			void raterizer_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->RSSetState(nullptr);
 				cp->RSSetScissorRects(0, nullptr);
@@ -789,33 +892,76 @@ namespace PO
 			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_stage& vs)
 			{
 				cp->PSSetShader(vs.ptr, nullptr, 0);
-				if (vs.cbuffer_array.size() < max_cbuffer)
-					nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer - vs.cbuffer_array.size(), nullptr);
-					cp->PSSetConstantBuffers(
-						static_cast<UINT>(vs.cbuffer_array.size()), static_cast<UINT>(max_cbuffer - vs.cbuffer_array.size()), b.data());
-				});
-				cp->PSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
-				max_cbuffer = vs.cbuffer_array.size();
-				cp->PSSetShaderResources(0, static_cast<UINT>(vs.shader_resource_view_array.size()), vs.shader_resource_view_array.data());
+				if (!vs.cbuffer_array.empty())
+					cp->PSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
+
+				if (!vs.shader_resource_view_array.empty())
+				{
+					cp->PSSetShaderResources(0, static_cast<UINT>(vs.shader_resource_view_array.size()), vs.shader_resource_view_array.data());
+					max_shader_resource_view = max_shader_resource_view < vs.shader_resource_view_array.size() ? vs.shader_resource_view_array.size() : max_shader_resource_view;
+				}
+
+
+				if (!vs.sample_array.empty()) {
+					cp->PSSetSamplers(0, static_cast<UINT>(vs.sample_array.size()), vs.sample_array.data());
+					max_sample = max_sample < vs.sample_array.size() ? vs.sample_array.size() : max_sample;
+				}
+
 			}
 
 			void pixel_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->PSSetShader(nullptr, nullptr, 0);
-				nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer, nullptr);
-					cp->PSSetConstantBuffers(0, static_cast<UINT>(max_cbuffer), b.data());
-				});
+
+				if (max_shader_resource_view != 0)
+				{
+					cp->PSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
+					max_shader_resource_view = 0;
+				}
+					
 			}
 
+			void pixel_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				unbind(cp);
+				cp->PSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
+				if (max_sample != 0)
+				{
+					cp->PSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
+					max_sample = 0;
+				}
+				
+			}
+			
+			static std::array<ID3D11RenderTargetView*, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> nullptr_render_target;
 			/*****  output_merge_context_t   ******************************************************************************************/
 			void output_merge_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const output_merge_stage& od)
 			{
-				unbind(cp);
+				if (max_render_target > od.render_array.size()) 
+					cp->OMSetRenderTargets(static_cast<UINT>(max_render_target), nullptr_render_target.data(), nullptr);
+				max_render_target = od.render_array.size();
 				cp->OMSetRenderTargets(static_cast<UINT>(od.render_array.size()), od.render_array.data(), od.depth.ptr);
-				cp->OMSetBlendState(od.blend.ptr, od.blend.bind_factor.data(), od.blend.sample_mask);
-				cp->OMSetDepthStencilState(od.depth_stencil.ptr, od.depth_stencil.stencil_ref);
+			}
+
+			void output_merge_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const blend_state& bs) {
+				cp->OMSetBlendState(bs.ptr, bs.bind_factor.data(), bs.sample_mask);
+			}
+			void output_merge_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const depth_stencil_state& dss) {
+				cp->OMSetDepthStencilState(dss.ptr, dss.stencil_ref);
+			}
+
+			void output_merge_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				cp->OMSetRenderTargets(static_cast<UINT>(max_render_target), nullptr_render_target.data(), nullptr);
+				max_render_target = 0;
+			}
+
+			void output_merge_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				unbind(cp);
+				float co[4] = { 1.0, 1.0, 1.0, 1.0 };
+				cp->OMSetBlendState(nullptr, co, 0);
+				cp->OMSetDepthStencilState(nullptr, 0);
 			}
 
 			void output_merge_context_t::clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, size_t solt, const std::array<float, 4>& color)
@@ -847,16 +993,6 @@ namespace PO
 			{
 				if (omd.depth.ptr)
 					cp->ClearDepthStencilView(omd.depth.ptr, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, depth, ref);
-			}
-
-			void output_merge_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
-			{
-				if (cp == nullptr) return;
-				cp->OMSetRenderTargets(0, nullptr, nullptr);
-				std::array<float, 4> factor = { 0.0f, 0.0f, 0.0f, 0.0f };
-				UINT sample_mask = 0;
-				cp->OMSetBlendState(nullptr, factor.data(), sample_mask);
-				cp->OMSetDepthStencilState(nullptr, sample_mask);
 			}
 
 			/*****  draw_range_context_t   ******************************************************************************************/
@@ -898,35 +1034,63 @@ namespace PO
 
 
 			/*****  compute_shader_context_t   ******************************************************************************************/
+			static std::array<ID3D11UnorderedAccessView*, D3D11_1_UAV_SLOT_COUNT> nullptr_unordered_access_array;
+			static std::array<UINT, D3D11_1_UAV_SLOT_COUNT> nullptr_unordered_access_offset_array;
+
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_stage& cd)
 			{
 				cp->CSSetShader(cd.ptr, nullptr, 0);
+
 				cp->CSSetUnorderedAccessViews(0, static_cast<UINT>(cd.UAV_array.size()), cd.UAV_array.data(), cd.offset.data());
-				if (max_cbuffer > cd.cbuffer_array.size())
-					nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer - cd.cbuffer_array.size(), nullptr);
-					cp->CSSetConstantBuffers(
-						static_cast<UINT>(cd.cbuffer_array.size()), static_cast<UINT>(max_cbuffer - cd.cbuffer_array.size()), b.data());
-				});
-				max_cbuffer = cd.cbuffer_array.size();
-				cp->CSSetConstantBuffers(0, static_cast<UINT>(cd.cbuffer_array.size()), cd.cbuffer_array.data());
-				cp->CSSetShaderResources(0, static_cast<UINT>(cd.shader_resource_view_array.size()), cd.shader_resource_view_array.data());
+				max_unorder_access_view = max_unorder_access_view < cd.UAV_array.size() ? cd.UAV_array.size() : max_unorder_access_view;
+
+				if (!cd.cbuffer_array.empty())
+					cp->CSSetConstantBuffers(0, static_cast<UINT>(cd.cbuffer_array.size()), cd.cbuffer_array.data());
+
+				if (!cd.shader_resource_view_array.empty())
+				{
+					cp->CSSetShaderResources(0, static_cast<UINT>(cd.shader_resource_view_array.size()), cd.shader_resource_view_array.data());
+					max_shader_resource_view = max_shader_resource_view < cd.shader_resource_view_array.size() ? cd.shader_resource_view_array.size() : max_shader_resource_view;
+				}
+				
+				if (!cd.sample_array.empty()) {
+					cp->CSSetSamplers(0, static_cast<UINT>(cd.sample_array.size()), cd.sample_array.data());
+					max_sample = max_sample < cd.sample_array.size() ? cd.sample_array.size() : max_sample;
+				}
+					
 			}
 
 			void compute_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->CSSetShader(nullptr, nullptr, 0);
-				ID3D11UnorderedAccessView* tem = nullptr;
-				cp->CSSetUnorderedAccessViews(0, 1, &tem, nullptr);
-				nullptr_cbuffer.lock([&, this](decltype(nullptr_cbuffer)::type& b) {
-					b.insert(b.end(), max_cbuffer, nullptr);
-					cp->CSSetConstantBuffers(0, static_cast<UINT>(max_cbuffer), b.data());
-				});
-				max_cbuffer = 0;
+				if (max_shader_resource_view != 0)
+				{
+					cp->CSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
+					max_shader_resource_view = 0;
+				}
+				if (max_unorder_access_view != 0)
+				{
+					cp->CSSetUnorderedAccessViews(0, static_cast<UINT>(max_unorder_access_view), nullptr_unordered_access_array.data(), nullptr_unordered_access_offset_array.data());
+					max_unorder_access_view = 0;
+				}
+			}
+
+			void compute_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
+			{
+				unbind(cp);
+				cp->CSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
+				if (max_sample != 0)
+				{
+					cp->CSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
+					max_sample = 0;
+				}
+				
 			}
 
 		}
+
 		/*****  pipe   ******************************************************************************************/
+
 		void pipe_line::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
@@ -949,13 +1113,15 @@ namespace PO
 			last_mode = DrawMode::PIPELINE;
 			ptr->Draw(count, start);
 		}
-		void pipe_line::draw_index(UINT index_count, UINT index_start, UINT vertex_count) {
+
+		void pipe_line::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
 			last_mode = DrawMode::PIPELINE;
-			ptr->DrawIndexed(index_count, index_start, vertex_count);
+			ptr->DrawIndexed(index_count, index_start, vertex_start);
 		}
+
 		void pipe_line::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
@@ -963,12 +1129,18 @@ namespace PO
 			last_mode = DrawMode::PIPELINE;
 			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
 		}
+
 		void pipe_line::draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
 			last_mode = DrawMode::PIPELINE;
 			ptr->DrawIndexedInstanced(index_pre_instance, index_count, index_start, vertex_start, instance_start);
+		}
+
+		void pipe_line::clear() {
+			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
+			PS.clear(ptr); OM.clear(ptr);
 		}
 	}
 }

@@ -71,6 +71,9 @@ namespace PO
 			rc.auto_bind_pos_tick([this]() {
 				swap->Present(0, 0);
 			});
+			rc.auto_bind_pre_tick(&Dx11_ticker::tick, this);
+			vp.fill_texture(0, back_buffer);
+			pipe << vp;
 		}
 		
 		/*
