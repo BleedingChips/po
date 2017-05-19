@@ -61,7 +61,8 @@ float4 main(in vs_output i) : SV_TARGET
 	
 
 	float last_factor = volum.Sample(samp, i.ori_poi + float3(0.5, 0.5, 0.5)).x;
-	float s = (1.0 - last_factor) * shadow.Sample(samp, i.ori_poi + float3(0.5, 0.5, 0.5)).x;
+	//float s = (1.0 - last_factor) * shadow.Sample(samp, i.ori_poi + float3(0.5, 0.5, 0.5)).x;
+	float s = 0.0;
 	float l = 0.0;
 
 	uint count = 1;
@@ -71,7 +72,7 @@ float4 main(in vs_output i) : SV_TARGET
 		float now_factor = volum.Sample(samp, p + float3(0.5, 0.5, 0.5)).x;
 		l = l + -log((last_factor + now_factor) / 2.0) * len;
 		last_factor = now_factor;
-		s = s + exp(-l) * (1.0 - exp(log(now_factor) * len)) * shadow.Sample(samp, p + float3(0.5, 0.5, 0.5)).x * 1.5;
+		s = s + exp(-l) * (1.0 - exp(log(now_factor) * len)) * shadow.Sample(samp, p + float3(0.5, 0.5, 0.5)).x;
 		if (abs(p.x) >= 0.50 || abs(p.y) >= 0.50 || abs(p.z) >= 0.50) break;
 	}
 	return float4(s, s, s, exp(-l));
