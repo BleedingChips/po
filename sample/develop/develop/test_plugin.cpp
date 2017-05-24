@@ -328,7 +328,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 		g_col = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
 
 		{
-			std::mt19937 r_mt(20);
+			std::mt19937 r_mt(200);
 			std::array<float4, 8> ran;
 #undef max;
 			for (size_t i = 0; i < 8; ++i)
@@ -376,16 +376,14 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 				nd(r_mt),
 				r_mt() / static_cast<float>(decltype(r_mt)::max())
 			}
-
 				);
 			structed_buffer sb = re.create_struct_buffer(point);
 			new_vt.set(re.create_compute_shader(res->cast<PO::binary>()))
 				.set(re.cast_shader_resource_view(da), 0)
-
 				.set(re.cast_shader_resource_view(sb), 1)
 				.set(re.cast_unordered_access_view(volum), 0);
 			pipe << new_vt;
-			pipe.dispatch(8, 8, 256);
+			pipe.dispatch(256, 256, 256);
 			pipe.unbind();
 		}
 
