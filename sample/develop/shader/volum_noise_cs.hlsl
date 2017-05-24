@@ -59,10 +59,10 @@ cbuffer random_multy:register(b[0])
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID)
 {
 	float height =
-		perlin_noise(dispatch_thread_id, 8, _16_1) / 4.0
-		+ perlin_noise(dispatch_thread_id, 16, _32_1) / 4.0
-		+ perlin_noise(dispatch_thread_id, 32, _64_1) / 2.0;
-		//+ perlin_noise(dispatch_thread_id, 64, _128_1) / 2.0;
+		perlin_noise(dispatch_thread_id, 8, _16_1) / 8.0
+		+ perlin_noise(dispatch_thread_id, 16, _32_1) / 8.0
+		+ perlin_noise(dispatch_thread_id, 32, _64_1) / 4.0;
+		+ perlin_noise(dispatch_thread_id, 64, _128_1) / 2.0;
 		//+ perlin_noise(dispatch_thread_id, 128, _128_1) / 2.0;
 
 	
@@ -73,6 +73,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID)
 		+ perlin_noise(dispatch_thread_id, 64, _64_2) / 4.0
 		+ perlin_noise(dispatch_thread_id, 128, _128_2) / 2.0;
 
-	volum_texture[dispatch_thread_id] = float4(height, thick, 0.0, 1.0);
+	volum_texture[dispatch_thread_id] = float4(height, rate(thick), 0.0, 1.0);
 		
 }
