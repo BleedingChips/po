@@ -4,6 +4,20 @@ namespace PO
 {
 	namespace Dx
 	{
+		float quaternions_template::length() const {
+			return DirectX::XMVectorGetX(DirectX::XMVector4Length(store));
+		}
+
+		quaternions_template quaternions_template::conjugate() const {
+			using namespace DirectX;
+			return { store * XMVECTOR{ -1.0, -1.0, -1.0, 1.0 } };
+		}
+
+		quaternions_template quaternions_template::inverrse() const {
+			using namespace DirectX;
+			return { conjugate().store / length() };
+		}
+
 
 		quaternions::quaternions(const quaternions_template& qt)
 		{
@@ -41,6 +55,20 @@ namespace PO
 				2.0f * (xz - yw) * s.z, 2.0f * (yz + xw) * s.z, (2.0f * (zz + ww) - 1.0f) * s.z, 0.0f,
 				p.x, p.y, p.z, 1.0
 			};
+		}
+
+		float3 quaternions::rate(float3 v) const {
+			quaternions_template input{ { v.x, v.y, v.z, 0.0 } };
+			quaternions_template rat = *this;
+			auto result = rat * input * rat.inverrse();
+			float3 re;
+			DirectX::XMStoreFloat3(&re, result.store);
+			return re;
+		}
+
+		quaternions& quaternions::operator=(const quaternions_template& qt) {
+			DirectX::XMStoreFloat4(&store, qt.store);
+			return *this;
 		}
 
 		eulerian_angle::operator quaternions_template() const {

@@ -34,15 +34,14 @@ namespace PO
 
 			float3 poi = {0.0f, 0.0f, 0.0f};
 			float3 sca = {1.0f, 1.0f, 1.0f};
-			float3 eul = {0.0f, 0.0f, 0.0f};
+			quaternions qua = { 0.0f, {1.0f, 0.0f, 0.0f} };
 
-			movement_interpolation(float3 p, float3 s, float3 e) : poi(p), sca(s), eul(e) {}
+			movement_interpolation(float3 p, float3 s, const quaternions& e) : poi(p), sca(s), qua(e) {}
 			movement_interpolation() = default;
 			movement_interpolation(const movement_interpolation&) = default;
-			void set_sca(float3 c) { sca = c; }
-			void set_eul(float3 e) { eul = e; }
-			operator float4x4() const;
-			operator matrix() const;
+			movement_interpolation& set_eul(const eulerian_angle& e) { qua = e; return *this; }
+			operator float4x4() const { return qua.to_float4x4(sca, poi); }
+			operator matrix() const { return qua.to_XMMATRIX(sca, poi); }
 
 		};
 	}

@@ -11,19 +11,23 @@ namespace PO
 			// { {v -> }, s }
 			DirectX::XMVECTOR store;
 			quaternions_template operator* (const quaternions_template& qt) const;
+			quaternions_template inverrse() const;
+			float length() const;
+			quaternions_template conjugate() const;
 		};
 
 		struct quaternions
 		{
 			// { {v -> }, s }
 			float4 store;
-			//quaternions operator* (const quaternions& m);
-			//float3 tarnfer(const float3& m);
 			operator float4x4() const { return to_float4x4({ 1.0, 1.0, 1.0 }, { 0.0f, 0.0f, 0.0f }); }
 			operator DirectX::XMMATRIX() const { return to_XMMATRIX({ 1.0, 1.0, 1.0 }, { 0.0f, 0.0f, 0.0f }); }
 			float4x4 to_float4x4(float3 scale, float3 posi) const;
 			DirectX::XMMATRIX to_XMMATRIX(float3 scale, float3 posi) const;
 			quaternions(const quaternions_template& qt);
+			quaternions& operator=(const quaternions_template& qt);
+			quaternions& operator=(const quaternions&) = default;
+			float3 rate(float3 v) const;
 			operator quaternions_template() const;
 			quaternions(const quaternions&) = default;
 			quaternions(float r = 1.0f, float3 i = {0.0, 0.0, 0.0}) : store(i.x, i.y, i.z, r) {}
@@ -33,9 +37,6 @@ namespace PO
 		struct eulerian_angle
 		{
 			float3 angle;
-			operator float4x4() const;
-			operator DirectX::XMMATRIX() const;
-			//operator quaternions() const;
 			eulerian_angle(float3 a = { 0.0f, 0.0f, 0.0f }) : angle(a) {}
 			eulerian_angle(const eulerian_angle&) = default;
 			eulerian_angle(const quaternions_template& q);
@@ -45,6 +46,7 @@ namespace PO
 
 		struct rotation_axis
 		{
+			//degree measure
 			float angle;
 			float3 axis;
 			rotation_axis(float a, float3 ax) : angle(a), axis(ax) {}
