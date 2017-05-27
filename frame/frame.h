@@ -342,6 +342,8 @@ namespace PO
 
 		template<> struct plugins<void, void>
 		{
+			std::map<std::u16string, std::map<std::type_index, PO::Tool::any>> value_binding;
+
 			virtual void create_implement(std::function<std::unique_ptr<holder_ptr>(plugin_self<void, void>&)> cft) = 0;
 			template<typename T, typename ...AT> void create(Tmp::itself<T> i, AT&& ... at)
 			{
@@ -502,8 +504,6 @@ namespace PO
 
 	namespace Implement
 	{
-		
-
 		template<typename frame> struct form_packet : form_control
 		{
 			using form_t = typename frame::form;

@@ -444,6 +444,67 @@ namespace PO
 			~thread_task_operator() { exit = true; if (main_thread.joinable()) main_thread.join(); }
 			void add_task(std::function<bool(void)> f);
 		};
+
+		template<typename T> struct binding_value_output : T{
+			
+		};
+
+		namespace Implement
+		{
+			template<typename T, typename mutex = std::mutex> struct bingding_value_input_implement
+			{
+				Tool::scope_lock<std::tuple<T, uint64_t>, mutex> data;
+				//operator T& () { return data.lock([](decltype(data)::type& u) {return u.store; }); }
+				operator const T& () const { return data.lock([](decltype(data)::type& u) {return u.store; }); }
+				bingding_value_input_implement& operator= (const T& t) {
+					return *this;
+				}
+			};
+		}
+
+		template<typename T, typename mutex = std::mutex> using binding_value_input = completeness<Implement::bingding_value_input_implement<T, mutex>>;
+
+		
+
+		template<typename T, typename mutex = std::mutex> struct value_binding_control
+		{
+			std::shared_ptr<scope_lock<std::tuple<uint64_t, T>, mutex>> control_ptr;
+
+			value_binding_control() {}
+			value_binding_control(const value_binding_control&) = default;
+			value_binding_control(value_binding_control&&) = default;
+			value_binding_control& operator=(const value_binding_control&) = default;
+			value_binding_control& operator=(value_binding_control&&) = default;
+
+			value_binding_control(const T& t) : control_ptr(std::make_shared<scope_lock<std::tuple<uint64_t, T>, mutex>>(std::make_tuple(1, t))) {}
+			value_binding_control(T&& t) : control_ptr(std::make_shared<scope_lock<std::tuple<uint64_t, T>, mutex>>(std::make_tuple(1, std::move(t)))) {}
+
+			uint64_t operator=(const T& t) {
+				if (!control_ptr)
+					return (control_ptr = std::make_shared<scope_lock<std::tuple<uint64_t, T>, mutex>>(std::make_tuple(1, t)), 1);
+				else
+					return control_ptr->lock([&t](decltype(*control_ptr)::type& tuple) {
+					std::get<1>(tuple) = t;
+					auto vision = ++std::get<0>(tuple);
+					if (vision == 0) std::get<0>(tuple) = 1;
+					return std::get<0>(tuple);
+				});
+			}
+
+			uint64_t operator=(T&& t) {
+				if (!control_ptr)
+					return (control_ptr = std::make_shared<scope_lock<std::tuple<uint64_t, T>, mutex>>(std::make_tuple(1, std::move(t))), 1);
+				else
+					return control_ptr->lock([&t](decltype(*control_ptr)::type& tuple) {
+					std::get<1>(tuple) = std::move(t);
+					auto vision = ++std::get<0>(tuple);
+					if (vision == 0) std::get<0>(tuple) = 1;
+					return std::get<0>(tuple);
+				});
+			}
+
+		};
+
 	}
 }
 
