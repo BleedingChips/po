@@ -257,6 +257,7 @@ namespace PO
 				return reinterpret_cast<void*>(ptr->data());
 			return nullptr; 
 		}
+		operator uint8_t*() const {return reinterpret_cast<uint8_t*>(ptr->data()); }
 		operator bool() const { return static_cast<bool>(ptr); }
 	};
 }

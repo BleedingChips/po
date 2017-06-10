@@ -1,16 +1,48 @@
 
 
 
-StructuredBuffer<float3> point_location : register(t0);
+//StructuredBuffer<float3> point_location : register(t0);
 
-uint re(uint3 p)
+float ran(float3 co)
 {
-	return p.x * 33 * 33 + p.y * 33 + p.z;
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 42.1897))) * 43758.5453);
+}
+
+float cal_random(uint3 poi, float4 rs)
+{
+    return ran(
+		poi * float3(rs.xy, rs.x + rs.y) * 10 + float3(rs.zw, rs.z + rs.w)
+	);
 }
 
 float rate(float t)
 {
-	return 1.0 - t;
+	//return 1.0 - t;
+    return 1.0 - 6 * pow(t, 5) + 15 * pow(t, 4) - 10 * pow(t, 3);
+}
+
+float perlin_noise(uint3 poi, uint step, float4 rd)
+{
+    uint3 o = poi / step;
+    uint3 x = o + uint3(1, 0, 0);
+    uint3 y = o + uint3(0, 1, 0);
+    uint3 z = o + uint3(0, 0, 1);
+    uint3 xy = o + uint3(1, 1, 0);
+    uint3 xz = o + uint3(1, 0, 1);
+    uint3 yz = o + uint3(0, 1, 1);
+    uint3 xyz = o + uint3(1, 1, 1);
+    float3 r = (poi % step) / float(step);
+
+    float o_x = cal_random(o, rd) * rate(r.x) + cal_random(x, rd) * (1.0 - rate(r.x));
+    float y_xy = cal_random(y, rd) * rate(r.x) + cal_random(xy, rd) * (1.0 - rate(r.x));
+    float z_xz = cal_random(z, rd) * rate(r.x) + cal_random(xz, rd) * (1.0 - rate(r.x));
+    float yz_xyz = cal_random(yz, rd) * rate(r.x) + cal_random(xyz, rd) * (1.0 - rate(r.x));
+
+    float o_x__y_xy = o_x * rate(r.y) + y_xy * (1.0 - rate(r.y));
+    float z_xz__yz_xyz = z_xz * rate(r.y) + yz_xyz * (1.0 - rate(r.y));
+
+    float f = o_x__y_xy * rate(r.z) + z_xz__yz_xyz * (1.0 - rate(r.z));
+    return f;
 }
 
 /*
@@ -65,18 +97,25 @@ void main(uint3 groupID : SV_GroupID)
 
 */
 
-float rate(float3 p, float3 center)
+RWTexture3D<float> volum:register(u0);
+
+cbuffer Data : register(b0)
 {
-	return 1.0 - saturate(length(p - center));
+    float4 Cal[20];
+    float4 Perlin[4];
 }
 
-Texture3D<float4> noise:register(t[0]);
-StructuredBuffer<float4> poi:register(t[1]);
-RWTexture3D<float> volum:register(u[0]);
+float cal_perlin_noise(uint3 poi)
+{
+    return perlin_noise(poi, 8, Perlin[3]) / 8.0
+		+ perlin_noise(poi, 16, Perlin[2]) / 8.0
+		+ perlin_noise(poi, 32, Perlin[1]) / 4.0;
+    +perlin_noise(poi, 64, Perlin[0]) / 2.0;
+}
 
-#define SAMPLE_COUNT 30
+#define SAMPLE_COUNT 20
 
-[numthreads(32, 32, 1)]
+[numthreads(1, 1, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID)
 {
 	float4 last_vertex;
@@ -85,13 +124,13 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID)
 	float reduce = 1.0;
 	for (uint i = 0; i < SAMPLE_COUNT; ++i)
 	{
-		float4 target_data = poi[i];
+        float4 target_data = Cal[i];
 		float3 target_center = target_data.xyz;
 		float target_length = target_data.w / 2.0;
 
 		float3 to_center_normal = float_coordinate - target_center;
 		float to_center_length = length(to_center_normal);
-		float compare_target = target_length / 6.0 + sqrt(max(0.0, noise[dispatch_thread_id].x - 0.2)) / 4.0;
+        float compare_target = target_length / 6.0 + sqrt(max(0.0, cal_perlin_noise(dispatch_thread_id) - 0.2)) / 4.0;
 		if (to_center_length < compare_target)
 			result = 0.01;
 		else

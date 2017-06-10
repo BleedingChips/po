@@ -9,21 +9,21 @@ using namespace std;
 #include "test_plugin.h"
 #include <fstream>
 #include <algorithm>
+#include "ue4_testing.h"
+#include "DirectXTex.h"
+#include <sstream>
 
-struct A { A() { cout << "init A" << endl; } ~A() { cout << "delete A" << endl; } };
-
-template<typename T> struct AT : PO::Tool::inherit_t<T> {
-
-};
 
 int main()
 {
-	AT<int> data;
+	
 	PO::context con;
 	auto fo = con.create_frame(PO::frame<DX11_Test_Form>{});
 	fo.lock([](auto& ui){
-		//ui.depute_create_plugin(PO::plugin<test_plugin>{});
+		ui.depute_create_plugin(PO::plugin<UE4_testing>{});
 	});
 	con.wait_all_form_close();
+	
 	system("pause");
+	
 }

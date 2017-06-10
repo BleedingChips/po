@@ -25,10 +25,7 @@ struct test_plugin
 	tex2 g_poi;
 	tex2 g_col;
 
-	tex3 da;
-
 	tex3 volum;
-	tex3 volum_shadow;
 
 	input_assember_stage cube_ia;
 	vertex_stage cube_vs;

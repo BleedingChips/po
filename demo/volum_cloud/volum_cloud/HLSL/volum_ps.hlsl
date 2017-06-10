@@ -1,8 +1,7 @@
 
-texture3D volum : register(t[0]);
-texture3D shadow: register(t[1]);
+Texture3D volum : register(t0);
 
-SamplerState samp : register(s[0]);
+SamplerState samp : register(s0);
 
 float cloud_sam(float3 poi)
 {
@@ -16,7 +15,7 @@ float shado_sam(float3 poi)
 {
 	float3 cur = poi + 0.5;
 	int3 p = cur * 255;
-	float D = shadow[p].x;
+    float D = volum.Sample(samp, cur).y;
 	return D;
 }
 
@@ -28,7 +27,7 @@ struct vs_output
 	float4 screen_poi : WORLD_POSITION;
 };
 
-cbuffer ps_buffer:register(b[0])
+cbuffer ps_buffer:register(b0)
 {
 	float4x4 view_to_local;
 	float nearz;
@@ -72,7 +71,7 @@ float4 main(in vs_output i) : SV_TARGET
 		float now_factor = volum.Sample(samp, p + float3(0.5, 0.5, 0.5)).x;
 		l = l + -log((last_factor + now_factor) / 2.0) * len;
 		last_factor = now_factor;
-		s = s + exp(-l) * (1.0 - exp(log(now_factor) * len)) * shadow.Sample(samp, p + float3(0.5, 0.5, 0.5)).x;
+        s = s + exp(-l) * (1.0 - exp(log(now_factor) * len)) * volum.Sample(samp, p + float3(0.5, 0.5, 0.5)).y;
 		if (abs(p.x) >= 0.50 || abs(p.y) >= 0.50 || abs(p.z) >= 0.50) break;
 	}
 	return float4(s, s, s, exp(-l));

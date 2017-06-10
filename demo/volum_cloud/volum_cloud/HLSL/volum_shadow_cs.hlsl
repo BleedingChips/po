@@ -5,8 +5,8 @@ float3 adject_view_ray(float3 n)
 	return n / max_factor;
 }
 
-Texture3D tex :register(t[0]);
-RWTexture3D<float> shadow_te : register(u[0]);
+Texture3D inp : register(t0);
+RWTexture3D<float2> shadow_te : register(u0);
 
 
 [numthreads(1, 1, 1)]
@@ -15,7 +15,7 @@ void main(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, ui
 	float3 light = adject_view_ray(float3(0.0, 1.0, 0.0));
 	float len = length(light) / 255.0;
 	float3 poi = groupID;
-	float last_sam = tex[poi].x;
+    float last_sam = shadow_te[groupID].x;
 	float l = 0.0;
 	for (uint co = 1; co < 256; ++co)
 	{
@@ -26,11 +26,12 @@ void main(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, ui
 			curpoi.z <= 256.0 && curpoi.z >= 0.0
 			)
 		{
-			float now_sam = tex[curpoi].x;
+            float now_sam = shadow_te[curpoi].x;
 			l = l - log((last_sam + now_sam) / 2.0) * len;
 			last_sam = now_sam;
 		}
 		else break;
 	}
-	shadow_te[groupID] = exp(-l);
+    float2 Tar = float2(shadow_te[groupID].x, exp(-l));
+    shadow_te[groupID] = Tar;
 }

@@ -41,9 +41,9 @@ float perlin_noise(uint3 poi, uint step, float4 rd)
 	return f;
 }
 
-RWTexture3D<float4> volum_texture:register(u[0]);
+RWTexture3D<float4> volum_texture:register(u0);
 
-cbuffer random_multy:register(b[0])
+cbuffer random_multy:register(b0)
 {
 	float4 _128_1;
 	float4 _128_2;

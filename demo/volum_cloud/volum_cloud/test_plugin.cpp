@@ -2,6 +2,7 @@
 #include <vector>
 #include <fstream>
 #include <random>
+#include "DirectXTex.h"
 using namespace std;
 using namespace PO::Dx;
 struct position
@@ -328,10 +329,11 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 		g_col = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
 
 		{
-			std::mt19937 r_mt(20);
-			std::array<float4, 8> ran;
+			/*
+			std::mt19937 r_mt(233);
+			std::array<float4, 4> ran;
 #undef max
-			for (size_t i = 0; i < 8; ++i)
+			for (size_t i = 0; i < 4; ++i)
 			{
 				ran[i] = float4{
 					r_mt() / static_cast<float>(decltype(r_mt)::max()),
@@ -352,14 +354,17 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 			pipe << cs;
 			pipe.dispatch(256, 256, 256);
 			pipe.unbind();
+			*/
 
 			/*
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(re.dev, pipe.ptr, da.ptr, SI);
 			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"noise.dds"_wc);
 			*/
+			
 		}
 
+		/*
 		{
 			std::mt19937 r_mt(189);
 			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
@@ -388,8 +393,48 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 			pipe.dispatch(8, 8, 256);
 			pipe.unbind();
 		}
+		*/
+
+		tex3 tem = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
+		volum = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16_FLOAT, 256, 256, 256);
+
+		{
+			compute_stage cs;
+			auto shader = scene.find(typeid(binary), u"volum_cs.cso");
+			if (!shader || !shader->able_cast<binary>()) throw 1;
+			cs.set(re.create_compute_shader(shader->cast<binary>()));
+			cs.set(re.cast_unordered_access_view(volum), 0);
+			struct buffer {
+				float4 Center[20];
+				float4 Perlin[4];
+			} da;
+			std::mt19937 r_mt(233);
+#undef max
+			for (size_t i = 0; i < 4; ++i)
+				da.Perlin[i] = float4{ static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) };
+
+			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+
+			for (size_t i = 0; i < 20; ++i)
+				da.Center[i] = float4{ nd(r_mt),
+				nd(r_mt),
+				nd(r_mt),
+				r_mt() / static_cast<float>(decltype(r_mt)::max())
+			};
+
+			cs.set(re.create_constant_buffer(&da), 0);
+			pipe << cs;
+			pipe.dispatch(256, 256, 256);
+			pipe.unbind();
+
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(re.dev, pipe.ptr, tem.ptr, SI);
+			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"out_volume.dds"_wc);
+
+		}
 
 		
+
 		{
 			/*
 			const uint32_t center = 20;
@@ -449,21 +494,26 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 		}
 		*/
 
+		
+
 		{
 			compute_stage shadow_shader;
 			auto res = scene.find(typeid(PO::binary), u"volum_shadow_cs.cso", PO::Tool::any{});
 			faile_break(res && res->able_cast<PO::binary>());
-			volum_shadow = re.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
 			shadow_shader.set(re.create_compute_shader(res->cast<PO::binary>()))
-				.set(re.cast_shader_resource_view(volum), 0)
-				.set(re.cast_unordered_access_view(volum_shadow), 0);
+				//.set(re.cast_shader_resource_view(tem), 0)
+				.set(re.cast_unordered_access_view(volum), 0);
 			pipe.bind(shadow_shader);
 			pipe.dispatch(256, 256, 256);
 			pipe.unbind();
 			//DirectX::ScratchImage SI;
 			//DirectX::CaptureTexture(re.dev, pipe.ptr, volum_shadow.ptr, SI);
 			//DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"new_valum_texture_shadow.dds"_wc);
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(re.dev, pipe.ptr, volum.ptr, SI);
+			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"out_volume2.dds"_wc);
 		}
+		
 		
 		{
 			cube_ia.set(re.create_vertex(poi, decltype(poi)::value_type::type{}), 0);
@@ -532,7 +582,6 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 			scr_sample.Filter = D3D11_FILTER::D3D11_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR;
 			volum_ps.set(re.create_pixel_shader(res->cast<PO::binary>()))
 				.set(re.cast_shader_resource_view(volum), 0)
-				.set(re.cast_shader_resource_view(volum_shadow), 1)
 				.set(re.create_sample_state(scr_sample), 0)
 				.set(re.create_constant_buffer(sizeof(float4x4) + sizeof(float)), 0);
 			blend_state::scription scr = blend_state::default_scription;

@@ -216,6 +216,7 @@ namespace PO
 
 			constant_buffer create_constant_buffer(UINT width, const void* data = nullptr, bool write_enable = true);
 			template<typename T> constant_buffer create_constant_buffer(const T* data, bool write_enable = true) { return create_constant_buffer(sizeof(T), data, write_enable); }
+			inline constant_buffer create_constant_buffer_with_size(size_t size, bool write_enable = true) { return create_constant_buffer(static_cast<UINT>(size), nullptr, write_enable); }
 
 			structed_buffer create_struct_buffer(UINT element_size, UINT element_num, const void* data = nullptr, bool write_enable = true) {
 				structed_buffer sb;
