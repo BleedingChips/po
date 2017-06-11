@@ -5,6 +5,7 @@
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
+#include "DirectXTex.h"
 using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;

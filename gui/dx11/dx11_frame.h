@@ -108,7 +108,7 @@ namespace PO
 
 			Win32::com_ptr<ID3D11Buffer> index_ptr;
 			UINT offset;
-			DXGI_FORMAT format;
+			DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
 
 			input_assember_stage& set(const vertex& v, size_t solt);
 			input_assember_stage& set(const index& bp);
