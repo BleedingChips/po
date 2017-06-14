@@ -27,6 +27,20 @@ namespace PO
 			};
 		}
 
+		template<typename T> struct base_value_inherit {
+			T data;
+			base_value_inherit() {}
+			base_value_inherit(T t) : data(t) {}
+			operator T&() { return data; }
+			operator T() const { return data; }
+			base_value_inherit& operator=(T t) { data = t; return *this; }
+		};
+
+		template<typename T> using inherit_t = std::conditional_t<
+			std::is_arithmetic<T>::value,
+			base_value_inherit<T>, T
+		>;
+
 		//TODO - add a is_nothrow_callable
 		class at_scope_exit
 		{
@@ -584,6 +598,13 @@ namespace PO
 			}
 			any() {}
 			any(any&& a) :ass(std::move(a.ass)), pointer(a.pointer) { a.pointer = nullptr; }
+
+			any(const any& a)
+			{
+				if (a.pointer != nullptr)
+					pointer = a.pointer->clone(ass);
+			}
+
 			template<typename T, typename ...AT>
 			any(Tmp::itself<T>, AT&&... at)
 			{
@@ -592,12 +613,6 @@ namespace PO
 				any_type* ptr = ass.alloc<any_type>();
 				new (ptr) any_type{ std::forward<AT>(at)... };
 				pointer = ptr;
-			}
-
-			any(const any& a)
-			{
-				if (a.pointer != nullptr)
-					pointer = a.pointer->clone(ass);
 			}
 
 			template<typename T, typename = std::enable_if_t<!std::is_same<std::decay_t<T>, any>::value && std::is_copy_constructible<std::decay_t<T>>::value>> any(T&& t)
@@ -675,6 +690,69 @@ namespace PO
 			template<typename T> T&& cast() && noexcept
 			{
 				return static_cast<Implement::any_implement<T>*>(pointer)->data;
+			}
+		};
+
+
+
+		namespace Implement
+		{
+			struct any_nocopy_interface
+			{
+				const std::type_info& info;
+				virtual ~any_nocopy_interface() = 0;
+				any_nocopy_interface(const std::type_info& ti) :info(ti) {}
+				any_nocopy_interface(const any_nocopy_interface& ai) : info(ai.info) {}
+			};
+
+			template<typename T> struct alignas(alignof(std::decay_t<T>) < 4 ? 0 : alignof(std::decay_t<T>))  any_nocopy_implement :any_nocopy_interface
+			{
+				T data;
+				template<typename ...AT> any_nocopy_implement(AT&& ...at) : any_interface(typeid(T)), data(std::forward<AT>(at)...){}
+				~any_nocopy_implement() {}
+			};
+		}
+
+		struct any_nocopy {
+			Implement::any_store_struct ass;
+			Implement::any_nocopy_interface* pointer = nullptr;
+			~any_nocopy() {
+				if (pointer != nullptr)
+					pointer->~any_nocopy_interface();
+			}
+
+			template<typename T, typename ...AT> any_nocopy(Tmp::itself<T> t, AT&& ...at) {
+				using any_type = Implement::any_nocopy_implement<T>;
+				any_type* ptr = ass.alloc<any_type>();
+				new (ptr) any_type{ std::forward<AT>(at)... };
+				pointer = ptr;
+			}
+
+			template<typename T> any_nocopy(T&& t)
+			{
+				if (pointer != nullptr)
+					pointer->~any_nocopy_interface();
+				using any_type = Implement::any_nocopy_implement<std::decay_t<T>>;
+				any_type* ptr = ass.alloc<any_type>();
+				new (ptr) any_type{ std::forward<T>(t) };
+				pointer = ptr;
+			}
+
+			template<typename T> any_nocopy(const T& t)
+			{
+				if (pointer != nullptr)
+					pointer->~any_nocopy_interface();
+				using any_type = Implement::any_nocopy_implement<std::decay_t<T>>;
+				any_type* ptr = ass.alloc<any_type>();
+				new (ptr) any_type{ t };
+				pointer = ptr;
+			}
+
+			template<typename T> bool able_to_cast() const {
+				return pointer != nullptr && (pointer->info == typeid(std::decay_t<T>()));
+			}
+			template<typename T> std::decay_t<T>& cast() {
+				return static_cast<Implement::any_nocopy_implement<T>*>(pointer)->data;
 			}
 		};
 

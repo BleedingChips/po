@@ -5,6 +5,7 @@
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
+#include "DirectXTex.h"
 using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;
@@ -25,10 +26,7 @@ struct test_plugin
 	tex2 g_poi;
 	tex2 g_col;
 
-	tex3 da;
-
 	tex3 volum;
-	tex3 volum_shadow;
 
 	input_assember_stage cube_ia;
 	vertex_stage cube_vs;

@@ -108,7 +108,7 @@ namespace PO
 
 			Win32::com_ptr<ID3D11Buffer> index_ptr;
 			UINT offset;
-			DXGI_FORMAT format;
+			DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
 
 			input_assember_stage& set(const vertex& v, size_t solt);
 			input_assember_stage& set(const index& bp);
@@ -216,6 +216,7 @@ namespace PO
 
 			constant_buffer create_constant_buffer(UINT width, const void* data = nullptr, bool write_enable = true);
 			template<typename T> constant_buffer create_constant_buffer(const T* data, bool write_enable = true) { return create_constant_buffer(sizeof(T), data, write_enable); }
+			inline constant_buffer create_constant_buffer_with_size(size_t size, bool write_enable = true) { return create_constant_buffer(static_cast<UINT>(size), nullptr, write_enable); }
 
 			structed_buffer create_struct_buffer(UINT element_size, UINT element_num, const void* data = nullptr, bool write_enable = true) {
 				structed_buffer sb;
@@ -448,7 +449,7 @@ namespace PO
 				if (SUCCEEDED(ptr->Map(b.ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
 				{
 					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(b.ptr, 0); });
-					return t(DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
+					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
 				}
 				return false;
 			}
@@ -461,7 +462,7 @@ namespace PO
 				if (SUCCEEDED(ptr->Map(ptr_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
 				{
 					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(ptr_buffer, 0); });
-					return t(DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
+					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
 				}
 				return false;
 			}

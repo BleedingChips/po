@@ -24,12 +24,24 @@
     <ClCompile Include="test_plugin.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ue4_testing.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="new_creater.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test_plugin.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="form_define.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ue4_testing.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="new_creater.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -68,6 +80,39 @@
       <Filter>HLSL</Filter>
     </FxCompile>
     <FxCompile Include="HLSL\vt_creator_cs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="HLSL\test_cs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="HLSL\test_cs2.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="test_vs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="test_ps.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="HLSL\plane_vs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="HLSL\plane_ps.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="HLSL\new_creator_cs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="default_vs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="default_ps.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creater_ps.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creater_vs.hlsl">
       <Filter>HLSL</Filter>
     </FxCompile>
   </ItemGroup>
