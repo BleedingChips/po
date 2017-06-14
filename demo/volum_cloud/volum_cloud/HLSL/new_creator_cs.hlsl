@@ -1,8 +1,4 @@
-cbuffer ff :register (b0)
-{
-	float da[92];
-};
-
+StructuredBuffer<float> da : register(t0);
 RWTexture2D<float2> outSurface : register(u0);
 
 
@@ -32,6 +28,23 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float f = 0.0;
     if (length(po) < length(ba))
         f = 1.0;
-    outSurface[DTid.xy]= float2(f, 0.0);
+
+    float r1 = 0.0;
+    for (int i3 = 1; i3 < 91; ++i3)
+    {
+        float2 p = float2(-sin((i3 - 1) * tr), -cos((i3 - 1) * tr)) * 0.3;
+        if (distance(p, po) < 0.005)
+            r1 = 1.0;
+    }
+
+    float f2 = 0.0;
+    for (int i2 = 1; i2 < 91; ++i2)
+    {
+        float2 p = float2(-sin((i2- 1) * tr), -cos((i2 -1) * tr)) * (0.3 + da[i2].x / 4.0);
+        if (distance(p, po) < 0.005)
+            f2 = 1.0;
+    }
+
+    outSurface[DTid.xy] = float2(r1, f2);
 
 }

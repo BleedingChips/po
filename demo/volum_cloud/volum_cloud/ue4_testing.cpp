@@ -3,6 +3,7 @@
 #include "DirectXTex.h"
 
 
+
 UE4_testing::UE4_testing(peek<Dx11_ticker> p) {
 	p.self.auto_bind_init(&UE4_testing::init, this);
 	p.self.auto_bind_tick(&UE4_testing::tick, this);
@@ -90,64 +91,112 @@ static std::vector<uint16_t> ind =
 
 void UE4_testing::init(self_depute<Dx11_ticker> p)
 {
-	try 
+
+	CoInitialize(NULL);
+
+	/*
+	// The factory pointer
+	IWICImagingFactory *pFactory = NULL;
+
+	// Create the COM imaging factory
+	HRESULT hr = CoCreateInstance(
+	CLSID_WICImagingFactory,
+	NULL,
+	CLSCTX_INPROC_SERVER,
+	IID_PPV_ARGS(&pFactory)
+	);
+	*/
+
+
+	try
 	{
 		auto& res = p.rt.res;
 		auto& pipe = p.rt.pipe;
+		unsigned int random_seed[20];
+		std::mt19937 r_mt(233);
+		for (size_t i = 0; i < 20; ++i)
+		{
+			random_seed[i] = r_mt();
+		}
 
-		volume_texture = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 64 * 8, 64 * 8);
+		//volume_texture = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM, 4096, 4096);
 
 		{
 			compute_stage cs;
 			auto shader = scene.find(typeid(binary), u"test_cs.cso");
 			if (!shader || !shader->able_cast<binary>()) throw 1;
 			cs.set(res.create_compute_shader(shader->cast<binary>()));
-			cs.set(res.cast_unordered_access_view(volume_texture), 0);
-			struct buffer {
-				float4 Center[30];
-				float4 Perlin[4];
-			} da;
-			std::mt19937 r_mt(233);
+			for (size_t i = 0; i < 20; ++i)
+			{
+				volume_texture[i] = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM, 4096, 4096);
+				cs.set(res.cast_unordered_access_view(volume_texture[i]), 0);
+				struct buffer {
+					float4 Center[300];
+					float4 Perlin[4];
+				} da;
+				std::mt19937 r_mt(random_seed[i]);
 #undef max
-			for (size_t i = 0; i < 4; ++i)
-				da.Perlin[i] = float4{ static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) };
+				for (size_t i = 0; i < 4; ++i)
+					da.Perlin[i] = float4{ static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) , static_cast<float>(decltype(r_mt)::max()) };
 
-			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+				std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
 
-			for (size_t i = 0; i < 30; ++i)
-				da.Center[i] = float4{ nd(r_mt),
-				nd(r_mt),
-				nd(r_mt),
-				r_mt() / static_cast<float>(decltype(r_mt)::max())
-			};
+				for (size_t i = 0; i < 300; ++i)
+					da.Center[i] = float4{
+					nd(r_mt),
+					nd(r_mt),
+					nd(r_mt),
+					//r_mt() / static_cast<float>(decltype(r_mt)::max()) - 0.5f,
+					//r_mt() / static_cast<float>(decltype(r_mt)::max()) - 0.5f,
+					//r_mt() / static_cast<float>(decltype(r_mt)::max()) - 0.5f,
+					r_mt() / static_cast<float>(decltype(r_mt)::max())
+				};
 
-			cs.set(res.create_constant_buffer(&da), 0);
-			pipe << cs;
-			pipe.dispatch(64 * 8, 64 * 8, 1);
-			pipe.unbind();
+				cs.set(res.create_constant_buffer(&da), 0);
+				pipe << cs;
+				pipe.dispatch(128, 128, 1);
+				pipe.unbind();
+				std::cout << "Create "<<i << std::endl;
+			}
 		}
 
 		{
+
 			compute_stage cs;
 			auto shader = scene.find(typeid(binary), u"test_cs2.cso");
 			if (!shader || !shader->able_cast<binary>()) throw 1;
 			cs.set(res.create_compute_shader(shader->cast<binary>()));
-			cs.set(res.cast_unordered_access_view(volume_texture), 0);
-			float3 Dir = float3{ 0.0, -1.0, 0.0 };
-			cs.set(res.create_constant_buffer(&Dir), 0);
-			pipe << cs;
-			pipe.dispatch(64 * 8, 64 * 8, 1);
-			pipe.unbind();
+			for (size_t i = 0; i < 20; ++i)
+			{
+				cs.set(res.cast_unordered_access_view(volume_texture[i]), 0);
+				float3 Dir = float3{ 0.0, -1.0, 0.0 };
+				cs.set(res.create_constant_buffer(&Dir), 0);
+				pipe << cs;
+				pipe.dispatch(128, 128, 1);
+				pipe.unbind();
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(res.dev, pipe.ptr, volume_texture[i].ptr, SI);
+				//if (!SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"out_volume233.dds"_wc))) throw 1;
+				HRESULT t = DirectX::SaveToWICFile(
+					*SI.GetImages(),
+					static_cast<DWORD>(DirectX::WIC_FLAGS_NONE),
+					DirectX::GetWICCodec(DirectX::WICCodecs::WIC_CODEC_PNG),
+					reinterpret_cast<const wchar_t*>((std::u16string(u"VolumeTexture_") + static_cast<char16_t>(u'a' + i) + u"_.png").c_str())
+				);
+				if (!SUCCEEDED(t)) throw t;
+				std::cout << "Shadow " << i << std::endl;
+			}
 
-			DirectX::ScratchImage SI;
-			DirectX::CaptureTexture(res.dev, pipe.ptr, volume_texture.ptr, SI);
-			DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"out_volume2.dds"_wc);
+
+
 
 			//DirectX::SaveToTGAFile(*SI.GetImages(), u"out_volume2.tga"_wc);
+			//DirectX::SaveToHDRFile(*SI.GetImages(), u"out_volume2.hdr"_wc);
 
 		}
 
 		{
+
 			ia.set(res.create_vertex(poi, decltype(poi)::value_type::type{}), 0)
 				.set(res.create_index(ind));
 			vs.set(res.create_constant_buffer_with_size(sizeof(float4x4) * 2, true), 0);
@@ -160,7 +209,6 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 			shader = scene.find(typeid(binary), u"test_ps.cso");
 			if (!shader || !shader->able_cast<binary>()) throw 1;
 			ps.set(res.create_pixel_shader(shader->cast<binary>()));
-			ps.set(res.cast_shader_resource_view(volume_texture), 0);
 			ps.set(res.create_constant_buffer_with_size(sizeof(float4x4), true), 0);
 
 			om.set(res.cast_render_target_view(p.rt.back_buffer), 0);
@@ -179,18 +227,21 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 			scr22.DepthFunc = D3D11_COMPARISON_ALWAYS;
 
 			dss = res.create_depth_stencil_state(scr22);
+
 		}
 
 	}
-	catch (...)
+	catch (HRESULT HE)
 	{
+		HRESULT i = HE;
 		__debugbreak();
 	}
-	
+
 }
 
 void UE4_testing::tick(self_depute<Dx11_ticker> p, duration da)
 {
+
 	PO::Dx::quaternions_template qt = mfo.qua;
 
 	float angle_speed = da.count() / 1000.0f / 3.141592653f * 180.0f * 1.0f;
@@ -209,9 +260,10 @@ void UE4_testing::tick(self_depute<Dx11_ticker> p, duration da)
 	mfo.poi.z += od.final_direction() * da.count() / 1000.0f * 5.0f;
 
 
-	auto& re = p.rt.res;
+	auto& res = p.rt.res;
 	auto& pipe = p.rt.pipe;
 
+	
 	pipe.clear_render_target(om, { 0.0, 0.0, 0.8f, 1.0 });
 
 	float4x4 pro;
@@ -234,7 +286,7 @@ void UE4_testing::tick(self_depute<Dx11_ticker> p, duration da)
 	catch (...) {
 		__debugbreak();
 	}
-	
+	ps.set(res.cast_shader_resource_view(volume_texture[current_view]), 0);
 	pipe << ia << vs << ps << om << bs << dss;
 	pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
 	pipe.unbind();
@@ -275,6 +327,26 @@ Respond UE4_testing::respond(event& c) {
 				break;
 			case 'z':
 				mfo.qua = quaternions{};
+				break;
+			case '+':
+			case '=':
+				if (c.key.is_up())
+				{
+					current_view += 1;
+					if (current_view > 19)
+						current_view = 0;
+					std::cout << current_view << std::endl;
+				}
+				break;
+			case '-':
+				if (c.key.is_up())
+				{
+					if (current_view == 0)
+						current_view = 19;
+					else
+						--current_view;
+					std::cout << current_view << std::endl;
+				}
 				break;
 			}
 		}

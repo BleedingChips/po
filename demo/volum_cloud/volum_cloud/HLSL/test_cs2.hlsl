@@ -7,12 +7,12 @@ cbuffer LightDirection : register(b0)
 
 uint3 cal3(uint3 input)
 {
-    return uint3(input.x % 64, input.y % 64, input.x / 64 + (input.y / 64) * 8);
+    return uint3(input.x % 256, input.y % 256, input.x / 256 + (input.y / 256) * 16);
 }
 
 uint2 cal2(uint3 input)
 {
-    return uint2((input.z % 8) * 64 + input.x, (input.z / 8) * 64 + input.y);
+    return uint2((input.z % 16) * 256 + input.x, (input.z / 16) * 256 + input.y);
 }
 
 float3 adject_view_ray(float3 n)
@@ -21,24 +21,24 @@ float3 adject_view_ray(float3 n)
     return n / max_factor;
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(32, 32, 1)]
 void main(uint3 dispatch_thread_id2 : SV_DispatchThreadID)
 {
 
     uint3 dispatch_thread_id = cal3(dispatch_thread_id2);
 
     float3 light = adject_view_ray(Dir);
-    float len = length(light) / 63.0;
+    float len = length(light) / 255.0;
     float3 poi = dispatch_thread_id;
     float last_sam = OutputSurface[cal2(dispatch_thread_id)].x;
     float l = 0.0;
-    for (uint co = 1; co < 256; ++co)
+    for (uint co = 1; co < 255; ++co)
     {
         float3 curpoi = poi + co * light;
         if (
-			curpoi.x <= 256.0 && curpoi.x >= 0.0 &&
-			curpoi.y <= 256.0 && curpoi.y >= 0.0 &&
-			curpoi.z <= 256.0 && curpoi.z >= 0.0
+			curpoi.x <= 255.0 && curpoi.x >= 0.0 &&
+			curpoi.y <= 255.0 && curpoi.y >= 0.0 &&
+			curpoi.z <= 255.0 && curpoi.z >= 0.0
 			)
         {
             float now_sam = OutputSurface[cal2(curpoi)].x;

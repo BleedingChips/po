@@ -5,6 +5,8 @@
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
+#include <wincodec.h>
+#pragma comment(lib, "Windowscodecs.lib" )
 
 using namespace PO::Dx;
 using namespace PO::Dx11;
@@ -12,7 +14,10 @@ using namespace PO;
 
 struct UE4_testing
 {
-	tex2 volume_texture;
+	tex2 volume_texture[20];
+
+	size_t current_view = 0;
+	
 
 	input_assember_stage ia;
 	vertex_stage vs;

@@ -109,5 +109,11 @@
     <FxCompile Include="default_ps.hlsl">
       <Filter>HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="new_creater_ps.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creater_vs.hlsl">
+      <Filter>HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

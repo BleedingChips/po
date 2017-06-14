@@ -449,7 +449,7 @@ namespace PO
 				if (SUCCEEDED(ptr->Map(b.ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
 				{
 					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(b.ptr, 0); });
-					return t(DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
+					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
 				}
 				return false;
 			}
@@ -462,7 +462,7 @@ namespace PO
 				if (SUCCEEDED(ptr->Map(ptr_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
 				{
 					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(ptr_buffer, 0); });
-					return t(DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
+					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
 				}
 				return false;
 			}

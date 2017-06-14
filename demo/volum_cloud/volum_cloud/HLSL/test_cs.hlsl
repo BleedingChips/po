@@ -1,6 +1,7 @@
+
 cbuffer CSConstants : register(b0)
 {
-    float4 NoiseCenter[30];
+    float4 NoiseCenter[300];
     float4 PerLinNoiseFactor[4];
 };
 
@@ -13,9 +14,14 @@ float ran(float3 co)
 
 float cal_random(uint3 poi, float4 rs)
 {
+   
+    /*
     return ran(
-		poi * float3(rs.xy, rs.x + rs.y) * 10 + float3(rs.zw, rs.z + rs.w)
+		poi * float3(rs.xy, rs.x + rs.y) + float3(rs.zw, rs.z + rs.w)
 	);
+    */
+
+    return ran(poi);
 }
 
 float rate(float t)
@@ -50,6 +56,8 @@ float perlin_noise(uint3 poi, uint step, float4 rd)
 
 float cal_perlin_noise(uint3 poi)
 {
+
+
     return perlin_noise(poi, 8, PerLinNoiseFactor[3]) / 4.0
 		+ perlin_noise(poi, 16, PerLinNoiseFactor[2]) / 4.0
 		+ perlin_noise(poi, 32, PerLinNoiseFactor[1]) / 2.0;
@@ -58,21 +66,23 @@ float cal_perlin_noise(uint3 poi)
 
 uint3 cal3(uint3 input)
 {
-    return uint3(input.x % 64, input.y % 64, input.x / 64 + (input.y / 64) * 8);
+    return uint3(input.x % 256, input.y % 256, input.x / 256 + (input.y / 256) * 16);
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(32, 32, 1)]
 void main(uint3 dispatch_thread_id2 : SV_DispatchThreadID)
 {
 
     uint3 dispatch_thread_id = cal3(dispatch_thread_id2);
 
     float4 last_vertex;
-    float3 float_coordinate = (dispatch_thread_id / 64.0) - 0.5; // to -0.5 ~ 0.5;
-    float result = 1.0;
-    float reduce = 1.0;
+    float3 float_coordinate = (dispatch_thread_id / 255.0) - 0.5; // to -0.5 ~ 0.5;
 
-    for (uint i = 0; i < 30; ++i)
+
+    float result = 1.0;
+    float ran = (cal_perlin_noise(dispatch_thread_id) - 0.2) * 0.2;
+
+    for (uint i = 0; i < 300; ++i)
     {
         float4 target_data = NoiseCenter[i];
         float3 target_center = target_data.xyz;
@@ -81,8 +91,8 @@ void main(uint3 dispatch_thread_id2 : SV_DispatchThreadID)
         float3 to_center_normal = float_coordinate - target_center;
         float to_center_length = length(to_center_normal);
         float compare_target = target_length / 3.0 + sqrt(max(0.0, cal_perlin_noise(dispatch_thread_id) - 0.1)) / 2.0;
-        if (to_center_length < compare_target)
-            result = 0.001;
+        if (to_center_length < 0.05 + ran)
+            result = 10/ 255.0;
         else
             result = min(result, 1.0); //0.01 + (to_center_length - compare_target) * 4.0);
 		/*

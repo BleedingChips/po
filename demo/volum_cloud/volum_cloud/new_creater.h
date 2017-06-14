@@ -18,8 +18,12 @@ struct new_creator
 	pixel_stage ps;
 	vertex_stage vs;
 	depth_stencil_state dss;
+	output_merge_stage oms;
+
+	float4 filter = float4{ 1.0, 1.0, 1.0, 1.0 };
 
 	new_creator(peek<Dx11_ticker> p);
 	void init(self_depute<Dx11_ticker> s);
 	void tick(self_depute<Dx11_ticker> s);
+	Respond respond(event& e);
 };
