@@ -118,11 +118,213 @@ namespace PO
 
 	/************************************************************************************************/
 
+	struct viewer
+	{
+		std::weak_ptr<Tool::scope_lock<std::vector<event>>> request_vector_ptr;
+	};
+
+	namespace Implement {
+		template<typename renderer_t = void> struct plugin_self;
+		template<typename renderer_t = void> struct plugins;
+	}
+
+	template<typename renderer_t = void> struct self
+	{
+		Implement::plugin_self<renderer_t>& self_ref;
+		Implement::plugins<renderer_t>& plugins_ref;
+		operator self<void>() { return self<void>{self_ref, plugins_ref}; }
+	};
+
+	template<> struct self<void>
+	{
+		Implement::plugin_self<void>& self_ref;
+		Implement::plugins<void>& plugins_ref;
+	};
+
+	namespace Implement 
+	{
+		template<typename renderer_t = void>
+		struct plugin_self : public plugin_self<void>
+		{
+			plugin_self(const Tool::completeness_ref& c) : plugin_self<void>(c) {}
+
+			std::function<void(self<renderer_t>, renderer_t&, viewer&, duration)> tick_function;
+			std::function<Respond(event&, viewer&)> respond_function;
+
+			void bind_tick(std::function<void(self<renderer_t>, renderer_t&, viewer&, duration)> tft) { tick_function = std::move(tft); }
+
+			virtual void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) override { tick_function = [f{ std::move(tft) }](self_depute<renderer_t> s, renderer_t& r, viewer& v, duration d) mutable { f(s, v, d); }; }
+
+			virtual void bind_respond(std::function<Respond(event&, viewer&)> rft) override { respond_function = std::move(rft); }
+
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t>, renderer_t&, viewer&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+		};
+
+		template<> struct plugin_self<void>
+		{
+			bool avalible = true;
+			Tool::completeness_ref cr;
+			void close_self() { avalible = false; }
+			virtual void bind_tick(std::function<void(self<void>, duration)> tft) = 0;
+			virtual void bind_respond(std::function<Respond(event&, viewer&)> rft) = 0;
+			plugin_self(const Tool::completeness_ref& c) :cr(c) {}
+			operator bool() const { return avalible; }
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self<void>, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { bind_respond(Tool::auto_bind_function<Respond(event&, viewer&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+		};
+
+		template<typename renderer_t> struct plugins_interface
+		{
+			plugin_self<renderer_t> self;
+			plugins_interface(Tool::completeness_ref cr) : self(std::move(self)) {}
+		};
+
+		template<typename renderer_t, typename plugin_t = void> 
+		struct alignas(alignof(std::decay_t<plugin_t>) < 4 ? 0 : alignof(std::decay_t<plugin_t>)) plugins_packet 
+			: plugins_interface<renderer_t>
+		{
+			plugin_t plugin;
+			template<typename ...AT>
+			plugins_packet(Tool::completeness_ref cr, AT&& ...at) : plugins_interface<renderer_t>(std::move(cr)), plugin(std::forward<AT>(at)...){}
+		};
+
+		template<typename renderer_t> struct plugins_packet<renderer_t, void> : plugins_interface<renderer_t>
+		{
+			std::unique_ptr<void*> plugin_ptr;
+			void(*deleter_function)(void*);
+			plugins_packet(Tool::completeness_ref cr, std::tuple<std::unique_ptr<void*>, void(*)(void*)>& p) : 
+				plugins_interface<renderer_t>(std::move(cr)), plugin_ptr(std::move(std::get<0>(p))), deleter_function(std::get<1>(p)) {}
+			~plugins_packet() {
+				(*deleter_function)(*plugin_ptr);
+			}
+		};
+
+		template<typename renderer_t = void> struct plugins : public plugins<void>
+		{
+			renderer_t rt;
+		};
+
+		/*
+		template<> struct plugins<void>
+		{
+			virtual void create_plugin(size_t size, size_t alig, std::function<void()>)
+		};
+		*/
+
+	}
+
+
+
+
+	/************************************************************************************************/
+
+	
+	struct form_constraint
+	{
+
+		std::function<void(duration)> pre_tick_f;
+		std::function<void(duration)> pos_tick_f;
+
+		virtual void pre_tick(duration da) { if (pre_tick_f) pre_tick_f(da); }
+		virtual void pos_tick(duration da) { if (pos_tick_f) pos_tick_f(da); }
+		
+		virtual Respond ask_for_respond_mt(event& e) = 0;
+		virtual Respond ask_for_respond(event& e) = 0;
+
+		virtual Respond respond(event& e) { return Respond::Pass; }
+
+		virtual bool avalible() = 0;
+	};
+
+	
+
+	namespace Implement
+	{
+		template<typename P, void (P::*)(duration)> struct tick_detector;
+		template<typename P, Respond (P::*)(event&)> struct respond_detector;
+		template<typename P, bool (P::*)()> struct bool_output_detector;
+
+		template<typename T> struct have_pre_tick
+		{
+			template<typename P> static std::true_type func(tick_detector<P, &P::pre_tick>*);
+			template<typename P> static std::false_type func(...);
+			static constexpr bool value = decltype(func<T>(nullptr))::value;
+		};
+
+		template<typename T> struct have_pos_tick
+		{
+			template<typename P> static std::true_type func(tick_detector<P, &P::pos_ticker>*);
+			template<typename P> static std::false_type func(...);
+			static constexpr bool value = decltype(func<T>(nullptr))::value;
+		};
+
+		template<typename T> struct have_respond
+		{
+			template<typename P> static std::true_type func(respond_detector<P, &P::respond>*);
+			template<typename P> static std::false_type func(...);
+			static constexpr bool value = decltype(func<T>(nullptr))::value;
+		};
+
+		template<typename T> struct form_have_avalible
+		{
+			template<typename P> static std::true_type func(bool_output_detector<P, &P::avalible>*);
+			template<typename P> static std::false_type func(...);
+			static constexpr bool value = decltype(func<T>(nullptr))::value;
+		};
+
+		struct form_viewer_component
+		{
+			std::shared_ptr<Tool::scope_lock<std::vector<event>>> request_vector_ptr;
+			std::vector<event> request;
+			void update_request();
+			form_viewer_component();
+		};
+
+		template<typename T> 
+		struct form_expand : std::decay_t<T>
+		{
+			using type = std::decay_t<T>;
+			static_assert(form_have_avalible<type>::value, "form at last have a member function : bool avalible();");
+
+			form_viewer viewer_data;
+
+			std::function<Respond(event&)> respond;
+
+			
+
+			virtual Respond ask_for_respond_mt(event& e);
+			virtual Respond ask_for_respond(event& e);
+		};
+	}
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	struct form_depute;
 	template<typename renderer_t, typename viewer_t> struct self_depute;
 
 	template<typename renderer_t, typename viewer_t> struct peek;
-	
 
 	namespace Implement
 	{
@@ -133,27 +335,27 @@ namespace PO
 		{
 			plugin_self(const Tool::completeness_ref& c) : plugin_self<void, void>(c), plugin_self<renderer_t, void>(c), plugin_self<void, viewer_t>(c) {}
 
-			std::function<void(self_depute<renderer_t, viewer_t>)> init_function;
-			std::function<void(self_depute<renderer_t, viewer_t>, duration da)> tick_function;
+			std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&)> init_function;
+			std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&, duration)> tick_function;
 
-			void bind_init(std::function<void(self_depute<renderer_t, viewer_t>)> ift) { init_function = std::move(ift); }
-			void bind_tick(std::function<void(self_depute<renderer_t, viewer_t>, duration da)> tft) { tick_function = std::move(tft); }
-			
-			virtual void bind_init(std::function<void(self_depute<void, void>)> ift) override { init_function = ift; }
-			virtual void bind_tick(std::function<void(self_depute<void, void>, duration)> tft) override { tick_function = tft; }
+			void bind_init(std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&)> ift) { init_function = std::move(ift); }
+			void bind_tick(std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&, duration)> tft) { tick_function = std::move(tft); }
 
-			virtual void bind_init(std::function<void(self_depute<renderer_t, void>)> ift) override { init_function = ift; }
-			virtual void bind_tick(std::function<void(self_depute<renderer_t, void>, duration)> tft) override { tick_function = tft; }
+			virtual void bind_init(std::function<void(self_depute<void, void>)> ift) override { init_function = [f{ std::move(ift) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v){ f(s); }; }
+			virtual void bind_tick(std::function<void(self_depute<void, void>, duration)> tft) override { tick_function = [f{ std::move(tft) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v, duration d) mutable { f(s, d); }; }
 
-			virtual void bind_init(std::function<void(self_depute<void, viewer_t>)> ift) override { init_function = ift; }
-			virtual void bind_tick(std::function<void(self_depute<void, viewer_t>, duration)> tft) override { tick_function = tft; }
+			virtual void bind_init(std::function<void(self_depute<renderer_t, void>, renderer_t&)> ift) override { init_function = [f{ std::move(ift) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v){ f(s, r); }; }
+			virtual void bind_tick(std::function<void(self_depute<renderer_t, void>, renderer_t&, duration)> tft) override { tick_function = [f{ std::move(tft) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v, duration d) mutable { f(s, r, d); };}
+
+			virtual void bind_init(std::function<void(self_depute<void, viewer_t>, viewer_t&)> ift) override { init_function = [f{ std::move(ift) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v){ f(s, v); }; }
+			virtual void bind_tick(std::function<void(self_depute<void, viewer_t>, viewer_t&, duration)> tft) override { tick_function = [f{ std::move(tft) }](self_depute<renderer_t, viewer_t> s, renderer_t& r, viewer_t& v, duration d) mutable { f(s, v, d); }; }
 
 			std::function<Respond(event&, viewer_t&)> respond_function;
 			virtual void bind_respond(std::function<Respond(event&, viewer_t&)> rft) override { respond_function = std::move(rft); }
 			virtual void bind_respond(std::function<Respond(event&)> rft) override { respond_function = [rft = std::move(rft)](event& ev, viewer_t&) {return rft(ev); }; }
 
-			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t, viewer_t>, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
-			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<renderer_t, viewer_t>), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 			template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { bind_respond(Tool::auto_bind_function<Respond(event&, viewer_t&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 		};
 
@@ -161,6 +363,7 @@ namespace PO
 		{
 			bool avalible = true;
 			Tool::completeness_ref cr;
+			void close_self() { avalible = false; }
 			virtual void bind_init(std::function<void(self_depute<void, void>)> ift) = 0;
 			virtual void bind_tick(std::function<void(self_depute<void, void>, duration)> tft) = 0;
 			virtual void bind_respond(std::function<Respond(event&)> rft) = 0;
@@ -173,22 +376,22 @@ namespace PO
 
 		template<typename renderer_t> struct plugin_self<renderer_t, void> : virtual plugin_self<void, void>
 		{
-			virtual void bind_init(std::function<void(self_depute<renderer_t, void>)> ift) = 0;
-			virtual void bind_tick(std::function<void(self_depute<renderer_t, void>, duration)> tft) = 0;
+			virtual void bind_init(std::function<void(self_depute<renderer_t, void>, renderer_t&)> ift) = 0;
+			virtual void bind_tick(std::function<void(self_depute<renderer_t, void>, renderer_t&, duration)> tft) = 0;
 			plugin_self(const Tool::completeness_ref& c) : plugin_self<void, void>(c) {}
-			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t, void>, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
-			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<renderer_t, void>), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t, void>, renderer_t&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<renderer_t, void>, renderer_t&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 			template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { bind_respond(Tool::auto_bind_function<Respond(event&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 		};
 
 		template<typename viewer_t> struct plugin_self<void, viewer_t> : virtual plugin_self<void, void>
 		{
-			virtual void bind_init(std::function<void(self_depute<void, viewer_t>)> ift) = 0;
-			virtual void bind_tick(std::function<void(self_depute<void, viewer_t>, duration)> tft) = 0;
+			virtual void bind_init(std::function<void(self_depute<void, viewer_t>, viewer_t&)> ift) = 0;
+			virtual void bind_tick(std::function<void(self_depute<void, viewer_t>, viewer_t&, duration)> tft) = 0;
 			virtual void bind_respond(std::function<Respond(event&, viewer_t&)> rft) = 0;
 			plugin_self(const Tool::completeness_ref& c) : plugin_self<void, void>(c) {}
-			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<void, viewer_t>, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
-			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<void, viewer_t>), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<void, viewer_t>, viewer_t&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { bind_init(Tool::auto_bind_function<void(self_depute<void, viewer_t>, viewer_t&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 			template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { bind_respond(Tool::auto_bind_function<Respond(event&, viewer_t&), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 		};
 
@@ -205,21 +408,17 @@ namespace PO
 
 		template<typename render_t, typename viewer_t> struct plugin_packet
 		{
-
 			void init(render_t& r, viewer_t& v, plugins<render_t, viewer_t>& p) {
-				if (self.init_function) self.init_function(self_depute<render_t, viewer_t>{ {self, p, v}, r});
+				if (self.init_function) self.init_function(self_depute<render_t, viewer_t>{ {self, p, v}, r}, r, v);
 			}
 			void tick(render_t& r, viewer_t& v, plugins<render_t, viewer_t>& p, duration da) {
-				if (self.tick_function) self.tick_function(self_depute<render_t, viewer_t>{ {self, p, v}, r}, da);
+				if (self.tick_function) self.tick_function(self_depute<render_t, viewer_t>{ {self, p, v}, r}, r, v, da);
 			}
 			Respond respond(event& ev, viewer_t& v){
 				if (self.respond_function) return self.respond_function(ev, v);
 				return Respond::Pass;
 			}
 			operator bool() const { return self; }
-
-
-
 			plugin_self<render_t, viewer_t> self;
 			std::unique_ptr<holder_ptr> ptr;
 			plugin_packet(const Tool::completeness_ref& c, std::function<std::unique_ptr<holder_ptr>(plugin_self<render_t, viewer_t>&)> fu) : self(c), ptr(fu(self)){}
@@ -383,12 +582,27 @@ namespace PO
 		operator peek<void, void>() { return peek<void, void>{self, plugin}; }
 		operator peek<renderer_t, void>() { return peek<renderer_t, void>{self, plugin}; }
 		operator peek<void, viewer_t>() { return peek<void, viewer_t>{self, plugin, vt}; }
+
+		void bind_init(std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&)> ift) { self.bind_init(std::move(ift)); }
+		void bind_tick(std::function<void(self_depute<renderer_t, viewer_t>, renderer_t&, viewer_t&, duration)> tft) { self.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer_t&)> rft) { self.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self.auto_bind_tick(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { self.auto_bind_init(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { self.auto_bind_respond(std::forward<T>(t), std::forward<AT>(at)...); }
 	};
 
 	template<> struct peek<void, void>
 	{
 		Implement::plugin_self<void, void>& self;
 		Implement::plugins<void, void>& plugin;
+		void kill_myself() { self.close_self(); }
+		template<typename T, typename ...AT> decltype(auto) create_plugin(Tmp::itself<T> t, AT&& ...at) { return plugin.create(t, std::forward<AT>(at)...); }
+		void bind_init(std::function<void(self_depute<void, void>)> ift) { self.bind_init(std::move(ift)); }
+		void bind_tick(std::function<void(self_depute<void, void>, duration)> tft) { self.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&)> rft) { self.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self.auto_bind_tick(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { self.auto_bind_init(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { self.auto_bind_respond(std::forward<T>(t), std::forward<AT>(at)...); }
 	};
 
 	template<typename renderer_t> struct peek<renderer_t, void>
@@ -396,6 +610,14 @@ namespace PO
 		Implement::plugin_self<renderer_t, void>& self;
 		Implement::plugins<renderer_t, void>& plugin;
 		operator peek<void, void>() { return peek<void, void>{self, plugin}; }
+		void kill_myself() { self.close_self(); }
+		template<typename T, typename ...AT> decltype(auto) create_plugin(Tmp::itself<T> t, AT&& ...at) { return plugin.create(t, std::forward<AT>(at)...); }
+		void bind_init(std::function<void(self_depute<renderer_t, void>, renderer_t&)> ift) { self.bind_init(std::move(ift)); }
+		void bind_tick(std::function<void(self_depute<renderer_t, void>, renderer_t&, duration)> tft) { self.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&)> rft) { self.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self.auto_bind_tick(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { self.auto_bind_init(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { self.auto_bind_respond(std::forward<T>(t), std::forward<AT>(at)...); }
 	};
 
 	template<typename viewer_t> struct peek<void, viewer_t>
@@ -404,6 +626,14 @@ namespace PO
 		Implement::plugins<void, viewer_t>& plugin;
 		viewer_t& vt;
 		operator peek<void, void>() { return peek<void, void>{self, plugin}; }
+		void kill_myself() { self.close_self(); }
+		template<typename T, typename ...AT> decltype(auto) create_plugin(Tmp::itself<T> t, AT&& ...at) { return plugin.create(t, std::forward<AT>(at)...); }
+		void bind_init(std::function<void(self_depute<void, viewer_t>, viewer_t&)> ift) { self.bind_init(std::move(ift)); }
+		void bind_tick(std::function<void(self_depute<void, viewer_t>, viewer_t&, duration)> tft) { self.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer_t&)> rft) { self.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self.auto_bind_tick(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_init(T&& t, AT&&... at) { self.auto_bind_init(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&&... at) { self.auto_bind_respond(std::forward<T>(t), std::forward<AT>(at)...); }
 	};
 
 	template<typename renderer_t = void, typename viewer_t = void> struct self_depute : peek<renderer_t, viewer_t>
@@ -454,6 +684,12 @@ namespace PO
 		operator bool() const { return available; }
 		form_control(const Tool::completeness_ref& r) : cr(r), available(true) {}
 		virtual Respond respond_event(event& ev) = 0;
+	};
+
+	struct form_proxy
+	{
+		Tool::completeness_ref cr;
+		form_control& con;
 	};
 
 	template<typename frame> struct observe
@@ -509,6 +745,7 @@ namespace PO
 			using form_t = typename frame::form;
 			using viewer_t = typename frame::viewer;
 			using renderer_t = typename frame::renderer;
+
 			form_t form;
 			viewer_t viewer;
 			renderer_control ren_con;
