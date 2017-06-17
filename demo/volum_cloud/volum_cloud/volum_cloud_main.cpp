@@ -14,9 +14,23 @@ using namespace std;
 #include <sstream>
 #include "new_creater.h"
 
+struct A { float e[100]; };
+struct B : virtual public A { };
+
+struct C : public B, virtual public A {};
+
 int main()
 {
 	
+	int a = 3;
+	int &b = a;
+	b = a++;
+	a = b++;
+	std::cout << a << endl;
+
+	system("pause");
+	return 0;
+
 	PO::context con;
 	auto fo = con.create_frame(PO::frame<DX11_Test_Form>{});
 	fo.lock([](auto& ui){

@@ -2,8 +2,6 @@
 #include <random>
 #include "DirectXTex.h"
 
-
-
 UE4_testing::UE4_testing(peek<Dx11_ticker> p) {
 	p.self.auto_bind_init(&UE4_testing::init, this);
 	p.self.auto_bind_tick(&UE4_testing::tick, this);
@@ -168,15 +166,18 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 			cs.set(res.create_compute_shader(shader->cast<binary>()));
 			for (size_t i = 0; i < 20; ++i)
 			{
-				cs.set(res.cast_unordered_access_view(volume_texture[i]), 0);
+				cs << res.cast_unordered_access_view(volume_texture[i])[0];
 				float3 Dir = float3{ 0.0, -1.0, 0.0 };
 				cs.set(res.create_constant_buffer(&Dir), 0);
 				pipe << cs;
 				pipe.dispatch(128, 128, 1);
 				pipe.unbind();
+				/*
 				DirectX::ScratchImage SI;
 				DirectX::CaptureTexture(res.dev, pipe.ptr, volume_texture[i].ptr, SI);
 				//if (!SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, u"out_volume233.dds"_wc))) throw 1;
+
+
 				HRESULT t = DirectX::SaveToWICFile(
 					*SI.GetImages(),
 					static_cast<DWORD>(DirectX::WIC_FLAGS_NONE),
@@ -184,6 +185,7 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 					reinterpret_cast<const wchar_t*>((std::u16string(u"VolumeTexture_") + static_cast<char16_t>(u'a' + i) + u"_.png").c_str())
 				);
 				if (!SUCCEEDED(t)) throw t;
+				*/
 				std::cout << "Shadow " << i << std::endl;
 			}
 
@@ -196,9 +198,8 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 		}
 
 		{
-
-			ia.set(res.create_vertex(poi, decltype(poi)::value_type::type{}), 0)
-				.set(res.create_index(ind));
+			ia << res.create_vertex(poi, decltype(poi)::value_type::type{})[0] 
+				<< res.create_index(ind);
 			vs.set(res.create_constant_buffer_with_size(sizeof(float4x4) * 2, true), 0);
 
 			auto shader = scene.find(typeid(binary), u"test_vs.cso");

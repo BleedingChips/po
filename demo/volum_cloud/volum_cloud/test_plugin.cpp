@@ -422,7 +422,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 				r_mt() / static_cast<float>(decltype(r_mt)::max())
 			};
 
-			cs.set(re.create_constant_buffer(&da), 0);
+			cs << re.create_constant_buffer(&da)[0];
 			pipe << cs;
 			pipe.dispatch(256, 256, 256);
 			pipe.unbind();
