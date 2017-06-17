@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d11.h>
 #include "../win32/win32_define.h"
+#include <tuple>
 namespace PO
 {
 	namespace Dx11
@@ -15,6 +16,10 @@ namespace PO
 			UINT element_size;
 			UINT num;
 			std::vector<D3D11_INPUT_ELEMENT_DESC> layout;
+
+			std::tuple<vertex, size_t> operator[](size_t i) && {return std::tuple<vertex, size_t>{std::move(*this), i}; }
+			std::tuple<const vertex&, size_t> operator[](size_t i) const& { return std::tuple<const vertex&, size_t>{*this, i}; }
+
 		};
 
 		struct index
@@ -35,25 +40,54 @@ namespace PO
 			UINT i_offset;
 			DXGI_FORMAT i_format;
 			UINT i_num;
+			std::tuple<index_vertex, size_t> operator[](size_t i) && {return std::tuple<index_vertex, size_t>{std::move(*this), i}; }
+			std::tuple<const index_vertex&, size_t> operator[](size_t i) const& { return std::tuple<const index_vertex&, size_t>{*this, i}; }
 		};
 
 		struct tex1 { Win32::com_ptr<ID3D11Texture1D> ptr; };
 		struct tex2 { Win32::com_ptr<ID3D11Texture2D> ptr; };
 		struct tex3 { Win32::com_ptr<ID3D11Texture3D> ptr; };
 
-		struct constant_buffer { Win32::com_ptr<ID3D11Buffer> ptr; };
-		struct structed_buffer { Win32::com_ptr<ID3D11Buffer> ptr; };
+		struct constant_buffer { 
+			Win32::com_ptr<ID3D11Buffer> ptr; 
+			std::tuple<constant_buffer, size_t> operator[](size_t i) && {return std::tuple<constant_buffer, size_t>{std::move(*this), i}; }
+			std::tuple<const constant_buffer&, size_t> operator[](size_t i) const& {return std::tuple<const constant_buffer&, size_t>{std::move(*this), i}; }
+		};
+		
+		struct structed_buffer { 
+			Win32::com_ptr<ID3D11Buffer> ptr;
+			std::tuple<structed_buffer, size_t> operator[](size_t i) && {return std::tuple<structed_buffer, size_t>{std::move(*this), i}; }
+			std::tuple<const structed_buffer&, size_t> operator[](size_t i) const& { return std::tuple<const structed_buffer&, size_t>{std::move(*this), i}; }
+		};
+		
 		struct readable_buffer { Win32::com_ptr<ID3D11Buffer> ptr; };
 
-		struct shader_resource_view { Win32::com_ptr<ID3D11ShaderResourceView> ptr; };
-		struct unordered_access_view { Win32::com_ptr<ID3D11UnorderedAccessView> ptr; UINT offset; };
-		struct render_target_view { Win32::com_ptr<ID3D11RenderTargetView> ptr; };
+		struct shader_resource_view { 
+			Win32::com_ptr<ID3D11ShaderResourceView> ptr;
+			std::tuple<shader_resource_view, size_t> operator[](size_t i) && {return std::tuple<shader_resource_view, size_t>{std::move(*this), i}; }
+			std::tuple<const shader_resource_view&, size_t> operator[](size_t i) const& { return std::tuple<const shader_resource_view&, size_t>{std::move(*this), i}; }
+		};
+
+		struct unordered_access_view { 
+			Win32::com_ptr<ID3D11UnorderedAccessView> ptr; UINT offset; 
+			std::tuple<unordered_access_view, size_t> operator[](size_t i) && {return std::tuple<unordered_access_view, size_t>{std::move(*this), i}; }
+			std::tuple<const unordered_access_view&, size_t> operator[](size_t i) const& { return std::tuple<const unordered_access_view&, size_t>{std::move(*this), i}; }
+		};
+
+		struct render_target_view { 
+			Win32::com_ptr<ID3D11RenderTargetView> ptr;
+			std::tuple<render_target_view, size_t> operator[](size_t i) && {return std::tuple<render_target_view, size_t>{std::move(*this), i}; }
+			std::tuple<const render_target_view&, size_t> operator[](size_t i) const& { return std::tuple<const render_target_view&, size_t>{std::move(*this), i}; }
+		};
+
 		struct depth_stencil_view { Win32::com_ptr<ID3D11DepthStencilView> ptr; };
 
 		struct sample_state { 
 			using scription = D3D11_SAMPLER_DESC;
 			static scription default_scription;
 			Win32::com_ptr<ID3D11SamplerState> ptr;
+			std::tuple<sample_state, size_t> operator[](size_t i) && {return std::tuple<sample_state, size_t>{std::move(*this), i}; }
+			std::tuple<const sample_state&, size_t> operator[](size_t i) const& { return std::tuple<const sample_state&, size_t>{std::move(*this), i}; }
 		};
 
 		struct viewports {
@@ -62,6 +96,8 @@ namespace PO
 			viewports& set(const D3D11_VIEWPORT& port, size_t solt);
 			viewports& fill_texture(size_t solt, const tex2& t, float min_depth = 0.0, float max_depth = 1.0);
 			viewports& capture_texture(size_t solt, const tex2& t, float top_left_x_rate, float top_left_y_rate, float button_right_x_rate, float button_right_y_rate, float min_depth = 0.0, float max_depth = 1.0);
+			std::tuple<viewports, size_t> operator[](size_t i) && {return std::tuple<viewports, size_t>{std::move(*this), i}; }
+			std::tuple<const viewports&, size_t> operator[](size_t i) const& { return std::tuple<const viewports&, size_t>{std::move(*this), i}; }
 		};
 
 		struct raterizer_state {
@@ -92,9 +128,18 @@ namespace PO
 			Win32::com_vector<ID3D11Buffer> cbuffer_array;
 			Win32::com_vector<ID3D11ShaderResourceView> shader_resource_view_array;
 			Win32::com_vector<ID3D11SamplerState> sample_array;
-			void set(const constant_buffer& cb, size_t solt);
-			void set(const shader_resource_view& ptr, size_t solt);
-			void set(const sample_state& sd, size_t solt);
+
+			shader_stage& set(const constant_buffer& cb, size_t solt);
+			shader_stage& set(const shader_resource_view& ptr, size_t solt);
+			shader_stage& set(const sample_state& sd, size_t solt);
+
+			shader_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			shader_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			shader_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			shader_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			shader_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			shader_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+
 		};
 
 		struct input_assember_stage
@@ -103,16 +148,31 @@ namespace PO
 			std::vector<UINT> offset_array;
 			std::vector<UINT> element_array;
 			std::vector<D3D11_INPUT_ELEMENT_DESC> input_element;
+
 			Win32::com_ptr<ID3D11InputLayout> layout;
+
 			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
 			Win32::com_ptr<ID3D11Buffer> index_ptr;
 			UINT offset;
 			DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
 
-			input_assember_stage& set(const vertex& v, size_t solt);
-			input_assember_stage& set(const index& bp);
-			input_assember_stage& set(const index_vertex& iv, size_t solt);
+
+			input_assember_stage& operator<<(const std::tuple<vertex, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			input_assember_stage& operator<<(const std::tuple<const vertex&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			input_assember_stage& operator<<(index bp) { return set(std::move(bp)); }
+
+			input_assember_stage& operator<<(const std::tuple<index_vertex, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			input_assember_stage& operator<<(const std::tuple<const index_vertex&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+
+			input_assember_stage& operator<<(D3D11_PRIMITIVE_TOPOLOGY DPT) { return set(DPT); }
+
+			input_assember_stage& set(const vertex& v, size_t solt = 0);
+			input_assember_stage& set(index bp);
+			input_assember_stage& set(const index_vertex& iv, size_t solt = 0);
+
+			input_assember_stage& set(D3D11_PRIMITIVE_TOPOLOGY DPT) { primitive = DPT; return *this; }
+
 			bool check() const;
 		};
 
@@ -122,15 +182,26 @@ namespace PO
 			Win32::com_ptr<ID3D11VertexShader> ptr;
 		};
 
-		struct vertex_stage : shader_stage, vertex_shader
+		struct vertex_stage : shader_stage
 		{
+			vertex_shader code;
 			using shader_stage::set;
 			using shader_stage::operator=;
-			using vertex_shader::operator=;
-			vertex_stage& set(vertex_shader vs) { *this = std::move(vs); return *this; }
-			vertex_stage& set(const constant_buffer& cb, size_t solt) { shader_stage::set(cb, solt); return *this; }
-			vertex_stage& set(const shader_resource_view& ptr, size_t solt) { shader_stage::set(ptr, solt); return *this; }
-			vertex_stage& set(const sample_state& sd, size_t solt) { shader_stage::set(sd, solt); return *this; }
+			operator const vertex_shader&() const { return code; }
+
+			vertex_stage& operator<<(vertex_shader vs) { return this->set(std::move(vs)); }
+			vertex_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			vertex_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			vertex_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			vertex_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			vertex_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			vertex_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			//vertex_stage& operator<< (const constant_buffer& vs) { return this->set(std::move(vs)); }
+
+			vertex_stage& set(vertex_shader vs) { code = std::move(vs); return *this; }
+			vertex_stage& set(const constant_buffer& cb, size_t solt = 0) { shader_stage::set(cb, solt); return *this; }
+			vertex_stage& set(const shader_resource_view& ptr, size_t solt = 0) { shader_stage::set(ptr, solt); return *this; }
+			vertex_stage& set(const sample_state& sd, size_t solt = 0) { shader_stage::set(sd, solt); return *this; }
 			bool check() const;
 		};
 
@@ -139,14 +210,23 @@ namespace PO
 			Win32::com_ptr<ID3D11PixelShader> ptr;
 		};
 
-		struct pixel_stage : shader_stage, pixel_shader
+		struct pixel_stage : shader_stage
 		{
+			pixel_shader code;
 			using shader_stage::set;
-			using pixel_shader::operator=;
-			pixel_stage& set(pixel_shader ps) { *this = std::move(ps); return *this; }
-			pixel_stage& set(const constant_buffer& cb, size_t solt) { shader_stage::set(cb, solt); return *this; }
-			pixel_stage& set(const shader_resource_view& ptr, size_t solt) { shader_stage::set(ptr, solt); return *this; }
-			pixel_stage& set(const sample_state& sd, size_t solt) { shader_stage::set(sd, solt); return *this; }
+
+			pixel_stage& operator<<(pixel_shader ps) { return this->set(std::move(ps)); }
+			pixel_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			pixel_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			pixel_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			pixel_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			pixel_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			pixel_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+
+			pixel_stage& set(pixel_shader ps) { code = std::move(ps); return *this; }
+			pixel_stage& set(const constant_buffer& cb, size_t solt = 0) { shader_stage::set(cb, solt); return *this; }
+			pixel_stage& set(const shader_resource_view& ptr, size_t solt = 0) { shader_stage::set(ptr, solt); return *this; }
+			pixel_stage& set(const sample_state& sd, size_t solt = 0) { shader_stage::set(sd, solt); return *this; }
 			bool check() const;
 		};
 
@@ -164,17 +244,27 @@ namespace PO
 			Win32::com_ptr<ID3D11ComputeShader> ptr;
 		};
 
-		struct compute_stage : shader_stage , compute_shader
+		struct compute_stage : shader_stage
 		{
 			Win32::com_vector<ID3D11UnorderedAccessView> UAV_array;
 			std::vector<UINT> offset;
-			
+			compute_shader code;
+			compute_stage& operator<<(compute_shader cs) { return set(std::move(cs)); }
+
+			compute_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<unordered_access_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			compute_stage& operator<<(const std::tuple<const unordered_access_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+
 			compute_stage& set(const unordered_access_view& uav, size_t solt);
-			compute_stage& set(compute_shader cs) { *this = std::move(cs); return *this; }
-			using compute_shader::operator=;
-			compute_stage& set(const constant_buffer& cb, size_t solt) { shader_stage::set(cb, solt); return *this; }
-			compute_stage& set(const shader_resource_view& ptr, size_t solt) { shader_stage::set(ptr, solt); return *this; }
-			compute_stage& set(const sample_state& sd, size_t solt) { shader_stage::set(sd, solt); return *this; }
+			compute_stage& set(compute_shader cs) { code = std::move(cs); return *this; }
+			compute_stage& set(const constant_buffer& cb, size_t solt = 0) { shader_stage::set(cb, solt); return *this; }
+			compute_stage& set(const shader_resource_view& ptr, size_t solt = 0) { shader_stage::set(ptr, solt); return *this; }
+			compute_stage& set(const sample_state& sd, size_t solt = 0) { shader_stage::set(sd, solt); return *this; }
 			bool check() const;
 		};
 

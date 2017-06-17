@@ -51,9 +51,9 @@ namespace PO
 		};
 
 		//*************************************************************************  shader_resource_d
-		void shader_stage::set(const constant_buffer& cb, size_t solt) { cbuffer_array.set(solt, cb.ptr); }
-		void shader_stage::set(const shader_resource_view& ptr, size_t solt) { shader_resource_view_array.set(solt, ptr.ptr); }
-		void shader_stage::set(const sample_state& sd, size_t solt) { sample_array.set(solt, sd.ptr); }
+		shader_stage& shader_stage::set(const constant_buffer& cb, size_t solt) { cbuffer_array.set(solt, cb.ptr); return *this; }
+		shader_stage& shader_stage::set(const shader_resource_view& ptr, size_t solt) { shader_resource_view_array.set(solt, ptr.ptr); return *this; }
+		shader_stage& shader_stage::set(const sample_state& sd, size_t solt) { sample_array.set(solt, sd.ptr); return *this; }
 
 		//*************************************************************************  input_assember_d
 		input_assember_stage& input_assember_stage::set(const vertex& v, size_t solt)
@@ -81,9 +81,9 @@ namespace PO
 			return *this;
 		}
 
-		input_assember_stage& input_assember_stage::set(const index& ind)
+		input_assember_stage& input_assember_stage::set(index ind)
 		{
-			index_ptr = ind.ptr;
+			index_ptr = std::move(ind.ptr);
 			offset = ind.offset;
 			format = ind.format;
 			return *this;
@@ -818,7 +818,7 @@ namespace PO
 			/*****  vertex_shader_context_t   ******************************************************************************************/
 			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_stage& vs)
 			{
-				cp->VSSetShader(vs.ptr, nullptr, 0);
+				cp->VSSetShader(vs.code.ptr, nullptr, 0);
 				if (!vs.cbuffer_array.empty())
 					cp->VSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
 
@@ -891,7 +891,7 @@ namespace PO
 			/*****  pixel_shader_context_t   ******************************************************************************************/
 			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_stage& vs)
 			{
-				cp->PSSetShader(vs.ptr, nullptr, 0);
+				cp->PSSetShader(vs.code.ptr, nullptr, 0);
 				if (!vs.cbuffer_array.empty())
 					cp->PSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
 
@@ -1039,7 +1039,7 @@ namespace PO
 
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_stage& cd)
 			{
-				cp->CSSetShader(cd.ptr, nullptr, 0);
+				cp->CSSetShader(cd.code.ptr, nullptr, 0);
 
 				cp->CSSetUnorderedAccessViews(0, static_cast<UINT>(cd.UAV_array.size()), cd.UAV_array.data(), cd.offset.data());
 				max_unorder_access_view = max_unorder_access_view < cd.UAV_array.size() ? cd.UAV_array.size() : max_unorder_access_view;
