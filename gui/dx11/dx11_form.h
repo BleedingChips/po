@@ -43,6 +43,7 @@ namespace PO
 			void update_screen() { swap->Present(0, 0); }
 			operator const tex2& () const { return back_buffer; }
 			operator const viewports& () const { return vp; }
+			Dx11_ticker(Dx11_form&);
 			/*
 			void tick(renderer_control& rc) {
 				update_screen();

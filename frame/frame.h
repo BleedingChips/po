@@ -137,7 +137,32 @@ namespace PO
 
 	}
 
-	template<typename renderer_t = void> class construction
+	template<typename renderer_t = void> struct self
+	{
+		Implement::plugin_self<renderer_t>& self_ref;
+		Implement::plugins<renderer_t>& plugins_ref;
+		operator self<void>() { return self<void>{self_ref, plugins_ref}; }
+
+		/*
+		void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
+	};
+
+	template<> struct self<void>
+	{
+		Implement::plugin_self<void>& self_ref;
+		Implement::plugins<void>& plugins_ref;
+
+		/*
+		void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
+	};
+
+	template<typename renderer_t = void> struct construction
 	{
 		Implement::plugin_self<renderer_t>& self_ref;
 		Implement::plugins<renderer_t>& plugins_ref;
@@ -146,9 +171,14 @@ namespace PO
 		operator construction<void>() { return construction<void>{self_ref, plugins_ref, viewer_ref}; }
 		construction(Implement::plugin_self<renderer_t>& s, Implement::plugins<renderer_t>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
 		construction(const construction&) = default;
+		/*
+		void bind_tick(std::function<void(self<renderer_t>, renderer_t&, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
 	};
 
-	template<> class construction<void>
+	template<> struct construction<void>
 	{
 		Implement::plugin_self<void>& self_ref;
 		Implement::plugins<void>& plugins_ref;
@@ -156,6 +186,12 @@ namespace PO
 	public:
 		construction(Implement::plugin_self<void>& s, Implement::plugins<void>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
 		construction(const construction&) = default;
+
+		/*
+		void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
 	};
 
 	template<typename renderer_t = void> class inside_construction
@@ -169,6 +205,12 @@ namespace PO
 		operator construction<renderer_t>() { return construction<renderer_t>{self_ref, plugins_ref, viewer_ref}; }
 		inside_construction(Implement::plugin_self<renderer_t>& s, Implement::plugins<renderer_t>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
 		inside_construction(const inside_construction&) = default;
+
+		/*
+		void bind_tick(std::function<void(self<renderer_t>, renderer_t&, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
 	};
 
 	template<> class inside_construction<void>
@@ -179,19 +221,11 @@ namespace PO
 	public:
 		inside_construction(Implement::plugin_self<void>& s, Implement::plugins<void>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
 		inside_construction(const inside_construction&) = default;
-	};
-
-	template<typename renderer_t = void> struct self
-	{
-		Implement::plugin_self<renderer_t>& self_ref;
-		Implement::plugins<renderer_t>& plugins_ref;
-		operator self<void>() { return self<void>{self_ref, plugins_ref}; }
-	};
-
-	template<> struct self<void>
-	{
-		Implement::plugin_self<void>& self_ref;
-		Implement::plugins<void>& plugins_ref;
+		/*
+		void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) { self_ref.bind_tick(std::move(tft)); }
+		void bind_respond(std::function<Respond(event&, viewer&)> rft) { self_ref.bind_respond(std::move(rft)); }
+		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { self_ref.auto_bind_tick(std::forward<T>(t), std::forward<AK>(ak)...); }
+		*/
 	};
 
 	namespace Implement 
@@ -207,11 +241,11 @@ namespace PO
 
 			void bind_tick(std::function<void(self<renderer_t>, renderer_t&, viewer&, duration)> tft) { tick_function = std::move(tft); }
 
-			virtual void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) override { tick_function = [f{ std::move(tft) }](self_depute<renderer_t> s, renderer_t& r, viewer& v, duration d) mutable { f(s, v, d); }; }
+			virtual void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) override { tick_function = [f{ std::move(tft) }](self<renderer_t> s, renderer_t& r, viewer& v, duration d) mutable { f(s, v, d); }; }
 
 			virtual void bind_respond(std::function<Respond(event&, viewer&)> rft) override { respond_function = std::move(rft); }
 
-			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self_depute<renderer_t>, renderer_t&, viewer&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
+			template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&&... at) { bind_tick(Tool::auto_bind_function<void(self<renderer_t>, renderer_t&, viewer&, duration), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...)); }
 		};
 
 		template<> struct plugin_self<void>
@@ -219,7 +253,7 @@ namespace PO
 			bool avalible = true;
 			Tool::completeness_ref cr;
 			void close_self() { avalible = false; }
-			virtual void bind_tick(std::function<void(self<void>, duration)> tft) = 0;
+			virtual void bind_tick(std::function<void(self<void>, viewer&, duration)> tft) = 0;
 			virtual void bind_respond(std::function<Respond(event&, viewer&)> rft) = 0;
 			plugin_self(const Tool::completeness_ref& c) :cr(c) {}
 			operator bool() const { return avalible; }
@@ -242,7 +276,7 @@ namespace PO
 			template<typename init_type, typename ...AT>
 			plugins_packet(Tool::completeness_ref cr, Tmp::itself<init_type>, plugins<renderer_t>& p, viewer& v, AT&& ...at) : plugins_interface<renderer_t>(std::move(cr)),
 				plugin(init_type{this->self, p, v}, std::forward<AT>(at)...) {
-				static_assert(std::is_constructible<std::decay_t<plugin_t>, init_type, AT...>, "");
+				static_assert(std::is_constructible<std::decay_t<plugin_t>, init_type, AT...>::value, "");
 			}
 		};
 
@@ -268,13 +302,15 @@ namespace PO
 		template<typename render_t>
 		struct plugin_ptr
 		{
-			char* data;
-			plugins_interface<render_t>* pi;
+			char* data = nullptr;
+			plugins_interface<render_t>* pi = nullptr;
 
 			plugin_ptr(char* d, plugins_interface<render_t>* p) : data(d), pi(p) {}
-			plugin_ptr(plugin_ptr&& pp) : data(pp.d), pi(pp.p) {
+			plugin_ptr(plugin_ptr&& pp) : data(pp.data), pi(pp.pi) {
 				pp.data = nullptr;
 			}
+			plugin_ptr() {}
+			plugin_ptr& operator= (plugin_ptr&&) = default;
 			operator bool() const { return pi->self; }
 			~plugin_ptr() {
 				if (data != nullptr && pi != nullptr)
@@ -327,11 +363,11 @@ namespace PO
 			}
 
 			template<typename T, typename ...AT> void create_inside(Tmp::itself<T> pt, AT&& ...at) {
-				create_implement(pt, Tmp::itself<inside_construction<render_t>>, std::forward<AT>(at)...);
+				create_implement(pt, Tmp::itself<inside_construction<render_t>>{}, std::forward<AT>(at)...);
 			}
 
 			template<typename T, typename ...AT> void create(Tmp::itself<T> pt, AT&& ...at) {
-				create_implement(pt, Tmp::itself<construction<render_t>>, std::forward<AT>(at)...);
+				create_implement(pt, Tmp::itself<construction<render_t>>{}, std::forward<AT>(at)...);
 			}
 
 			template<typename T> void bind_init(init_function i) {
@@ -340,9 +376,9 @@ namespace PO
 				});
 			}
 
-			void tick(duration da)
+			virtual void tick(duration da)
 			{
-				if (depute_construct_function.lock([](decltype(depute_construct_function& i)) {
+				if (depute_construct_function.lock([this](decltype(depute_construct_function)::type& i) {
 					if (i.empty()) return false;
 					std::swap(handle_construct_function, i); return true;
 				})) {
@@ -350,15 +386,15 @@ namespace PO
 					handle_construct_function.clear();
 				}
 				
-				if (depute_init_function.lock([](decltype(depute_init_function& i)) {
+				if (depute_init_function.lock([this](decltype(depute_init_function)::type& i) {
 					if (i.empty()) return false;
 					std::swap(handle_init_function, i); return true;
 				})) {
-					for (auto& i : handle_init_function) i();
+					for (auto& i : handle_init_function) i.second(self<render_t>{(i.first)->self, *this}, renderer, viewerer);
 					handle_init_function.clear();
 				}
 
-				constructed_plugin.lock([](decltype(constructed_plugin& i)) {
+				constructed_plugin.lock([this](decltype(constructed_plugin)::type& i) {
 					if(!i.empty())
 						all_plugin.insert(all_plugin.end(), std::make_move_iterator(i.begin()), std::make_move_iterator(i.end()));
 				});
@@ -374,7 +410,8 @@ namespace PO
 		};
 
 		struct plugins_interface_for_form {
-
+			virtual ~plugins_interface_for_form() {}
+			virtual void tick(duration i) = 0;
 		};
 
 		template<> struct plugins<void> : plugins_interface_for_form {
@@ -461,8 +498,58 @@ namespace PO
 			virtual Respond ask_for_respond_mt(event& e) { return Respond::Pass; }
 			virtual Respond ask_for_respond(event& e) { return Respond::Pass; }
 
-			template<typename T>
-				void tick(T t) {}
+			void tick(PO::time_point t) {
+				depute_plugins_ptr.lock([this](decltype(depute_plugins_ptr)::type& i) {
+					if (!i.empty())
+					{
+						for (auto& po : i)
+							plugins_ptr.push_back(po(*this));
+						i.clear();
+					}
+				});
+
+				for (auto& pp : plugins_ptr) {
+					pp->tick(duration(1));
+				}
+			}
+
+			~form_expand() {
+				depute_plugins_ptr.lock([this](decltype(depute_plugins_ptr)::type& i) {
+					if (!i.empty())
+					{
+						for (auto& po : i)
+							po(*this);
+						i.clear();
+					}
+				});
+			}
+		};
+
+		template<typename renderer_t> struct plugins_view
+		{
+			plugins<renderer_t>& pl_ref;
+			plugins_view(plugins<renderer_t>& re) : pl_ref(re) {}
+			plugins_view(const plugins_view&) = default;
+			template<typename plugin_t, typename ...AT> void create(Tmp::itself<plugin_t> i, AT&& ...at) {
+				pl_ref.create(i, std::forward<AT>(at)...);
+			}
+			template<typename plugin_t, typename ...AT> void depute_create(Tmp::itself<plugin_t> i, AT&& ...at) {
+				pl_ref.depute_create(i, std::forward<AT>(at)...);
+			}
+		};
+
+		template<typename renderer_t> struct plugins_view_packet
+		{
+			using type = plugins_view<renderer_t>;
+			plugins_view<renderer_t> pl;
+			Tool::completeness_ref ref;
+			plugins_view_packet(plugins<renderer_t>& p, Tool::completeness_ref c) : pl(p), ref(std::move(c)) {}
+			plugins_view_packet(const plugins_view_packet&) = default;
+			template<typename func> decltype(auto) lock(func&& f) {
+				return ref.lock_if([&f, this]() {
+					return f(pl);
+				});
+			}
 		};
 
 		template<typename form> struct form_viewer {
@@ -471,7 +558,17 @@ namespace PO
 			form_viewer(viewer v, form_expand<form>& r) : viewerer(v), ref(r) {}
 			form_viewer(const form_viewer&) = default;
 			template<typename renderer_t> auto create_renderer(Tmp::itself<renderer_t>) {
-
+				std::promise<Tool::optional<plugins_view_packet<renderer_t>>> pro;
+				auto fur = pro.get_future();
+				ref.depute_plugins_ptr.lock([&](decltype(ref.depute_plugins_ptr)::type& i) {
+					i.push_back([&](form& f) -> std::unique_ptr<plugins_interface_for_form>{
+						auto ptr = std::make_unique<Tool::completeness<plugins<renderer_t>>>(f);
+						pro.set_value({*ptr, *ptr});
+						return ptr;
+					});
+				});
+				fur.wait();
+				return *fur.get();
 			}
 		};
 
@@ -503,7 +600,7 @@ namespace PO
 					logic_form_thread.join();
 				}
 				force_exist_form = false;
-				std::promise<Tool::optional<form_viewer<form>>> p;
+				std::promise<Tool::optional<form_viewer_packet<form>>> p;
 				auto fur = p.get_future();
 				force_exist_form = false;
 				logic_form_thread = std::thread(
@@ -512,7 +609,7 @@ namespace PO
 					Tool::completeness<form_expand<form>> packet(std::forward<AK>(ak)...);
 					packet.finish_construction();
 					viewer v;
-					p.set_value(form_viewer<form>{viewer{ packet }, packet, packet});
+					p.set_value(form_viewer_packet<form>{viewer{ packet }, packet, packet});
 					time_point start_loop = std::chrono::system_clock::now();
 					while (!force_exist_form  && packet.avalible())
 					{
