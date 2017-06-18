@@ -187,13 +187,8 @@ namespace
 			auto ite = handled_event_filter.find(msg);
 			if (ite != handled_event_filter.end() && ite->second.translate_event && ite->second.responded_event)
 			{
-				ptr->input_event.lock(
-					[&](PO::Win32::win32_form::tank& t)
-				{
-					t.push_back(ite->second.translate_event(wParam, lParam));
-				}
-				);
-				return ite->second.responded_event(wParam, lParam);
+				auto ev = ite->second.translate_event(wParam, lParam);
+				ptr->respond(ev);
 			}
 		}
 		return DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -366,12 +361,8 @@ namespace PO
 {
 	namespace Win32
 	{
-		win32_form::win32_form(form_control& fs, const win32_initial& wi)
-		{
-			Error::fail_throw(manager.create(wi, this));
-		}
 
-		win32_form::win32_form(const win32_initial& wi)
+		win32_form::win32_form(const win32_initial& wi) : quit(false), construction_finish(false)
 		{
 			Error::fail_throw(manager.create(wi, this));
 		}
@@ -381,6 +372,20 @@ namespace PO
 			manager.destory(raw_handle);
 		}
 
+		Respond win32_form::respond(event& ev)
+		{
+			Respond res = Respond::Pass;
+			if (construction_finish)
+				res = ask_for_respond_mt(ev);
+			if (res == Respond::Pass)
+			{
+				if (ev.is_quit())
+					quit = true;
+			}
+			return res;
+		}
+
+		/*
 		void win32_form::tick(form_control& fs, duration da)
 		{
 
@@ -416,29 +421,8 @@ namespace PO
 				o.clear();
 			}
 			);
-
-			/*
-			input_event.lock(
-				[&](tank& t)
-			{
-				fs.self().swap_event(t);
-				for (auto& iu : t)
-				{
-					if(iu.s_quit)
-				}
-			}
-			);
-			decltype(input_event) tem;
-			{
-				std::lock_guard<std::mutex> da(input_mutex);
-				std::swap(std::move(tem), std::move(input_event));
-			}
-			for (auto& iu : tem)
-			{
-				if (iu.is_quit())
-					fs.self().close();
-			}
-			*/
+		
 		}
+		*/
 	}
 }

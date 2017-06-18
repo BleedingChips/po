@@ -4,11 +4,11 @@ namespace PO
 {
 	namespace Dx11
 	{
-		Dx11_form::Dx11_form(form_control& fc, const Dx11_initial& di) : form()
+		Dx11_form::Dx11_form(const Dx11_initial& di) : Win32::win32_form()
 		{
 			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_0 };
 			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_0;
-			PO::Platform::Dxgi::swap_chain_desc swc(form.raw_handle);
+			PO::Platform::Dxgi::swap_chain_desc swc(raw_handle);
 			HRESULT re = D3D11CreateDeviceAndSwapChain(
 				nullptr,
 				D3D_DRIVER_TYPE_HARDWARE,
@@ -24,7 +24,6 @@ namespace PO
 				dc.adress()
 			);
 			Win32::Error::fail_throw(re);
-			fc.pre_tick = [this](form_control& fc, duration da) {this->form.tick(fc, da); };
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),
@@ -65,6 +64,7 @@ namespace PO
 			*/
 		}
 
+		/*
 		Dx11_ticker::Dx11_ticker(renderer_control& rc, Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc)
 		{
 			if (!SUCCEEDED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer))) __debugbreak();
@@ -74,7 +74,7 @@ namespace PO
 			rc.auto_bind_pre_tick(&Dx11_ticker::tick, this);
 			vp.fill_texture(0, back_buffer);
 			pipe << vp;
-		}
+		}*/
 		
 		/*
 		bool shader_loader::shader_loader_execute::operator()()

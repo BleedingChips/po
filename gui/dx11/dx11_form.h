@@ -18,13 +18,12 @@ namespace PO
 
 		};
 
-		struct Dx11_form
+		struct Dx11_form : Win32::win32_form
 		{
-			Win32::win32_form form;
 			Win32::com_ptr<ID3D11Device> dev;
 			Win32::com_ptr<ID3D11DeviceContext> dc;
 			Win32::com_ptr<IDXGISwapChain> swap;
-			Dx11_form(form_control& fc, const Dx11_initial& = Dx11_initial{});
+			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() { std::cout << "exit" << std::endl; };
 		};
 
@@ -40,13 +39,14 @@ namespace PO
 			pipe_line pipe;
 			tex2 back_buffer;
 			viewports vp;
-			Dx11_ticker(renderer_control& rc, Dx11_form& Df);
+			//Dx11_ticker(renderer_control& rc, Dx11_form& Df);
 			void update_screen() { swap->Present(0, 0); }
 			operator const tex2& () const { return back_buffer; }
 			operator const viewports& () const { return vp; }
+			/*
 			void tick(renderer_control& rc) {
 				update_screen();
-			}
+			}*/
 		};
 
 		/*

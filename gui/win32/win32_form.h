@@ -7,7 +7,6 @@
 #include <set>
 namespace PO
 {
-	
 	namespace Win32
 	{
 		struct win32_form_style
@@ -26,16 +25,17 @@ namespace PO
 			win32_form_style style = win32_form_style();
 		};
 
-		struct win32_form
+		struct win32_form : PO::form_constraint
 		{
 			HWND raw_handle;
+			std::atomic_bool quit;
+			std::atomic_bool construction_finish;
 			using tank = std::vector<event>;
-			Tool::scope_lock<tank> input_event;
-			Tool::scope_lock<tank> output_event;
-			win32_form(form_control&, const win32_initial& = win32_initial{});
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
-			void tick(form_control& ft, duration da);
+			virtual bool avalible() { return !quit; }
+			void finish_construction() { construction_finish = true; }
+			Respond respond(event& e);
 		};
 	}
 }

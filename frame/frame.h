@@ -121,12 +121,65 @@ namespace PO
 	struct viewer
 	{
 		std::weak_ptr<Tool::scope_lock<std::vector<event>>> request_vector_ptr;
+		template<typename T> viewer(T& form) {}
+		viewer() {}
 	};
+
+	
 
 	namespace Implement {
 		template<typename renderer_t = void> struct plugin_self;
 		template<typename renderer_t = void> struct plugins;
+
+		template<typename render_t> struct render_expand : render_t {
+			template<typename form> render_expand(form& f) :render_t(f) {}
+		};
+
 	}
+
+	template<typename renderer_t = void> class construction
+	{
+		Implement::plugin_self<renderer_t>& self_ref;
+		Implement::plugins<renderer_t>& plugins_ref;
+		viewer& viewer_ref;
+	public:
+		operator construction<void>() { return construction<void>{self_ref, plugins_ref, viewer_ref}; }
+		construction(Implement::plugin_self<renderer_t>& s, Implement::plugins<renderer_t>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
+		construction(const construction&) = default;
+	};
+
+	template<> class construction<void>
+	{
+		Implement::plugin_self<void>& self_ref;
+		Implement::plugins<void>& plugins_ref;
+		viewer& viewer_ref;
+	public:
+		construction(Implement::plugin_self<void>& s, Implement::plugins<void>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
+		construction(const construction&) = default;
+	};
+
+	template<typename renderer_t = void> class inside_construction
+	{
+		Implement::plugin_self<renderer_t>& self_ref;
+		Implement::plugins<renderer_t>& plugins_ref;
+		viewer& viewer_ref;
+	public:
+		operator inside_construction<void>() { return inside_construction<void>{self_ref, plugins_ref, viewer_ref}; }
+		operator construction<void>() { return construction<void>{self_ref, plugins_ref, viewer_ref}; }
+		operator construction<renderer_t>() { return construction<renderer_t>{self_ref, plugins_ref, viewer_ref}; }
+		inside_construction(Implement::plugin_self<renderer_t>& s, Implement::plugins<renderer_t>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
+		inside_construction(const inside_construction&) = default;
+	};
+
+	template<> class inside_construction<void>
+	{
+		Implement::plugin_self<void>& self_ref;
+		Implement::plugins<void>& plugins_ref;
+		viewer& viewer_ref;
+	public:
+		inside_construction(Implement::plugin_self<void>& s, Implement::plugins<void>& p, viewer& v) : self_ref(s), plugins_ref(p), viewer_ref(v) {}
+		inside_construction(const inside_construction&) = default;
+	};
 
 	template<typename renderer_t = void> struct self
 	{
@@ -143,7 +196,8 @@ namespace PO
 
 	namespace Implement 
 	{
-		template<typename renderer_t = void>
+
+		template<typename renderer_t>
 		struct plugin_self : public plugin_self<void>
 		{
 			plugin_self(const Tool::completeness_ref& c) : plugin_self<void>(c) {}
@@ -177,6 +231,7 @@ namespace PO
 		{
 			plugin_self<renderer_t> self;
 			plugins_interface(Tool::completeness_ref cr) : self(std::move(self)) {}
+			virtual ~plugins_interface() {}
 		};
 
 		template<typename renderer_t, typename plugin_t = void> 
@@ -184,36 +239,149 @@ namespace PO
 			: plugins_interface<renderer_t>
 		{
 			plugin_t plugin;
-			template<typename ...AT>
-			plugins_packet(Tool::completeness_ref cr, AT&& ...at) : plugins_interface<renderer_t>(std::move(cr)), plugin(std::forward<AT>(at)...){}
+			template<typename init_type, typename ...AT>
+			plugins_packet(Tool::completeness_ref cr, Tmp::itself<init_type>, plugins<renderer_t>& p, viewer& v, AT&& ...at) : plugins_interface<renderer_t>(std::move(cr)),
+				plugin(init_type{this->self, p, v}, std::forward<AT>(at)...) {
+				static_assert(std::is_constructible<std::decay_t<plugin_t>, init_type, AT...>, "");
+			}
 		};
 
 		template<typename renderer_t> struct plugins_packet<renderer_t, void> : plugins_interface<renderer_t>
 		{
-			std::unique_ptr<void*> plugin_ptr;
+			void* data_ptr;
 			void(*deleter_function)(void*);
-			plugins_packet(Tool::completeness_ref cr, std::tuple<std::unique_ptr<void*>, void(*)(void*)>& p) : 
-				plugins_interface<renderer_t>(std::move(cr)), plugin_ptr(std::move(std::get<0>(p))), deleter_function(std::get<1>(p)) {}
+			template<typename init_type>
+			plugins_packet(Tool::completeness_ref cr, Tmp::itself<init_type>, plugins<renderer_t>& p, viewer& v, size_t align, size_t size, size_t buffer, std::function<void(void*, init_type, void(*&)(void*))>& f) :
+				plugins_interface<renderer_t>(std::move(cr)){
+					void * ptr = this + 1;
+					buffer = buffer - sizeof(plugins_packet);
+					data_ptr = std::align(align, size, ptr, buffer);
+					f(data_ptr, init_type{ this->self, p, v }, deleter_function);
+				}
 			~plugins_packet() {
-				(*deleter_function)(*plugin_ptr);
+				(*deleter_function)(data_ptr);
 			}
 		};
 
-		template<typename renderer_t = void> struct plugins : public plugins<void>
+		template<typename renderer_t, typename plugin_t = void> using plugin_final = Tool::completeness<plugins_packet<renderer_t, plugin_t>>;
+
+		template<typename render_t>
+		struct plugin_ptr
 		{
-			renderer_t rt;
+			char* data;
+			plugins_interface<render_t>* pi;
+
+			plugin_ptr(char* d, plugins_interface<render_t>* p) : data(d), pi(p) {}
+			plugin_ptr(plugin_ptr&& pp) : data(pp.d), pi(pp.p) {
+				pp.data = nullptr;
+			}
+			operator bool() const { return pi->self; }
+			~plugin_ptr() {
+				if (data != nullptr && pi != nullptr)
+				{
+					pi->~plugins_interface();
+					delete[](data);
+					data = nullptr;
+				}
+			}
 		};
 
-		/*
-		template<> struct plugins<void>
+		template<typename render_t> struct plugins :  plugins<void>
 		{
-			virtual void create_plugin(size_t size, size_t alig, std::function<void()>)
+
+			render_expand<render_t> renderer;
+			viewer viewerer;
+
+			using store_plugin_ptr = plugin_ptr<render_t>;
+
+			using depute_construct_function_t = std::function<void()>;
+			Tool::scope_lock<std::vector<depute_construct_function_t>> depute_construct_function;
+			std::vector<depute_construct_function_t> handle_construct_function;
+
+			using init_function = std::pair<plugins_interface<render_t>*, std::function<void(self<render_t>, render_t&, viewer&)>>;
+			Tool::scope_lock<std::vector<init_function>> depute_init_function;
+			std::vector<init_function> handle_init_function;
+
+			Tool::scope_lock<std::vector<store_plugin_ptr>> constructed_plugin;
+			std::vector<store_plugin_ptr> all_plugin;
+
+			template<typename form>
+			plugins(form& f) : renderer(f), viewerer(f) {}
+
+			template<typename T, typename ...AT>
+			void depute_create(Tmp::itself<T> pt, AT&& ...at) {
+				depute_construct_function.lock([&, this](decltype(depute_construct_function)::type& i) {
+					i.push_back([this, =] {this->create_inside(pt, std::forward<AT>(at)...); });
+				});
+			}
+
+			template<typename T, typename K, typename ...AT> void create_implement(Tmp::itself<T> pt, Tmp::itself<K> po, AT&& ...at) {
+				size_t plugin_size = sizeof(plugin_final<render_t, T>) + alignof(plugin_final<render_t, T>);
+				char* data = new char[plugin_size];
+				void* buffer_size = data;
+				void* target = std::align(alignof(plugin_final<render_t, T>), sizeof(plugin_final<render_t, T>), buffer_size, plugin_size);
+				new(target) plugin_final<render_t, T>(po, *this, viewerer, std::forward<AT>(at)...);
+				constructed_plugin.lock([&](decltype(constructed_plugin)::type& i) {
+					i.push_back({ data, reinterpret_cast<plugins_interface<render_t>*>(target) });
+				});
+			}
+
+			template<typename T, typename ...AT> void create_inside(Tmp::itself<T> pt, AT&& ...at) {
+				create_implement(pt, Tmp::itself<inside_construction<render_t>>, std::forward<AT>(at)...);
+			}
+
+			template<typename T, typename ...AT> void create(Tmp::itself<T> pt, AT&& ...at) {
+				create_implement(pt, Tmp::itself<construction<render_t>>, std::forward<AT>(at)...);
+			}
+
+			template<typename T> void bind_init(init_function i) {
+				depute_init_function.lock([&](decltype(depute_init_function)::type& i) {
+					i.push_back(std::move(i));
+				});
+			}
+
+			void tick(duration da)
+			{
+				if (depute_construct_function.lock([](decltype(depute_construct_function& i)) {
+					if (i.empty()) return false;
+					std::swap(handle_construct_function, i); return true;
+				})) {
+					for (auto& i : handle_construct_function) i();
+					handle_construct_function.clear();
+				}
+				
+				if (depute_init_function.lock([](decltype(depute_init_function& i)) {
+					if (i.empty()) return false;
+					std::swap(handle_init_function, i); return true;
+				})) {
+					for (auto& i : handle_init_function) i();
+					handle_init_function.clear();
+				}
+
+				constructed_plugin.lock([](decltype(constructed_plugin& i)) {
+					if(!i.empty())
+						all_plugin.insert(all_plugin.end(), std::make_move_iterator(i.begin()), std::make_move_iterator(i.end()));
+				});
+
+				all_plugin.erase(std::remove_if(all_plugin.begin(), all_plugin.end(), [](auto& i) {return !(i); }), all_plugin.end());
+
+			}
+
+			Respond respond(event& e)
+			{
+				return Respond::Pass;
+			}
 		};
-		*/
+
+		struct plugins_interface_for_form {
+
+		};
+
+		template<> struct plugins<void> : plugins_interface_for_form {
+
+		};
 
 	}
-
-
 
 
 	/************************************************************************************************/
@@ -230,7 +398,7 @@ namespace PO
 		
 		virtual Respond ask_for_respond_mt(event& e) = 0;
 		virtual Respond ask_for_respond(event& e) = 0;
-
+		virtual void finish_construction() = 0;
 		virtual Respond respond(event& e) { return Respond::Pass; }
 
 		virtual bool avalible() = 0;
@@ -280,47 +448,91 @@ namespace PO
 			form_viewer_component();
 		};
 
-		template<typename T> 
-		struct form_expand : std::decay_t<T>
+		template<typename form> 
+		struct form_expand : form
 		{
-			using type = std::decay_t<T>;
-			static_assert(form_have_avalible<type>::value, "form at last have a member function : bool avalible();");
-
-			form_viewer viewer_data;
+			static_assert(form_have_avalible<form>::value, "form at last have a member function : bool avalible();");
 
 			std::function<Respond(event&)> respond;
 
-			
+			Tool::scope_lock<std::vector<std::function<std::unique_ptr<plugins_interface_for_form>(form&)>>> depute_plugins_ptr;
+			std::vector<std::unique_ptr<plugins_interface_for_form>> plugins_ptr;
 
-			virtual Respond ask_for_respond_mt(event& e);
-			virtual Respond ask_for_respond(event& e);
+			virtual Respond ask_for_respond_mt(event& e) { return Respond::Pass; }
+			virtual Respond ask_for_respond(event& e) { return Respond::Pass; }
+
+			template<typename T>
+				void tick(T t) {}
+		};
+
+		template<typename form> struct form_viewer {
+			viewer viewerer;
+			form_expand<form>& ref;
+			form_viewer(viewer v, form_expand<form>& r) : viewerer(v), ref(r) {}
+			form_viewer(const form_viewer&) = default;
+			template<typename renderer_t> auto create_renderer(Tmp::itself<renderer_t>) {
+
+			}
+		};
+
+		template<typename form> struct form_viewer_packet
+		{
+			using type = form_viewer<form>;
+			form_viewer<form> view;
+			Tool::completeness_ref cr;
+			form_viewer_packet(viewer v, form_expand<form>& r, Tool::completeness_ref re) : view(v, r), cr(re) {}
+			form_viewer_packet(const form_viewer_packet&) = default;
+			template<typename func> decltype(auto) lock(func&& f) {
+				return cr.lock_if([&f, this]() {
+					return f(view);
+				});
+			}
+		};
+
+		struct form_ptr
+		{
+			bool avalible;
+			std::thread logic_form_thread;
+			std::atomic_bool force_exist_form;
+			~form_ptr();
+			template<typename form, typename ...AK> auto create_form(Tmp::itself<form> i, AK&& ...ak)
+			{
+				if (logic_form_thread.joinable())
+				{
+					force_exist_form = true;
+					logic_form_thread.join();
+				}
+				force_exist_form = false;
+				std::promise<Tool::optional<form_viewer<form>>> p;
+				auto fur = p.get_future();
+				force_exist_form = false;
+				logic_form_thread = std::thread(
+					[&, this]()
+				{
+					Tool::completeness<form_expand<form>> packet(std::forward<AK>(ak)...);
+					packet.finish_construction();
+					viewer v;
+					p.set_value(form_viewer<form>{viewer{ packet }, packet, packet});
+					time_point start_loop = std::chrono::system_clock::now();
+					while (!force_exist_form  && packet.avalible())
+					{
+						start_loop = std::chrono::system_clock::now();
+						packet.tick(start_loop);
+						std::this_thread::sleep_until(start_loop + duration(1));
+					}
+				}
+				);
+				fur.wait();
+				return *(fur.get());
+			}
+			void force_stop() { force_exist_form = true; }
 		};
 	}
 
-	
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	/*
 	struct form_depute;
 	template<typename renderer_t, typename viewer_t> struct self_depute;
 
@@ -426,18 +638,12 @@ namespace PO
 
 		template<typename render_t, typename viewer_t> using plugin_packet_t = Tool::completeness<plugin_packet<render_t, viewer_t>>;
 
+		
+
 		template<typename T,typename R, typename ...AT> std::unique_ptr<holder_ptr> create_plugin_implement(Tmp::itself<T> i, R r, AT&&... at)
 		{
 			using type = std::decay_t<T>;
 			return std::make_unique<plugin_holder<type>>(r, std::forward<AT>(at)...);
-			/*
-			return Tool::statement_if<std::is_constructible<type, R, AT...>::value>
-				(
-					[&](auto i, auto& r) { return Tool::any{ i, r, std::forward<AT>(at)... }; },
-					[&](auto i, auto& r) { return Tool::any{ i, std::forward<AT>(at)... }; },
-					Tmp::itself<type>{}, r
-					);
-					*/
 		}
 
 		template<typename render_t = void, typename viewer_t = void> struct plugins : virtual plugins<void, void>, plugins<render_t, void>, plugins<void, viewer_t>
@@ -661,10 +867,11 @@ namespace PO
 	{
 		operator self_depute<void, void>() { return self_depute<void, void>{*this}; }
 		self_depute(peek<void, viewer_t> c) : peek<void, viewer_t>(c) {}
-	};
+	};*/
 
 	/************************************************************************************************/
 	
+/*
 	struct form_control
 	{
 		Tool::scope_lock<time_calculator> record;
@@ -823,7 +1030,7 @@ namespace PO
 			}
 			void force_stop() { force_exist_form = true; }
 		};
-	}
+	}*/
 
 
 	

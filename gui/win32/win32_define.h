@@ -10,7 +10,7 @@ namespace PO
 		inline std::u16string HRESULT_to_u16string(HRESULT re)
 		{
 			static thread_local char16_t buffer[1024 * 2];
-			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL, re, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<wchar_t*>(buffer), 0, NULL);
+			FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL, re, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<wchar_t*>(buffer), 0, NULL);
 			return std::u16string(buffer);
 		}
 

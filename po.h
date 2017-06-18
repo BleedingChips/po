@@ -13,7 +13,6 @@ namespace PO
 {
 	template<typename frame_t> using frame = Tmp::itself<frame_t>;
 
-
 	class context
 	{
 
@@ -32,12 +31,12 @@ namespace PO
 			this_form.push_back(std::move(fp));
 		}
 		void detach();
-		template<typename frame, typename ...AK> auto create_frame(Tmp::itself<frame> i, AK&& ...ak)
+		template<typename form, typename ...AK> auto create_form(Tmp::itself<form> i, AK&& ...ak)
 		{
 			std::unique_ptr<Implement::form_ptr> tem = std::make_unique<Implement::form_ptr>();
 			Implement::form_ptr& ptr = *tem;
 			set_form(std::move(tem));
-			return ptr.create_frame(i, std::forward<AK>(ak)...);
+			return ptr.create_form(i, std::forward<AK>(ak)...);
 		}
 	};
 }
