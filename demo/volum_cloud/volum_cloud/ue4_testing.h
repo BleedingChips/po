@@ -5,6 +5,7 @@
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
+#include "../../../gui/dx11/simple_renderer.h"
 #include <wincodec.h>
 #pragma comment(lib, "Windowscodecs.lib" )
 
@@ -35,8 +36,8 @@ struct UE4_testing
 
 	movement_free_object mfo;
 
-	UE4_testing(peek<Dx11_ticker> p);
-	void init(self_depute<Dx11_ticker> p);
-	void tick(self_depute<Dx11_ticker> p, duration da);
+	UE4_testing(construction<simple_renderer> p);
+	void init(simple_renderer& p);
+	void tick(simple_renderer& p, duration da);
 	Respond respond(event& ev);
 };

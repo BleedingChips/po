@@ -2,10 +2,10 @@
 #include <random>
 #include "DirectXTex.h"
 
-UE4_testing::UE4_testing(peek<Dx11_ticker> p) {
-	p.self.auto_bind_init(&UE4_testing::init, this);
-	p.self.auto_bind_tick(&UE4_testing::tick, this);
-	p.self.auto_bind_respond(&UE4_testing::respond, this);
+UE4_testing::UE4_testing(construction<simple_renderer> p) {
+	p.auto_bind_init(&UE4_testing::init, this);
+	p.auto_bind_tick(&UE4_testing::tick, this);
+	p.auto_bind_respond(&UE4_testing::respond, this);
 
 	scene.pre_load(
 		typeid(binary), 
@@ -87,7 +87,7 @@ static std::vector<uint16_t> ind =
 	22,23,20
 };
 
-void UE4_testing::init(self_depute<Dx11_ticker> p)
+void UE4_testing::init(simple_renderer& p)
 {
 
 	CoInitialize(NULL);
@@ -108,8 +108,8 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 
 	try
 	{
-		auto& res = p.rt.res;
-		auto& pipe = p.rt.pipe;
+		auto& res = p;
+		auto& pipe = p;
 		unsigned int random_seed[20];
 		std::mt19937 r_mt(233);
 		for (size_t i = 0; i < 20; ++i)
@@ -212,7 +212,7 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 			ps.set(res.create_pixel_shader(shader->cast<binary>()));
 			ps.set(res.create_constant_buffer_with_size(sizeof(float4x4), true), 0);
 
-			om.set(res.cast_render_target_view(p.rt.back_buffer), 0);
+			om.set(res.cast_render_target_view(p.back_buffer), 0);
 
 			blend_state::scription scr = blend_state::default_scription;
 			scr.RenderTarget[0].BlendEnable = TRUE;
@@ -240,7 +240,7 @@ void UE4_testing::init(self_depute<Dx11_ticker> p)
 
 }
 
-void UE4_testing::tick(self_depute<Dx11_ticker> p, duration da)
+void UE4_testing::tick(simple_renderer& p, duration da)
 {
 
 	PO::Dx::quaternions_template qt = mfo.qua;
@@ -261,8 +261,8 @@ void UE4_testing::tick(self_depute<Dx11_ticker> p, duration da)
 	mfo.poi.z += od.final_direction() * da.count() / 1000.0f * 5.0f;
 
 
-	auto& res = p.rt.res;
-	auto& pipe = p.rt.pipe;
+	auto& res = p;
+	auto& pipe = p;
 
 	
 	pipe.clear_render_target(om, { 0.0, 0.0, 0.8f, 1.0 });

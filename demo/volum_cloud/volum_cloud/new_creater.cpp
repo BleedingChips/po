@@ -1,6 +1,6 @@
 #include "new_creater.h"
 #include <random>
-new_creator::new_creator(peek<Dx11_ticker> p) {
+new_creator::new_creator(construction<simple_renderer> p) {
 	rs.pre_load(
 		typeid(binary),
 		{
@@ -9,9 +9,9 @@ new_creator::new_creator(peek<Dx11_ticker> p) {
 			u"new_creator_vs.cso"
 		}
 	);
-	p.self.auto_bind_init(&new_creator::init, this);
-	p.self.auto_bind_tick(&new_creator::tick, this);
-	p.self.auto_bind_respond(&new_creator::respond, this);
+	p.auto_bind_init(&new_creator::init, this);
+	p.auto_bind_tick(&new_creator::tick, this);
+	p.auto_bind_respond(&new_creator::respond, this);
 }
 
 Respond new_creator::respond(event& e) {
@@ -54,10 +54,10 @@ struct texcoord
 	const char* operator()() { return "TEXCOORD"; }
 };
 
-void new_creator::init(self_depute<Dx11_ticker> s) {
+void new_creator::init(simple_renderer& s) {
 	try {
-		auto& res = s.rt.res;
-		auto& pipe = s.rt.pipe;
+		auto& res = s;
+		auto& pipe = s;
 		
 		tex2 tex = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16_FLOAT, 1024, 1024);
 		//structed_buffer sb = res.create_struct_buffer_unorder_access(sizeof(float2), 120 * 64);
@@ -164,7 +164,7 @@ void new_creator::init(self_depute<Dx11_ticker> s) {
 			dss = res.create_depth_stencil_state(scr);
 			
 
-			oms.set(res.cast_render_target_view(s.rt.back_buffer), 0);
+			oms.set(res.cast_render_target_view(s.back_buffer), 0);
 		}
 
 		
@@ -174,9 +174,9 @@ void new_creator::init(self_depute<Dx11_ticker> s) {
 	}
 }
 
-void new_creator::tick(self_depute<Dx11_ticker> s) {
-	auto& res = s.rt.res;
-	auto& pipe = s.rt.pipe;
+void new_creator::tick(simple_renderer& s) {
+	auto& res = s;
+	auto& pipe = s;
 
 	pipe.write_constant_buffer(ps, 0, [this](void* data) {
 		float4* po = static_cast<float4*>(data);

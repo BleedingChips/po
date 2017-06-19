@@ -188,7 +188,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::pu
 }
 */
 
-test_plugin::test_plugin(self_depute<Dx11_ticker> p)
+test_plugin::test_plugin(construction<simple_renderer> p)
 {
 	std::cout << "create test_plugin" << endl;
 	/*
@@ -203,9 +203,9 @@ test_plugin::test_plugin(self_depute<Dx11_ticker> p)
 		}
 	);
 	*/
-	p.self.auto_bind_init(&test_plugin::init, this);
-	p.self.auto_bind_tick(&test_plugin::tick, this);
-	p.self.auto_bind_respond(&test_plugin::respond, this);
+	p.auto_bind_init(&test_plugin::init, this);
+	p.auto_bind_tick(&test_plugin::tick, this);
+	p.auto_bind_respond(&test_plugin::respond, this);
 }
 
 struct cube_ver
@@ -314,17 +314,17 @@ void faile_break(bool i)
 
 
 
-void test_plugin::init(self_depute<Dx11_ticker> op)
+void test_plugin::init(simple_renderer& op)
 {
 	
-	auto& re = op.rt.res;
-	auto& pipe = op.rt.pipe;
-	pipe << op.rt;
+	auto& re = op;
+	auto& pipe = op;
+	pipe << op.om;
 
 	try {
 		
 
-		back = re.create_tex2_depth_stencil(PO::Dx11::DST_format::D24_UI8, op.rt.back_buffer);
+		back = re.create_tex2_depth_stencil(PO::Dx11::DST_format::D24_UI8, op.back_buffer);
 		g_poi = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
 		g_col = re.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, back);
 
@@ -558,7 +558,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 			scr.StencilEnable = FALSE;
 			blend_state::scription scr_ble = blend_state::default_scription;
 			scr_ble.RenderTarget[0].BlendEnable = FALSE;
-			screen_om.set(re.cast_render_target_view(op.rt.back_buffer), 0);
+			screen_om.set(re.cast_render_target_view(op.back_buffer), 0);
 			screen_bs = re.create_blend_state(scr_ble);
 			screen_dss = re.create_depth_stencil_state(scr);
 		}
@@ -719,7 +719,7 @@ void test_plugin::init(self_depute<Dx11_ticker> op)
 
 float loc = 5.0f;
 
-void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
+void test_plugin::tick(simple_renderer& t, duration da)
 {
 
 	PO::Dx::quaternions_template qt = mfo.qua;
@@ -742,8 +742,8 @@ void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 	mfo.poi = float3(0.0, 0.0, loc);
 
 
-	auto& re = t.rt.res;
-	auto& pipe = t.rt.pipe;
+	auto& re = t;
+	auto& pipe = t;
 
 	pipe.clear_render_target(deffer_om, { 0.0, 0.0, 0.8f, 1.0 });
 	pipe.clear_depth(deffer_om, 1.0f);
@@ -768,7 +768,7 @@ void test_plugin::tick(self_depute<Dx11_ticker> t, duration da)
 	pipe.clear_depth(screen_om, 1.0f);
 
 
-	pipe << cube_ia << cube_vs << cube_ra << deffer_om;
+	pipe << cube_ia << cube_vs << cube_ra << deffer_om << pipe.vp;
 	pipe << volum_ps << volum_bs << volum_dss;
 	pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
 

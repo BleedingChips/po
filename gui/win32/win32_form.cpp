@@ -188,7 +188,7 @@ namespace
 			if (ite != handled_event_filter.end() && ite->second.translate_event && ite->second.responded_event)
 			{
 				auto ev = ite->second.translate_event(wParam, lParam);
-				ptr->respond(ev);
+				ptr->handle_event(ev);
 			}
 		}
 		return DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -372,17 +372,34 @@ namespace PO
 			manager.destory(raw_handle);
 		}
 
-		Respond win32_form::respond(event& ev)
+		Respond win32_form::handle_event(event& ev)
 		{
 			Respond res = Respond::Pass;
 			if (construction_finish)
-				res = ask_for_respond_mt(ev);
+			{
+				if(ev.is_key() || ev.is_click() || ev.is_move())
+					capture_event_tank.lock([=](decltype(capture_event_tank)::type& i) {
+					i.push_back(ev);
+				});
+			}
+				//res = ask_for_respond_mt(ev);
 			if (res == Respond::Pass)
 			{
 				if (ev.is_quit())
 					quit = true;
 			}
 			return res;
+		}
+
+		void win32_form::pre_tick(duration da)
+		{
+			capture_event_tank.lock([this](decltype(capture_event_tank)::type& i) {
+				std::swap(i, event_tank);
+			});
+
+			for (auto& i : event_tank)
+				ask_for_respond(i);
+			event_tank.clear();
 		}
 
 		/*

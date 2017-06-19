@@ -64,19 +64,14 @@ namespace PO
 			*/
 		}
 
-		
+		/*
 		Dx11_ticker::Dx11_ticker(Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc)
 		{
 			if (!SUCCEEDED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer))) __debugbreak();
-			/*
-			rc.auto_bind_pos_tick([this]() {
-				swap->Present(0, 0);
-			});
-			rc.auto_bind_pre_tick(&Dx11_ticker::tick, this);
-			*/
 			vp.fill_texture(0, back_buffer);
 			pipe << vp;
 		}
+		*/
 		
 		/*
 		bool shader_loader::shader_loader_execute::operator()()

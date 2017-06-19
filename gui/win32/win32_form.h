@@ -31,11 +31,16 @@ namespace PO
 			std::atomic_bool quit;
 			std::atomic_bool construction_finish;
 			using tank = std::vector<event>;
+			Tool::scope_lock<tank> capture_event_tank;
+			tank event_tank;
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
 			virtual bool avalible() { return !quit; }
-			void finish_construction() { construction_finish = true; }
-			Respond respond(event& e);
+			void virtual_ready() {
+				construction_finish = true; 
+			}
+			Respond handle_event(event& e);
+			void pre_tick(duration da);
 		};
 	}
 }

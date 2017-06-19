@@ -1091,13 +1091,13 @@ namespace PO
 
 		/*****  pipe   ******************************************************************************************/
 
-		void pipe_line::unbind() {
+		void pipeline::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
 			last_mode = DrawMode::NONE;
 		}
 
-		void pipe_line::dispatch(UINT x, UINT y, UINT z) {
+		void pipeline::dispatch(UINT x, UINT y, UINT z) {
 			if (last_mode == DrawMode::PIPELINE) {
 				IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 				PS.unbind(ptr); OM.unbind(ptr);
@@ -1106,7 +1106,7 @@ namespace PO
 			ptr->Dispatch(x, y, z);
 		}
 
-		void pipe_line::draw_vertex(UINT count, UINT start) {
+		void pipeline::draw_vertex(UINT count, UINT start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1114,7 +1114,7 @@ namespace PO
 			ptr->Draw(count, start);
 		}
 
-		void pipe_line::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
+		void pipeline::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1122,7 +1122,7 @@ namespace PO
 			ptr->DrawIndexed(index_count, index_start, vertex_start);
 		}
 
-		void pipe_line::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
+		void pipeline::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1130,7 +1130,7 @@ namespace PO
 			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
 		}
 
-		void pipe_line::draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start) {
+		void pipeline::draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1138,7 +1138,7 @@ namespace PO
 			ptr->DrawIndexedInstanced(index_pre_instance, index_count, index_start, vertex_start, instance_start);
 		}
 
-		void pipe_line::clear() {
+		void pipeline::clear() {
 			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
 			PS.clear(ptr); OM.clear(ptr);
 		}

@@ -13,33 +13,21 @@ using namespace std;
 #include "DirectXTex.h"
 #include <sstream>
 #include "new_creater.h"
-
-struct A { float e[100]; };
-struct B : virtual public A { };
-
-struct C : public B, virtual public A {};
+#include "../../po/gui/dx11/simple_renderer.h"
 
 int main()
 {
-	
-	int a = 3;
-	int &b = a;
-	b = a++;
-	a = b++;
-	std::cout << a << endl;
 
-	system("pause");
-	return 0;
 
 	PO::context con;
-	auto fo = con.create_frame(PO::frame<DX11_Test_Form>{});
+	auto fo = con.create_form(Tmp::itself<Dx11_form>{});
 	fo.lock([](auto& ui){
-		ui.depute_create_plugin(PO::plugin<UE4_testing>{});
+		auto fo2 = ui.create_renderer(Tmp::itself<simple_renderer>{});
+		fo2.lock([](auto& ui2) {
+			ui2.create(Tmp::itself<test_plugin>{});
+		});
 		//ui.depute_create_plugin(PO::plugin<test_plugin>{});
 		//ui.depute_create_plugin(PO::plugin<new_creator>{});
 	});
 	con.wait_all_form_close();
-	
-	system("pause");
-	
 }

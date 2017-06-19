@@ -18,13 +18,21 @@ namespace PO
 
 		};
 
-		struct Dx11_form : Win32::win32_form
+		class Dx11_form : public Win32::win32_form
 		{
 			Win32::com_ptr<ID3D11Device> dev;
 			Win32::com_ptr<ID3D11DeviceContext> dc;
 			Win32::com_ptr<IDXGISwapChain> swap;
+		public:
+			decltype(auto) get_Dx11_device() { return dev; }
+			decltype(auto) get_Dx11_context() { return dc; }
+			decltype(auto) get_swap_chain() { return swap; }
 			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() { std::cout << "exit" << std::endl; };
+			void pre_tick(duration da) {
+				Win32::win32_form::pre_tick(da);
+				swap->Present(0, 0);
+			}
 		};
 
 		struct Dx11_viewer
@@ -32,11 +40,12 @@ namespace PO
 			Dx11_viewer(Dx11_form&) {}
 		};
 
+		/*
 		struct Dx11_ticker
 		{
 			Win32::com_ptr<IDXGISwapChain> swap;
 			creator res;
-			pipe_line pipe;
+			pipeline pipe;
 			tex2 back_buffer;
 			viewports vp;
 			//Dx11_ticker(renderer_control& rc, Dx11_form& Df);
@@ -44,11 +53,11 @@ namespace PO
 			operator const tex2& () const { return back_buffer; }
 			operator const viewports& () const { return vp; }
 			Dx11_ticker(Dx11_form&);
-			/*
+			
 			void tick(renderer_control& rc) {
 				update_screen();
-			}*/
-		};
+			}
+		};*/
 
 		/*
 		class shader_loader

@@ -236,6 +236,11 @@ namespace PO
 			depth_stencil_view depth;
 			output_merge_stage& set(const render_target_view& rtv, size_t o);
 			output_merge_stage& set(depth_stencil_view dsv) { depth = std::move(dsv); return *this; }
+
+			output_merge_stage& operator<< (const std::tuple<render_target_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			output_merge_stage& operator<< (const std::tuple<const render_target_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
+			output_merge_stage& operator<< (depth_stencil_view dsv) { return set(std::move(dsv)); }
+
 			bool check() const;
 		};
 
@@ -481,7 +486,7 @@ namespace PO
 			};
 		}
 
-		struct pipe_line
+		struct pipeline
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
 			Implement::input_assember_context_t IA;
@@ -492,8 +497,8 @@ namespace PO
 
 			Implement::compute_shader_context_t CS;
 
-			pipe_line(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {}
-			~pipe_line() { clear(); }
+			pipeline(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {}
+			~pipeline() { clear(); }
 			void clear();
 
 			enum DrawMode
@@ -514,23 +519,23 @@ namespace PO
 
 			void unbind();
 
-			pipe_line& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
-			pipe_line& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
-			pipe_line& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
-			pipe_line& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
-			pipe_line& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
-			pipe_line& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
-			pipe_line& bind(const viewports& vp) { RA.bind(ptr, vp); return *this; }
-			pipe_line& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
-			pipe_line& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
+			pipeline& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
+			pipeline& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
+			pipeline& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
+			pipeline& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
+			pipeline& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
+			pipeline& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
+			pipeline& bind(const viewports& vp) { RA.bind(ptr, vp); return *this; }
+			pipeline& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
+			pipeline& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
 
-			template<typename T> pipe_line& operator<<(const T& t) { return bind(t); }
+			template<typename T> pipeline& operator<<(const T& t) { return bind(t); }
 
-			pipe_line& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
-			pipe_line& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
-			pipe_line& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
-			pipe_line& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
-			pipe_line& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
+			pipeline& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
+			pipeline& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
+			pipeline& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
+			pipeline& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
+			pipeline& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
 			{

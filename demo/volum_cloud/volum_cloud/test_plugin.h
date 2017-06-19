@@ -6,6 +6,7 @@
 #include "../../../gui/dx/movement.h"
 #include "../../../gui/dx11/dx11_form.h"
 #include "DirectXTex.h"
+#include "../../../gui/dx11/simple_renderer.h"
 using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;
@@ -57,10 +58,10 @@ struct test_plugin
 
 	movement_free_object mfo;
 
-	test_plugin(self_depute<Dx11_ticker> p);
+	test_plugin(construction<simple_renderer> p);
 
 	PO::Respond respond(event& c);
-	void tick(self_depute<Dx11_ticker> t, duration da);
-	void init(self_depute<Dx11_ticker> t);
+	void tick(simple_renderer& t, duration da);
+	void init(simple_renderer& t);
 	~test_plugin() { std::cout << "~test_plugin" << std::endl; }
 };

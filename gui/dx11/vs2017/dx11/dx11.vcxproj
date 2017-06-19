@@ -126,12 +126,14 @@
     <ClCompile Include="..\..\dx11_define.cpp" />
     <ClCompile Include="..\..\dx11_form.cpp" />
     <ClCompile Include="..\..\dx11_frame.cpp" />
+    <ClCompile Include="..\..\simple_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dx11_define.h" />
     <ClInclude Include="..\..\dx11_form.h" />
     <ClInclude Include="..\..\dx11_frame.h" />
     <ClInclude Include="..\..\dx11_vertex.h" />
+    <ClInclude Include="..\..\simple_renderer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
