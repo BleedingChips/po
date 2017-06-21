@@ -27,6 +27,7 @@ namespace PO
 			decltype(auto) get_Dx11_device() { return dev; }
 			decltype(auto) get_Dx11_context() { return dc; }
 			decltype(auto) get_swap_chain() { return swap; }
+			value_table mapping();
 			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() { std::cout << "exit" << std::endl; };
 			void pre_tick(duration da) {

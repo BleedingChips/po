@@ -4,6 +4,15 @@ namespace PO
 {
 	namespace Dx11
 	{
+
+		value_table Dx11_form::mapping() {
+			return {
+				make_value_table<Win32::com_ptr<ID3D11Device>>(dev),
+				make_value_table<Win32::com_ptr<ID3D11DeviceContext>>(dc),
+				make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
+			};
+		}
+
 		Dx11_form::Dx11_form(const Dx11_initial& di) : Win32::win32_form()
 		{
 			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_0 };

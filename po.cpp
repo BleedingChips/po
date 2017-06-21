@@ -1,18 +1,41 @@
-
 #include "po.h"
+namespace PO
+{
+	namespace Implement 
+	{
+		void form_ptr::push_function(std::function<std::unique_ptr<form_interface>(void)> f) {
+			if (logic_form_thread.joinable())
+			{
+				force_exist_form = true;
+				logic_form_thread.join();
+			}
+			force_exist_form = false;
+			logic_form_thread = std::thread([f = std::move(f), this](){
+				auto ptr = f();
+				time_calculator tc;
+				tc.record_point = std::chrono::system_clock::now();
+				while (!force_exist_form && *ptr)
+				{
+					duration da;
+					auto now = std::chrono::system_clock::now();
+					if(tc.tick(now, da))
+						ptr->tick(da);
+					std::this_thread::sleep_until(now + duration(1));
+				}
+			});
+		}
+	}
+}
 
 namespace
 {
-	std::mutex init_count_mutex;
-	size_t init_count = 0;
-
-	std::recursive_mutex all_form_mutex;
-	std::deque<std::unique_ptr<PO::Implement::form_ptr>> all_form;
+	PO::Tool::scope_lock<size_t> init_count = 0;
+	PO::Tool::scope_lock<std::vector<std::unique_ptr<PO::Implement::form_ptr>>> all_form;
 }
 
 namespace PO
 {
-	
+
 	namespace Implement
 	{
 		form_ptr::~form_ptr()
@@ -22,82 +45,50 @@ namespace PO
 		}
 	}
 
+	void context::set_form(std::unique_ptr<Implement::form_ptr> fp)
+	{
+		this_form.lock([&](decltype(this_form)::type& i) {
+			i.push_back(std::move(fp));
+		});
+	}
+
 	context::context()
 	{
-		init_count_mutex.lock();
-		++init_count;
-		init_count_mutex.unlock();
+		init_count.lock([](size_t& i) {++i; });
 	}
 
 	context::~context()
 	{
-
-		{
-			std::lock_guard<decltype(this_form_mutex)> ld(this_form_mutex);
-			for (auto& ptr : this_form)
-			{
+		this_form.lock([this](decltype(this_form)::type& t) {
+			for (auto& ptr : t)
 				ptr->force_exist_form = true;
-			}
-			for (auto& ptr : this_form)
-			{
-				ptr.reset();
-			}
-			this_form.clear();
-		}
+			t.clear();
+		});
 
-		{
-			std::lock_guard<decltype(init_count_mutex)> ld(init_count_mutex);
-			if (--init_count == 0)
+		init_count.lock([this](size_t& i) {
+			if (--i == 0)
 			{
-				std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
-				for (auto& ptr : all_form)
-				{
-					ptr->force_exist_form = true;
-				}
-				for (auto& ptr : all_form)
-				{
-					ptr.reset();
-				}
-				all_form.clear();
+				all_form.lock([](decltype(all_form)::type& at) {
+					for (auto& ptr : at)
+						ptr->force_exist_form = true;
+					at.clear();
+				});
 			}
-		}
+		});
 	}
 
 	void context::detach()
 	{
-		std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
-		std::lock_guard<decltype(this_form_mutex)> ld2(this_form_mutex);
-		for (auto& io : this_form)
-			all_form.push_back(std::move(io));
-		this_form.clear();
+		Tool::lock_scope_look(all_form, this_form, [](decltype(all_form)::type& i, decltype(this_form)::type& t) {
+			i.insert(i.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
+			t.clear();
+		});
 	}
 
 	void context::wait_all_form_close()
 	{
-		{
-			std::lock_guard<decltype(this_form_mutex)> ld(this_form_mutex);
-			for (auto& ptr : this_form)
-			{
-				ptr.reset();
-			}
-			this_form.clear();
-		}
-
-		{
-			std::lock_guard<decltype(init_count_mutex)> ld(init_count_mutex);
-			if (--init_count == 0)
-			{
-				std::lock_guard<decltype(all_form_mutex)> ld(all_form_mutex);
-				for (auto& ptr : all_form)
-				{
-					ptr->force_exist_form = true;
-				}
-				for (auto& ptr : all_form)
-				{
-					ptr.reset();
-				}
-				all_form.clear();
-			}
-		}
+		this_form.lock([this](decltype(this_form)::type& t) {
+			t.clear();
+		});
 	}
 }

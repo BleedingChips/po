@@ -362,7 +362,14 @@ namespace PO
 	namespace Win32
 	{
 
-		win32_form::win32_form(const win32_initial& wi) : quit(false), construction_finish(false)
+		value_table win32_form::mapping()
+		{
+			return {
+				make_value_table<decltype(raw_handle)>(raw_handle)
+			};
+		}
+
+		win32_form::win32_form(const win32_initial& wi) : quit(false)
 		{
 			Error::fail_throw(manager.create(wi, this));
 		}
@@ -375,7 +382,7 @@ namespace PO
 		Respond win32_form::handle_event(event& ev)
 		{
 			Respond res = Respond::Pass;
-			if (construction_finish)
+			if (ready())
 			{
 				if(ev.is_key() || ev.is_click() || ev.is_move())
 					capture_event_tank.lock([=](decltype(capture_event_tank)::type& i) {

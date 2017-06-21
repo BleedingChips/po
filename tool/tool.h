@@ -477,9 +477,17 @@ namespace PO
 		template<typename T> class optional : variant<T>
 		{
 		public:
-			T& operator*() { return variant<T>::template cast<T>(); }
-			const T& operator*() const { return variant<T>::template cast<T>(); }
-			const T* operator->() const noexcept { return &(variant<T>::template cast<T>()); }
+			//T& operator*() { return variant<T>::template cast<T>(); }
+
+			const T& operator*() const& { return variant<T>::template cast<T>(); }
+			const T* operator->() const& { return &(variant<T>::template cast<T>()); }
+
+			T& operator*() & { return variant<T>::template cast<T>(); }
+			T* operator->() & { return &(variant<T>::template cast<T>()); }
+
+			T&& operator*() && { return std::move(variant<T>::template cast<T>()); }
+			T&& operator->() && { return &(variant<T>::template cast<T>()); }
+
 			operator bool() const noexcept { return variant<T>::operator bool(); }
 
 			template<typename K>
@@ -495,7 +503,7 @@ namespace PO
 					return or_data;
 			}
 
-			const T& value_or(const T& or_data) const
+			const T& value_or(const T& or_data) const&
 			{
 				if (variant<T>::template able_cast<T>())
 					return variant<T>::template cast<T>();
@@ -783,7 +791,7 @@ namespace PO
 
 		template<typename T> T* find_align_adress(void* data)
 		{
-			return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(data) + alignof(T)-1) & ~(alignof(T)-1)))
+			return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(data) + alignof(T)-1) & ~(alignof(T)-1)));
 		}
 
 		/*

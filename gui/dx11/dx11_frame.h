@@ -501,6 +501,8 @@ namespace PO
 			~pipeline() { clear(); }
 			void clear();
 
+
+
 			enum DrawMode
 			{
 				PIPELINE,

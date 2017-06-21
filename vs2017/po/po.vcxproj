@@ -134,12 +134,16 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\form.h" />
+    <ClInclude Include="..\..\frame\adapter.h" />
     <ClInclude Include="..\..\frame\define.h" />
     <ClInclude Include="..\..\frame\error.h" />
     <ClInclude Include="..\..\frame\event.h" />
-    <ClInclude Include="..\..\frame\frame.h" />
-    <ClInclude Include="..\..\frame\resource_loader.h" />
+    <ClInclude Include="..\..\frame\scene.h" />
+    <ClInclude Include="..\..\frame\viewer.h" />
+    <ClInclude Include="..\..\plugin.h" />
     <ClInclude Include="..\..\po.h" />
+    <ClInclude Include="..\..\renderer.h" />
     <ClInclude Include="..\..\tool\auto_adapter.h" />
     <ClInclude Include="..\..\tool\mail.h" />
     <ClInclude Include="..\..\tool\thread_tool.h" />
@@ -152,9 +156,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\frame\define.cpp" />
-    <ClCompile Include="..\..\frame\frame.cpp" />
-    <ClCompile Include="..\..\frame\resource_loader.cpp" />
+    <ClCompile Include="..\..\frame\scene.cpp" />
+    <ClCompile Include="..\..\plugin.cpp" />
     <ClCompile Include="..\..\po.cpp" />
+    <ClCompile Include="..\..\renderer.cpp" />
     <ClCompile Include="..\..\tool\thread_tool.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

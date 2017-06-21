@@ -17,7 +17,7 @@
       <UniqueIdentifier>{5d67deeb-e25c-4810-ac17-58e92f1d5d91}</UniqueIdentifier>
     </Filter>
     <Filter Include="frame">
-      <UniqueIdentifier>{15b6aee6-b8ef-416c-8f28-f621f0eb1a76}</UniqueIdentifier>
+      <UniqueIdentifier>{7f6fdb7d-096c-40d2-9349-f2e6b38af5b3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -39,8 +39,8 @@
     <ClInclude Include="..\..\tool\tool.h">
       <Filter>tool</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\po.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="..\..\frame\adapter.h">
+      <Filter>frame</Filter>
     </ClInclude>
     <ClInclude Include="..\..\frame\define.h">
       <Filter>frame</Filter>
@@ -51,10 +51,22 @@
     <ClInclude Include="..\..\frame\event.h">
       <Filter>frame</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\frame\frame.h">
+    <ClInclude Include="..\..\frame\viewer.h">
       <Filter>frame</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\frame\resource_loader.h">
+    <ClInclude Include="..\..\form.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\plugin.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\po.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\renderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\frame\scene.h">
       <Filter>frame</Filter>
     </ClInclude>
   </ItemGroup>
@@ -67,16 +79,19 @@
     <ClCompile Include="..\..\tool\thread_tool.cpp">
       <Filter>tool</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\po.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\frame\define.cpp">
       <Filter>frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\frame\frame.cpp">
-      <Filter>frame</Filter>
+    <ClCompile Include="..\..\plugin.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\frame\resource_loader.cpp">
+    <ClCompile Include="..\..\po.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\renderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\frame\scene.cpp">
       <Filter>frame</Filter>
     </ClCompile>
   </ItemGroup>

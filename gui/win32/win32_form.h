@@ -1,6 +1,6 @@
 #pragma once
 #include "win32_define.h"
-#include "../../po.h"
+#include "../../form.h"
 #include <atomic>
 #include <deque>
 #include <mutex>
@@ -29,16 +29,13 @@ namespace PO
 		{
 			HWND raw_handle;
 			std::atomic_bool quit;
-			std::atomic_bool construction_finish;
 			using tank = std::vector<event>;
 			Tool::scope_lock<tank> capture_event_tank;
 			tank event_tank;
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
-			virtual bool avalible() { return !quit; }
-			void virtual_ready() {
-				construction_finish = true; 
-			}
+			value_table mapping();
+			bool available() const { return !quit; }
 			Respond handle_event(event& e);
 			void pre_tick(duration da);
 		};
