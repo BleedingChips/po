@@ -145,7 +145,6 @@
     <ClCompile Include="volum_cloud_main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="form_define.h" />
     <ClInclude Include="new_creater.h" />
     <ClInclude Include="test_plugin.h" />
     <ClInclude Include="ue4_testing.h" />

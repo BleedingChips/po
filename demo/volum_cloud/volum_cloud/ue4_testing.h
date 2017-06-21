@@ -1,11 +1,11 @@
 #pragma once
 #include <iostream>
-#include "form_define.h"
 #include "../../../gui/dx11/dx11_frame.h"
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
-#include "../../../gui/dx11/dx11_form.h"
 #include "../../../gui/dx11/simple_renderer.h"
+#include "../../po/plugin.h"
+#include "../../po/frame/scene.h"
 #include <wincodec.h>
 #pragma comment(lib, "Windowscodecs.lib" )
 
@@ -36,7 +36,8 @@ struct UE4_testing
 
 	movement_free_object mfo;
 
-	UE4_testing(construction<simple_renderer> p);
+	UE4_testing();
+	adapter_map mapping(self&);
 	void init(simple_renderer& p);
 	void tick(simple_renderer& p, duration da);
 	Respond respond(event& ev);

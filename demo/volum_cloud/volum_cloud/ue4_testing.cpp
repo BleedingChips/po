@@ -1,11 +1,17 @@
 #include "ue4_testing.h"
 #include <random>
 #include "DirectXTex.h"
+#include "../../po/gui/dx11/dx11_vertex.h"
 
-UE4_testing::UE4_testing(construction<simple_renderer> p) {
-	p.auto_bind_init(&UE4_testing::init, this);
-	p.auto_bind_tick(&UE4_testing::tick, this);
-	p.auto_bind_respond(&UE4_testing::respond, this);
+adapter_map UE4_testing::mapping(self& s) {
+	s.auto_bind_respond(&UE4_testing::respond, this);
+	return {
+		make_member_adapter<simple_renderer>(this, &UE4_testing::init, &UE4_testing::tick)
+	};
+}
+
+
+UE4_testing::UE4_testing() {
 
 	scene.pre_load(
 		typeid(binary), 
@@ -108,8 +114,8 @@ void UE4_testing::init(simple_renderer& p)
 
 	try
 	{
-		auto& res = p;
-		auto& pipe = p;
+		creator& res = p;
+		pipeline& pipe = p;
 		unsigned int random_seed[20];
 		std::mt19937 r_mt(233);
 		for (size_t i = 0; i < 20; ++i)
@@ -124,7 +130,7 @@ void UE4_testing::init(simple_renderer& p)
 			auto shader = scene.find(typeid(binary), u"test_cs.cso");
 			if (!shader || !shader->able_cast<binary>()) throw 1;
 			cs.set(res.create_compute_shader(shader->cast<binary>()));
-			for (size_t i = 0; i < 20; ++i)
+			for (size_t i = 0; i < 1; ++i)
 			{
 				volume_texture[i] = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM, 4096, 4096);
 				cs.set(res.cast_unordered_access_view(volume_texture[i]), 0);
@@ -164,7 +170,7 @@ void UE4_testing::init(simple_renderer& p)
 			auto shader = scene.find(typeid(binary), u"test_cs2.cso");
 			if (!shader || !shader->able_cast<binary>()) throw 1;
 			cs.set(res.create_compute_shader(shader->cast<binary>()));
-			for (size_t i = 0; i < 20; ++i)
+			for (size_t i = 0; i < 1; ++i)
 			{
 				cs << res.cast_unordered_access_view(volume_texture[i])[0];
 				float3 Dir = float3{ 0.0, -1.0, 0.0 };
@@ -261,8 +267,8 @@ void UE4_testing::tick(simple_renderer& p, duration da)
 	mfo.poi.z += od.final_direction() * da.count() / 1000.0f * 5.0f;
 
 
-	auto& res = p;
-	auto& pipe = p;
+	creator& res = p;
+	pipeline& pipe = p;
 
 	
 	pipe.clear_render_target(om, { 0.0, 0.0, 0.8f, 1.0 });
@@ -331,6 +337,7 @@ Respond UE4_testing::respond(event& c) {
 				break;
 			case '+':
 			case '=':
+				/*
 				if (c.key.is_up())
 				{
 					current_view += 1;
@@ -338,8 +345,10 @@ Respond UE4_testing::respond(event& c) {
 						current_view = 0;
 					std::cout << current_view << std::endl;
 				}
+				*/
 				break;
 			case '-':
+				/*
 				if (c.key.is_up())
 				{
 					if (current_view == 0)
@@ -348,6 +357,7 @@ Respond UE4_testing::respond(event& c) {
 						--current_view;
 					std::cout << current_view << std::endl;
 				}
+				*/
 				break;
 			}
 		}

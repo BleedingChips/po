@@ -1,12 +1,13 @@
 #pragma once
 #include <iostream>
-#include "form_define.h"
 #include "../../../gui/dx11/dx11_frame.h"
 #include "../../../tool/mail.h"
 #include "../../../gui/dx/movement.h"
-#include "../../../gui/dx11/dx11_form.h"
 #include "DirectXTex.h"
 #include "../../../gui/dx11/simple_renderer.h"
+#include "../../po/plugin.h"
+#include "../../po/frame/scene.h"
+
 using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;
@@ -54,11 +55,10 @@ struct test_plugin
 	blend_state screen_bs;
 	depth_stencil_state screen_dss;
 
-	
-
 	movement_free_object mfo;
 
-	test_plugin(construction<simple_renderer> p);
+	test_plugin();
+	adapter_map mapping(self&);
 
 	PO::Respond respond(event& c);
 	void tick(simple_renderer& t, duration da);

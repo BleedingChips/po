@@ -1,6 +1,7 @@
 #include "new_creater.h"
+#include "../../po/gui/dx11/dx11_vertex.h"
 #include <random>
-new_creator::new_creator(construction<simple_renderer> p) {
+new_creator::new_creator() {
 	rs.pre_load(
 		typeid(binary),
 		{
@@ -9,9 +10,19 @@ new_creator::new_creator(construction<simple_renderer> p) {
 			u"new_creator_vs.cso"
 		}
 	);
+	/*
 	p.auto_bind_init(&new_creator::init, this);
 	p.auto_bind_tick(&new_creator::tick, this);
 	p.auto_bind_respond(&new_creator::respond, this);
+	*/
+}
+
+adapter_map new_creator::mapping(self& s) {
+
+	s.auto_bind_respond(&new_creator::respond, this);
+	return {
+		make_member_adapter<simple_renderer>(this, &new_creator::init, &new_creator::tick)
+	};
 }
 
 Respond new_creator::respond(event& e) {
@@ -56,8 +67,8 @@ struct texcoord
 
 void new_creator::init(simple_renderer& s) {
 	try {
-		auto& res = s;
-		auto& pipe = s;
+		creator& res = s;
+		pipeline& pipe = s;
 		
 		tex2 tex = res.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16_FLOAT, 1024, 1024);
 		//structed_buffer sb = res.create_struct_buffer_unorder_access(sizeof(float2), 120 * 64);
@@ -175,8 +186,8 @@ void new_creator::init(simple_renderer& s) {
 }
 
 void new_creator::tick(simple_renderer& s) {
-	auto& res = s;
-	auto& pipe = s;
+	creator& res = s;
+	pipeline& pipe = s;
 
 	pipe.write_constant_buffer(ps, 0, [this](void* data) {
 		float4* po = static_cast<float4*>(data);

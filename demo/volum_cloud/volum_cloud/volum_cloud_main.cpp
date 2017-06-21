@@ -1,11 +1,9 @@
 #include <iostream>
 using namespace std;
-
 #include <limits>
 #include <random>
 #include "../../../po.h"
 #include "../../../gui/dx11/dx11_form.h"
-#include "form_define.h"
 #include "test_plugin.h"
 #include <fstream>
 #include <algorithm>
@@ -17,17 +15,34 @@ using namespace std;
 
 int main()
 {
-
-
 	PO::context con;
-	auto fo = con.create_form(Tmp::itself<Dx11_form>{});
-	fo.lock([](auto& ui){
-		auto fo2 = ui.create_renderer(Tmp::itself<simple_renderer>{});
-		fo2.lock([](auto& ui2) {
-			ui2.create(Tmp::itself<test_plugin>{});
+	
+	{
+		auto fo = con.create(form<Dx11_form>{});
+		fo.lock([](decltype(fo)::type& ui) {
+			ui.create(renderer<simple_renderer>{});
+			ui.create(plugin<UE4_testing>{});
 		});
-		//ui.depute_create_plugin(PO::plugin<test_plugin>{});
-		//ui.depute_create_plugin(PO::plugin<new_creator>{});
-	});
+	}
+
+	/*
+	{
+		auto fo = con.create(form<Dx11_form>{});
+		fo.lock([](decltype(fo)::type& ui) {
+			ui.create(renderer<simple_renderer>{});
+			ui.create(plugin<new_creator>{});
+		});
+	}*/
+
+	/*
+	{
+		auto fo = con.create(form<Dx11_form>{});
+		fo.lock([](decltype(fo)::type& ui) {
+			ui.create(renderer<simple_renderer>{});
+			ui.create(plugin<test_plugin>{});
+		});
+	}
+	*/
+	
 	con.wait_all_form_close();
 }

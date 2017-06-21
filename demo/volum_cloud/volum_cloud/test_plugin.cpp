@@ -3,6 +3,7 @@
 #include <fstream>
 #include <random>
 #include "DirectXTex.h"
+#include "../../po/gui/dx11/dx11_vertex.h"
 using namespace std;
 using namespace PO::Dx;
 struct position
@@ -188,7 +189,7 @@ load_dds(Implement::resource_ptr& rs, std::u16string path, PO::Dx11::Purpose::pu
 }
 */
 
-test_plugin::test_plugin(construction<simple_renderer> p)
+test_plugin::test_plugin()
 {
 	std::cout << "create test_plugin" << endl;
 	/*
@@ -203,10 +204,21 @@ test_plugin::test_plugin(construction<simple_renderer> p)
 		}
 	);
 	*/
+	/*
 	p.auto_bind_init(&test_plugin::init, this);
 	p.auto_bind_tick(&test_plugin::tick, this);
 	p.auto_bind_respond(&test_plugin::respond, this);
+	*/
 }
+
+adapter_map test_plugin::mapping(self& s)
+{
+	s.auto_bind_respond(&test_plugin::respond, this);
+	return {
+		make_member_adapter<simple_renderer>(this,&test_plugin::init, &test_plugin::tick)
+	};
+}
+
 
 struct cube_ver
 {
@@ -317,8 +329,8 @@ void faile_break(bool i)
 void test_plugin::init(simple_renderer& op)
 {
 	
-	auto& re = op;
-	auto& pipe = op;
+	creator& re = op;
+	pipeline& pipe = op;
 	pipe << op.om;
 
 	try {
@@ -742,8 +754,8 @@ void test_plugin::tick(simple_renderer& t, duration da)
 	mfo.poi = float3(0.0, 0.0, loc);
 
 
-	auto& re = t;
-	auto& pipe = t;
+	creator& re = t;
+	pipeline& pipe = t;
 
 	pipe.clear_render_target(deffer_om, { 0.0, 0.0, 0.8f, 1.0 });
 	pipe.clear_depth(deffer_om, 1.0f);
@@ -768,7 +780,7 @@ void test_plugin::tick(simple_renderer& t, duration da)
 	pipe.clear_depth(screen_om, 1.0f);
 
 
-	pipe << cube_ia << cube_vs << cube_ra << deffer_om << pipe.vp;
+	pipe << cube_ia << cube_vs << cube_ra << deffer_om << t.vp;
 	pipe << volum_ps << volum_bs << volum_dss;
 	pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
 
