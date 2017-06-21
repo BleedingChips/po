@@ -3,11 +3,21 @@ namespace PO
 {
 	void plugins::tick(viewer& v, duration da)
 	{
+		depute_renderer_tank.lock([this](renderer_tank_t& tank) {
+			if (!tank.empty()) std::swap(raw_renderer_tank, tank);
+		});
 
-		if (depute_renderer_tank.lock([this](renderer_tank_t& tank) {
-			if (!tank.empty()) return (std::swap(raw_renderer_tank, tank), true);
-			return false;
-		})) {
+		depute_renderer_f_tank.lock([this](renderer_depute_tank_t& tank) {
+			if (!tank.empty())
+			{
+				raw_renderer_tank.reserve(raw_renderer_tank.size() + tank.size());
+				for (auto& f : tank)
+					raw_renderer_tank.push_back(std::move(f(om)));
+				tank.clear();
+			}
+		});
+
+		if (!raw_renderer_tank.empty()) {
 			for (auto& ite : raw_renderer_tank)
 			{
 				ite->init(om);
@@ -29,6 +39,7 @@ namespace PO
 				}
 			}
 			plugin_tank.insert(plugin_tank.end(), std::make_move_iterator(raw_plugin_tank.begin()), std::make_move_iterator(raw_plugin_tank.end()));
+			raw_plugin_tank.clear();
 		}
 		
 		plugin_tank.erase(std::remove_if(plugin_tank.begin(), plugin_tank.end(), [&, this](std::unique_ptr<Implement::plugin_interface>& i) {
@@ -41,6 +52,9 @@ namespace PO
 			i->tick(*this, v, da);
 		});
 
+	}
+
+	plugins::~plugins() {
 	}
 
 	Respond plugins::respond(event& ev, viewer& v)

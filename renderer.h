@@ -19,7 +19,7 @@ namespace PO
 
 	namespace Implement {
 
-		struct tick_proxy{
+		struct tick_proxy {
 			std::shared_ptr<self> self_ptr;
 			std::function<void(self&, plugins&, viewer&, duration)> ptr;
 		};
@@ -27,6 +27,29 @@ namespace PO
 		struct init_proxy {
 			std::shared_ptr<self> self_ptr;
 			std::function<void(self&, plugins&, viewer&)> ptr;
+		};
+
+		template<typename renderer_t> struct have_make_proxy
+		{
+			template<typename P> static std::true_type func(std::enable_if_t<std::is_same<
+				decltype(Tmp::itself<renderer_t>{}().mapping(Tmp::itself<std::type_index>{}(), Tmp::itself<adapter_interface&>{}()))
+				, proxy>::value>*);
+			template<typename P> static std::false_type func(...);
+			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
+		};
+
+		template<typename renderer_t> struct have_init
+		{
+			template<typename P> static std::true_type func(decltype(Tmp::itself<renderer_t>{}().init(Tmp::itself<value_table&>{}()))*);
+			template<typename P> static std::false_type func(...);
+			void operator()(renderer_t& ren, value_table& vt) {
+				Tool::statement_if<decltype(func<renderer_t>(nullptr))::value>(
+					[&vt](auto& r) { r.init(vt); },
+					[](auto& r) {},
+					ren
+					);
+			}
+			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
 		};
 
 		template<typename renderer_t> struct have_pre_tick {
@@ -67,10 +90,22 @@ namespace PO
 			virtual ~renderer_interface() = default;
 		};
 
-		template<typename renderer_t> struct renderer_expand_t : renderer_interface, renderer_t
+		template<typename renderer_t> class renderer_expand_t : public renderer_interface, public renderer_t
 		{
+
+			template<typename ...AT>
+			renderer_expand_t(std::true_type, value_table& vt, AT&&... at) : renderer_interface(typeid(renderer_t)), renderer_t(vt, std::forward<AT>(at)...) {}
+
+			template<typename ...AT>
+			renderer_expand_t(std::false_type, value_table& vt, AT&&... at) : renderer_interface(typeid(renderer_t)), renderer_t(std::forward<AT>(at)...) {}
+
+		public:
+
 			template<typename ...AK>
-			renderer_expand_t(AK&& ...ak) : renderer_interface(typeid(renderer_t)), renderer_t(std::forward<AK>(ak)...) {}
+			renderer_expand_t(value_table& v, AK&& ...ak) :
+				renderer_expand_t(std::integral_constant<bool, std::is_constructible<renderer_t, value_table&, AK...>::value>{}, v, std::forward<AK>(ak)...) {}
+
+
 			void plugin_register(std::shared_ptr<self> self, adapter_map& am) {
 				if (!self) return;
 				for (auto& po : am) {
@@ -88,33 +123,15 @@ namespace PO
 				have_pos_tick<renderer_t>{}(*this, da);
 			}
 			virtual void init(value_table& om) {
-				renderer_t::init(om);
+				have_init<renderer_t>{}(*this, om);
 			}
 		};
 		template<typename renderer_t> using renderer_expand = renderer_expand_t<std::decay_t<renderer_t>>;
 	}
 
-	namespace Implement {
-		template<typename renderer_t> struct have_make_proxy
-		{
-			template<typename P> static std::true_type func(std::enable_if_t<std::is_same<
-				decltype(Tmp::itself<renderer_t>{}().mapping(Tmp::itself<std::type_index>{}(), Tmp::itself<adapter_interface&>{}()))
-				, proxy>::value>*);
-			template<typename P> static std::false_type func(...);
-			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
-		};
-		template<typename renderer_t> struct have_init
-		{
-			template<typename P> static std::true_type func(decltype(Tmp::itself<renderer_t>{}().init(Tmp::itself<value_table&>{}()))*);
-			template<typename P> static std::false_type func(...);
-			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
-		};
-	}
-
-
 	template<typename renderer_t> struct renderer {
 		static_assert(Implement::have_make_proxy<renderer_t>::value, "renderer need have a memeber function \'proxy mapping(std::type_index, adapter_interface&)\'");
-		static_assert(Implement::have_init<renderer_t>::value, "renderer need have a memeber function \'void init(value_table&)\'");
+		//static_assert(Implement::have_init<renderer_t>::value, "renderer need have a memeber function \'void init(value_table&)\'");
 	};
 	
 }

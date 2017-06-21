@@ -3,6 +3,7 @@
 #include "frame/viewer.h"
 #include "tool/auto_adapter.h"
 #include "renderer.h"
+#include <future>
 namespace PO
 {
 
@@ -47,7 +48,9 @@ namespace PO
 		};
 
 		template<typename plugin_t>
-		struct plugin_packet : plugin_interface, plugin_t {
+		class plugin_packet : public plugin_interface, public plugin_t {
+
+		public:
 			template<typename ...AT>
 			plugin_packet(Tool::completeness_ref r, AT&& ...at) : plugin_interface(std::move(r)), plugin_t(std::forward<AT>(at)...) {
 				plugin_interface::mapping = plugin_t::mapping(*this);
@@ -92,9 +95,16 @@ namespace PO
 		renderer_tank_t raw_renderer_tank;
 		renderer_tank_t renderer_tank;
 
+		using renderer_depute_f = std::function<std::unique_ptr<Implement::renderer_interface>(value_table&)>;
+		using renderer_depute_tank_t = std::vector<renderer_depute_f>;
+
+		Tool::scope_lock<renderer_depute_tank_t> depute_renderer_f_tank;
+		renderer_depute_tank_t renderer_f_tank;
+
 	public:
 
 		plugins(value_table o) : om(std::move(o)){}
+		~plugins();
 
 		template<typename plugin_t, typename ...AP>
 		void create(plugin<plugin_t> p, AP&& ...ap) {
@@ -106,9 +116,18 @@ namespace PO
 
 		template<typename renderer_t, typename ...AP>
 		void create(renderer<renderer_t>, AP&& ...ap) {
-			std::unique_ptr<Implement::renderer_interface> ptr = std::make_unique<Implement::renderer_expand_t<renderer_t>>(std::forward<AP>(ap)...);
+			std::unique_ptr<Implement::renderer_interface> ptr = std::make_unique<Implement::renderer_expand_t<renderer_t>>(om, std::forward<AP>(ap)...);
 			depute_renderer_tank.lock([&ptr](renderer_tank_t& tank) {
 				tank.push_back(std::move(ptr));
+			});
+		}
+
+		template<typename renderer_t, typename ...AP>
+		void depute_create(renderer<renderer_t>, AP&& ...ap) {
+			depute_renderer_f_tank.lock([=, this](renderer_depute_tank_t& tabk) {
+				tabk.push_back([&](value_table& vt) -> std::unique_ptr<Implement::renderer_interface> {  
+					return std::make_unique<Implement::renderer_expand_t<renderer_t>>(vt, std::forward<AP>(ap)...);
+				});
 			});
 		}
 
