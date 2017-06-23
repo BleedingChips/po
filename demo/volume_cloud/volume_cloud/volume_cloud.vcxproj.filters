@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ue4_testing">
+      <UniqueIdentifier>{3a3f1d0d-42ce-4568-a558-5c9c10a88935}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ue4_testing\shader">
+      <UniqueIdentifier>{d5f13236-f039-4611-9085-0e9fdac4eb97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="new_creator">
+      <UniqueIdentifier>{c8d21cd6-dbb6-40ed-aec8-5545ea7e2f31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="new_creator\shader">
+      <UniqueIdentifier>{7831cd24-1af1-49fc-a344-7f6ea6a4f81f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test_plugin">
+      <UniqueIdentifier>{8691ff0c-39ab-48c9-82ba-9a56251a6912}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test_plugin\shader">
+      <UniqueIdentifier>{ac462d02-5a26-4fce-9ee6-89ae773994b2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ue4_testing\ue4_testing.cpp">
+      <Filter>ue4_testing</Filter>
+    </ClCompile>
+    <ClCompile Include="new_creator\new_creater.cpp">
+      <Filter>new_creator</Filter>
+    </ClCompile>
+    <ClCompile Include="volum_cloud_main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="test_plugin\test_plugin.cpp">
+      <Filter>test_plugin</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ue4_testing\ue4_testing.h">
+      <Filter>ue4_testing</Filter>
+    </ClInclude>
+    <ClInclude Include="new_creator\new_creater.h">
+      <Filter>new_creator</Filter>
+    </ClInclude>
+    <ClInclude Include="test_plugin\test_plugin.h">
+      <Filter>test_plugin</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="ue4_testing\shader\test_cs.hlsl">
+      <Filter>ue4_testing\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="ue4_testing\shader\test_cs2.hlsl">
+      <Filter>ue4_testing\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="ue4_testing\shader\test_ps.hlsl">
+      <Filter>ue4_testing\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="ue4_testing\shader\test_vs.hlsl">
+      <Filter>ue4_testing\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creator\shader\new_creater_ps.hlsl">
+      <Filter>new_creator\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creator\shader\new_creater_vs.hlsl">
+      <Filter>new_creator\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="new_creator\shader\new_creator_cs.hlsl">
+      <Filter>new_creator\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\cube_ps.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\cube_vs.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\frame_ps.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\screen_ps.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\screen_vs.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\volum_cs.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\volum_ps.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="test_plugin\shader\volum_shadow_cs.hlsl">
+      <Filter>test_plugin\shader</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
