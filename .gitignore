@@ -61,6 +61,11 @@ Temporary Items
 *.ilk
 *.cso
 
+#VS2017 file
+*.iobj
+*.ipdb
+*.bin
+
 #Texture
 *.dds
 *.jpg
