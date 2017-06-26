@@ -122,19 +122,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\dx11\component\texture_viewer\texture_viewer.h" />
     <ClInclude Include="..\..\..\include\dx11\dx11_define.h" />
     <ClInclude Include="..\..\..\include\dx11\dx11_form.h" />
     <ClInclude Include="..\..\..\include\dx11\dx11_frame.h" />
     <ClInclude Include="..\..\..\include\dx11\dx11_vertex.h" />
     <ClInclude Include="..\..\..\include\dx11\dx11_renderer.h" />
+    <ClInclude Include="..\..\..\include\dx11\vertex_factory\cube.h" />
+    <ClInclude Include="..\..\..\include\dx11\vertex_factory\vertex_factory.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\include\dx11\component\texture_viewer\texture_viewer.cpp" />
     <ClCompile Include="..\..\..\include\dx11\dx11_define.cpp" />
     <ClCompile Include="..\..\..\include\dx11\dx11_form.cpp" />
     <ClCompile Include="..\..\..\include\dx11\dx11_frame.cpp" />
     <ClCompile Include="..\..\..\include\dx11\dx11_renderer.cpp" />
+    <ClCompile Include="..\..\..\include\dx11\vertex_factory\cube.cpp" />
+    <ClCompile Include="..\..\..\include\dx11\vertex_factory\vertex_factory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\include\dx11\shader\noise.hlsli" />

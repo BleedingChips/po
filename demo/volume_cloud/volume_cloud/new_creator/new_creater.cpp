@@ -86,10 +86,18 @@ struct texcoord
 	const char* operator()() { return "TEXCOORD"; }
 };
 
-float random(std::mt19937& m) {
-#undef max;
-	return m() / static_cast<float>(m.max());
-}
+struct diffuse
+{
+	const char* operator()() { return "DIFFUSE"; }
+};
+
+struct cube_ver
+{
+	float3 poi;
+	float3 col;
+	using type = PO::Dx11::layout_type<PO::Dx11::syntax<position, 0, float3>, PO::Dx11::syntax<diffuse, 0, float3>>;
+};
+
 
 void new_creator::init(simple_renderer& s) {
 	using namespace DirectX;
@@ -97,26 +105,29 @@ void new_creator::init(simple_renderer& s) {
 		creator& res = s;
 		pipeline& pipe = s;
 		
-		texture = res.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16_FLOAT, 256, 256, 256);
+		volume = res.create_tex3_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, 256, 256, 256);
 		//structed_buffer sb = res.create_struct_buffer_unorder_access(sizeof(float2), 120 * 64);
 		
+		//generator 3d texture
 		{
 			compute_stage cs;
 			auto sha = rs.find(typeid(binary), u"new_creator_cs.cso");
 			if (!sha || !sha->able_cast<binary>()) throw 1; 
 			cs.set(res.create_compute_shader(sha->cast<binary>()));
-			cs.set(res.cast_unordered_access_view(texture), 0);
+			cs.set(res.cast_unordered_access_view(volume), 0);
 			uint32_t3 da = { 256, 256, 256 };
 			cs << res.create_constant_buffer(&da)[0];
 
 			std::vector<float3> IC;
 			IC.resize(200);
+
 			std::mt19937 r_mt(233);
-			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
+			std::normal_distribution<float> nd(0.5f, 0.16f);
 
 			for (size_t i = 0; i < 100; ++i)
 			{
-				IC[i] = (float3(random(r_mt), random(r_mt), random(r_mt)) - 0.5);
+				IC[i] = float3(nd(r_mt), nd(r_mt), nd(r_mt));// +IC[i - 1];
+				std::cout << IC[i] << std::endl;
 			}
 
 			auto  p = res.create_struct_buffer(IC);
@@ -134,24 +145,8 @@ void new_creator::init(simple_renderer& s) {
 
 		}
 
+		//show texture
 		{
-			/*
-			std::vector<float4> vertex;
-			vertex.resize(91);
-
-			std::mt19937 r_mt(233);
-			std::uniform_real_distribution<float> nd(-0.3f, 0.3f);
-
-			for (size_t i = 0; i < 90; ++i)
-			{
-				float r = nd(r_mt) / 2.0 + 0.5;
-				vertex[i] = float4(
-					sin(3.141592653 / 45.0 * i) * abs(r),
-					cos(3.141592653 / 45.0 * i) * abs(r),
-					0.9,
-					1.0
-				);
-			}*/
 
 			struct vertex_type
 			{
@@ -186,7 +181,7 @@ void new_creator::init(simple_renderer& s) {
 			if (!sha || !sha->able_cast<binary>()) throw 1;
 			ps.set(res.create_pixel_shader(sha->cast<binary>()))
 				.set(res.create_sample_state(), 0)
-				.set(res.cast_shader_resource_view(texture), 0)
+				.set(res.cast_shader_resource_view(volume), 0)
 				.set(res.create_constant_buffer(&con,true), 0);
 			res.update_layout(ias, vs);
 			
@@ -197,6 +192,10 @@ void new_creator::init(simple_renderer& s) {
 			
 
 			oms.set(res.cast_render_target_view(s.back_buffer), 0);
+		}
+
+		{
+
 		}
 
 		

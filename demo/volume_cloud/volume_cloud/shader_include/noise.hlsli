@@ -42,13 +42,13 @@ float noise(float2 p, float2 ran_seed)
     float2 y = o + float2(0.0, 1.0);
     float2 xy = o + float2(1.0, 1.0);
     ran_seed = rand(ran_seed);
-    float ran_seed2 = ran_seed * ran_seed;
-    o = rand(ran_seed * o + ran_seed);
-    x = rand(ran_seed * x + ran_seed);
-    xy = rand(ran_seed * xy + ran_seed);
-    y = rand(ran_seed * y + ran_seed);
-    return (o * rate.x + x * (1.0 - rate.x)) * rate.y +
-    (y * rate.x + xy * (1.0 - rate.x)) * (1.0 - rate.y);
+    float2 ran_seed2 = ran_seed * ran_seed;
+    float oc = rand(ran_seed * o + ran_seed);
+    float xc = rand(ran_seed * x + ran_seed);
+    float xyc = rand(ran_seed * xy + ran_seed);
+    float yc = rand(ran_seed * y + ran_seed);
+    return (oc * rate.x + xc * (1.0 - rate.x)) * rate.y +
+    (yc * rate.x + xyc * (1.0 - rate.x)) * (1.0 - rate.y);
 }
 
 float noise(float3 p, float3 ran_seed)
@@ -67,7 +67,7 @@ float noise(float3 p, float3 ran_seed)
     };
 
     ran_seed = rand(ran_seed);
-    float ran_seed2 = ran_seed * ran_seed;
+    float3 ran_seed2 = ran_seed * ran_seed;
 
     float3 o = floor(p);
     float3 rate = p - o;
@@ -75,14 +75,14 @@ float noise(float3 p, float3 ran_seed)
 
     uint count = 0;
     for (count = 0; count < 8; ++count)
-        value[count] = rand(ran_seed * (o + value[count]) + ran_seed);
+        value[count].x = rand(ran_seed * (o + value[count]) + ran_seed);
 
     for (count = 0; count < 4; ++count)
-        value[count] = value[count * 2] * rate.x + value[count * 2 + 1] * (1.0 - rate.x);
+        value[count].x = value[count * 2].x * rate.x + value[count * 2 + 1].x * (1.0 - rate.x);
 
     for (count = 0; count < 2; ++count)
-        value[count] = value[count * 2] * rate.y + value[count * 2 + 1] * (1.0 - rate.y);
+        value[count].x = value[count * 2].x * rate.y + value[count * 2 + 1].x * (1.0 - rate.y);
 
-    return value[0] * rate.z + value[1] * (1.0 - rate.z);
+    return value[0].x * rate.z + value[1].x * (1.0 - rate.z);
 }
 #endif

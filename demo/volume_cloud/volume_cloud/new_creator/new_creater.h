@@ -20,7 +20,7 @@ struct new_creator
 {
 	raw_scene rs;
 
-	tex3 texture;
+	tex3 volume;
 
 	input_assember_stage ias;
 	pixel_stage ps;

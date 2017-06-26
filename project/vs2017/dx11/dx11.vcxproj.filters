@@ -13,26 +13,14 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="头文件\component">
-      <UniqueIdentifier>{6450aac2-3df2-4027-961d-c4345293cf42}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="头文件\component\texture_viewer">
-      <UniqueIdentifier>{1188eef8-1fa5-4b81-8bd3-bab3f1d3d496}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\component">
-      <UniqueIdentifier>{dfeaaa45-18cb-46f0-b858-499f5d5197d0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\component\texture_viewer">
-      <UniqueIdentifier>{8a1afcb5-89fa-42a6-8b5e-3b74dad017c5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="资源文件\shader">
       <UniqueIdentifier>{786fd50f-83e6-4cad-bb58-dffc36717fce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vertex_factory">
+      <UniqueIdentifier>{cfd2a8da-c56d-492e-8eb8-4a42987afaaf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\dx11\component\texture_viewer\texture_viewer.h">
-      <Filter>头文件\component\texture_viewer</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\dx11\dx11_frame.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -48,11 +36,14 @@
     <ClInclude Include="..\..\..\include\dx11\dx11_define.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\dx11\vertex_factory\vertex_factory.h">
+      <Filter>vertex_factory</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\dx11\vertex_factory\cube.h">
+      <Filter>vertex_factory</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\include\dx11\component\texture_viewer\texture_viewer.cpp">
-      <Filter>源文件\component\texture_viewer</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\include\dx11\dx11_define.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -64,6 +55,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\include\dx11\dx11_renderer.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\dx11\vertex_factory\vertex_factory.cpp">
+      <Filter>vertex_factory</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\dx11\vertex_factory\cube.cpp">
+      <Filter>vertex_factory</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
