@@ -1,5 +1,5 @@
 #include "new_creater.h"
-#include "dx11/dx11_vertex.h"
+#include "po_dx11/dx11_vertex.h"
 #include <random>
 new_creator::new_creator() {
 	rs.pre_load(
@@ -18,7 +18,6 @@ new_creator::new_creator() {
 }
 
 adapter_map new_creator::mapping(self& s) {
-
 	s.auto_bind_respond(&new_creator::respond, this);
 	return {
 		make_member_adapter<simple_renderer>(this, &new_creator::init, &new_creator::tick)
@@ -185,7 +184,7 @@ void new_creator::init(simple_renderer& s) {
 				.set(res.create_constant_buffer(&con,true), 0);
 			res.update_layout(ias, vs);
 			
-			auto scr = depth_stencil_state::default_scription;
+			auto scr = depth_stencil_state::default_dscription;
 			scr.DepthEnable = false;
 			scr.DepthFunc = decltype(scr.DepthFunc)::D3D11_COMPARISON_ALWAYS;
 			dss = res.create_depth_stencil_state(scr);
@@ -200,7 +199,8 @@ void new_creator::init(simple_renderer& s) {
 
 		
 	}
-	catch (...) {
+	catch (HRESULT r) {
+		HRESULT re = r;
 		__debugbreak();
 	}
 }
@@ -215,7 +215,7 @@ void new_creator::tick(simple_renderer& s) {
 		control_input* po = static_cast<control_input*>(data);
 		*po = con;
 	});
-	pipe << ias << vs << ps <<dss << oms;
+	pipe << ias << vs << ps <<dss;
 	pipe.draw_index(6, 0, 0);
 	pipe.unbind();
 

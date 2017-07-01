@@ -486,7 +486,7 @@ namespace PO
 			T* operator->() & { return &(variant<T>::template cast<T>()); }
 
 			T&& operator*() && { return std::move(variant<T>::template cast<T>()); }
-			T&& operator->() && { return &(variant<T>::template cast<T>()); }
+			T* operator->() && { return &(variant<T>::template cast<T>()); }
 
 			operator bool() const noexcept { return variant<T>::operator bool(); }
 

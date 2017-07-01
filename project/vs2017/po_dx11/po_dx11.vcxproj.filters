@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="po_dx11">
+      <UniqueIdentifier>{94a04667-ff97-4a97-8019-effa3eb5e445}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx">
+      <UniqueIdentifier>{08f11f77-99b5-4fc8-a6e5-e1087980e170}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_win32">
+      <UniqueIdentifier>{044b9595-2339-44c9-9255-51843e839338}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dxgi">
+      <UniqueIdentifier>{83c81385-2159-4010-b7db-af78c32db8ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11\shader">
+      <UniqueIdentifier>{b0efe860-fedd-41bc-ae67-9fd2a8998892}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11\shader\include">
+      <UniqueIdentifier>{b74d515a-2613-4bff-8e5d-af3a5977f4d1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\include\po_dxgi\dxgi_define.cpp">
+      <Filter>po_dxgi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dxgi\dxgi_log.cpp">
+      <Filter>po_dxgi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_win32\win32_form.cpp">
+      <Filter>po_win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_win32\win32_log.cpp">
+      <Filter>po_win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx\dx_math.cpp">
+      <Filter>po_dx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx\movement.cpp">
+      <Filter>po_dx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_define.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_form.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_frame.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_renderer.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx\controller.cpp">
+      <Filter>po_dx</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h">
+      <Filter>po_dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dxgi\dxgi_log.h">
+      <Filter>po_dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_win32\win32_define.h">
+      <Filter>po_win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_win32\win32_form.h">
+      <Filter>po_win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_win32\win32_log.h">
+      <Filter>po_win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx\movement.h">
+      <Filter>po_dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_define.h">
+      <Filter>po_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_form.h">
+      <Filter>po_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_frame.h">
+      <Filter>po_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_renderer.h">
+      <Filter>po_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_vertex.h">
+      <Filter>po_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx\dx_math.h">
+      <Filter>po_dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx\dx_type.h">
+      <Filter>po_dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx\controller.h">
+      <Filter>po_dx</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\include\po_dx11\shader\include\noise.hlsli">
+      <Filter>po_dx11\shader\include</Filter>
+    </None>
+  </ItemGroup>
+</Project>

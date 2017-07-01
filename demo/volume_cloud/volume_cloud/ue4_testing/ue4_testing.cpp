@@ -1,7 +1,7 @@
 #include "ue4_testing.h"
 #include <random>
 #include "DirectXTex.h"
-#include "dx11/dx11_vertex.h"
+#include "po_dx11/dx11_vertex.h"
 
 adapter_map UE4_testing::mapping(self& s) {
 	s.auto_bind_respond(&UE4_testing::respond, this);
@@ -220,7 +220,7 @@ void UE4_testing::init(simple_renderer& p)
 
 			om.set(res.cast_render_target_view(p.back_buffer), 0);
 
-			blend_state::scription scr = blend_state::default_scription;
+			blend_state::dscription scr = blend_state::default_dscription;
 			scr.RenderTarget[0].BlendEnable = TRUE;
 			scr.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 			scr.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_ALPHA;
@@ -228,7 +228,7 @@ void UE4_testing::init(simple_renderer& p)
 
 			bs = res.create_blend_state(scr);
 
-			depth_stencil_state::scription scr22 = depth_stencil_state::default_scription;
+			depth_stencil_state::dscription scr22 = depth_stencil_state::default_dscription;
 			scr22.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 			scr22.DepthEnable = false;
 			scr22.DepthFunc = D3D11_COMPARISON_ALWAYS;
@@ -289,14 +289,24 @@ void UE4_testing::tick(simple_renderer& p, duration da)
 			float4x4* da = static_cast<float4x4*>(data);
 			da[0] = pro;
 		});
+
+		try {
+			ps.set(res.cast_shader_resource_view(volume_texture[current_view]), 0);
+		}
+		catch (HRESULT re)
+		{
+			HRESULT o = re;
+			__debugbreak();
+		}
+		
+		pipe << ia << vs << ps << om << bs << dss;
+		pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
+		pipe.unbind();
 	}
 	catch (...) {
 		__debugbreak();
 	}
-	ps.set(res.cast_shader_resource_view(volume_texture[current_view]), 0);
-	pipe << ia << vs << ps << om << bs << dss;
-	pipe.draw_index(static_cast<UINT>(ind.size()), 0, 0);
-	pipe.unbind();
+	
 }
 
 

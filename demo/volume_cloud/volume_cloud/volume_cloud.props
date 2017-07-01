@@ -13,6 +13,7 @@
   <ItemGroup>
     <BuildMacro Include="PO">
       <Value>$(PO)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
     </BuildMacro>
   </ItemGroup>
 </Project>

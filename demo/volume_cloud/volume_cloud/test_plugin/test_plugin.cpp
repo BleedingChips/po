@@ -3,7 +3,7 @@
 #include <fstream>
 #include <random>
 #include "DirectXTex.h"
-#include "dx11/dx11_vertex.h"
+#include "po_dx11/dx11_vertex.h"
 using namespace std;
 using namespace PO::Dx;
 struct position
@@ -30,25 +30,6 @@ struct texcoord
 {
 	const char* operator()() { return "TEXCOORD"; }
 };
-
-struct start_init
-{
-	start_init()
-	{
-		PO::io_task_instance().set_function(typeid(PO::binary), [](PO::io_block ib) -> PO::Tool::any {
-			if (!ib.stream.good())
-				__debugbreak();
-			ib.stream.seekg(0, std::ios::end);
-			auto end_poi = ib.stream.tellg();
-			ib.stream.seekg(0, std::ios::beg);
-			auto sta_poi = ib.stream.tellg();
-			PO::binary info{ static_cast<size_t>(end_poi - sta_poi) };
-			ib.stream.read(info, end_poi - sta_poi);
-			return std::move(info);
-		});
-	}
-} init;
-
 
 opposite_direct od;
 opposite_direct left_right;
@@ -261,9 +242,6 @@ std::vector<cube_ver> poi =
 	{ { 0.5, -0.5, 0.5 },{ 0.0, 1.0, 1.0 } },
 
 	{ { -0.5, -0.5, 0.5 },{ 0.0, 1.0, 1.0 } }
-
-	
-
 };
 
 std::vector<uint16_t> ind =
@@ -564,11 +542,11 @@ void test_plugin::init(simple_renderer& op)
 				.set(re.cast_shader_resource_view(g_col), 0)
 				.set(re.cast_shader_resource_view(g_poi), 1)
 				.set(re.create_sample_state(), 0);
-			depth_stencil_state::scription scr = depth_stencil_state::default_scription;
+			depth_stencil_state::dscription scr = depth_stencil_state::default_dscription;
 			scr.DepthEnable = FALSE;
 			scr.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_ALWAYS;
 			scr.StencilEnable = FALSE;
-			blend_state::scription scr_ble = blend_state::default_scription;
+			blend_state::dscription scr_ble = blend_state::default_dscription;
 			scr_ble.RenderTarget[0].BlendEnable = FALSE;
 			screen_om.set(re.cast_render_target_view(op.back_buffer), 0);
 			screen_bs = re.create_blend_state(scr_ble);
@@ -596,12 +574,12 @@ void test_plugin::init(simple_renderer& op)
 				.set(re.cast_shader_resource_view(volum), 0)
 				.set(re.create_sample_state(scr_sample), 0)
 				.set(re.create_constant_buffer(sizeof(float4x4) + sizeof(float)), 0);
-			blend_state::scription scr = blend_state::default_scription;
+			blend_state::dscription scr = blend_state::default_dscription;
 			scr.RenderTarget[0].BlendEnable = TRUE;
 			scr.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 			scr.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_ALPHA;
 			scr.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-			depth_stencil_state::scription scr22 = depth_stencil_state::default_scription;
+			depth_stencil_state::dscription scr22 = depth_stencil_state::default_dscription;
 			scr22.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 			volum_bs = re.create_blend_state(scr);
 			volum_dss = re.create_depth_stencil_state(scr22);

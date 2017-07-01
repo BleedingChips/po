@@ -19,41 +19,43 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\include\po\frame\define.cpp" />
-    <ClCompile Include="..\..\..\include\po\plugin.cpp" />
-    <ClCompile Include="..\..\..\include\po\po.cpp" />
-    <ClCompile Include="..\..\..\include\po\renderer.cpp" />
-    <ClCompile Include="..\..\..\include\po\tool\scene.cpp" />
-    <ClCompile Include="..\..\..\include\po\tool\thread_tool.cpp" />
-    <ClCompile Include="..\..\..\include\po\tool\utf_support.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_define.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_form.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_frame.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_renderer.cpp" />
+    <ClCompile Include="..\..\..\include\po_dxgi\dxgi_define.cpp" />
+    <ClCompile Include="..\..\..\include\po_dxgi\dxgi_log.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx\controller.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx\dx_math.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx\movement.cpp" />
+    <ClCompile Include="..\..\..\include\po_win32\win32_form.cpp" />
+    <ClCompile Include="..\..\..\include\po_win32\win32_log.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\po\form.h" />
-    <ClInclude Include="..\..\..\include\po\frame\adapter.h" />
-    <ClInclude Include="..\..\..\include\po\frame\define.h" />
-    <ClInclude Include="..\..\..\include\po\frame\error.h" />
-    <ClInclude Include="..\..\..\include\po\frame\event.h" />
-    <ClInclude Include="..\..\..\include\po\frame\viewer.h" />
-    <ClInclude Include="..\..\..\include\po\plugin.h" />
-    <ClInclude Include="..\..\..\include\po\po.h" />
-    <ClInclude Include="..\..\..\include\po\renderer.h" />
-    <ClInclude Include="..\..\..\include\po\tool\auto_adapter.h" />
-    <ClInclude Include="..\..\..\include\po\tool\mail.h" />
-    <ClInclude Include="..\..\..\include\po\tool\scene.h" />
-    <ClInclude Include="..\..\..\include\po\tool\thread_tool.h" />
-    <ClInclude Include="..\..\..\include\po\tool\tmp.h" />
-    <ClInclude Include="..\..\..\include\po\tool\tmpcall.h" />
-    <ClInclude Include="..\..\..\include\po\tool\tool.h" />
-    <ClInclude Include="..\..\..\include\po\tool\utf_support.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_define.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_form.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_frame.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_renderer.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_vertex.h" />
+    <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h" />
+    <ClInclude Include="..\..\..\include\po_dxgi\dxgi_log.h" />
+    <ClInclude Include="..\..\..\include\po_dx\controller.h" />
+    <ClInclude Include="..\..\..\include\po_dx\movement.h" />
+    <ClInclude Include="..\..\..\include\po_dx\dx_math.h" />
+    <ClInclude Include="..\..\..\include\po_dx\dx_type.h" />
+    <ClInclude Include="..\..\..\include\po_win32\win32_define.h" />
+    <ClInclude Include="..\..\..\include\po_win32\win32_form.h" />
+    <ClInclude Include="..\..\..\include\po_win32\win32_log.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\include\po\tool\readme.md" />
+    <None Include="..\..\..\include\po_dx11\shader\include\noise.hlsli" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{B9A1E44C-31B4-423F-A7A6-83DF9F8E480F}</ProjectGuid>
-    <RootNamespace>po</RootNamespace>
+    <ProjectGuid>{87E900F8-C2FD-4AA5-9540-3B1AE01C7ED8}</ProjectGuid>
+    <RootNamespace>dx11</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <ProjectName>po_dx11</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -100,13 +102,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(ProjectDir)lib\$(Configuration)\$(Platform)\</OutDir>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(ProjectDir)lib\$(Configuration)\$(Platform)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(ProjectDir)lib\$(Configuration)\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(ProjectDir)lib\$(Configuration)\$(Platform)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -118,6 +120,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <FxCompile>
+      <ObjectFileOutput>$(ProjectDir)shader_lib\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -125,6 +130,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <FxCompile>
+      <ObjectFileOutput>$(ProjectDir)shader_lib\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -138,6 +146,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <FxCompile>
+      <ObjectFileOutput>$(ProjectDir)shader_lib\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -151,6 +162,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <FxCompile>
+      <ObjectFileOutput>$(ProjectDir)shader_lib\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

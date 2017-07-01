@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <PODx11OutDir>$(PO)\project\vs2017\po_dx11\lib\</PODx11OutDir>
+    <PODx11ShaderInclude>$(PO)\include\po_dx11\shader\include</PODx11ShaderInclude>
+    <PODx11ShaderLib>$(PO)\include\po_dx11\shader\implement</PODx11ShaderLib>
+    <PODx11ShaderOutDir>$(PO)\project\vs2017\po_dx11\shader_lib</PODx11ShaderOutDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <_PropertySheetDisplayName>po_dx11</_PropertySheetDisplayName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(PO)include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>po_dx11.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command />
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>xcopy $(PODx11ShaderOutDir) $(OutDir)shader_lib /E/I/D/Y</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="PODx11OutDir">
+      <Value>$(PODx11OutDir)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PODx11ShaderInclude">
+      <Value>$(PODx11ShaderInclude)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PODx11ShaderLib">
+      <Value>$(PODx11ShaderLib)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PODx11ShaderOutDir">
+      <Value>$(PODx11ShaderOutDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

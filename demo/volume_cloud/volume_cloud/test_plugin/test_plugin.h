@@ -1,10 +1,9 @@
 #pragma once
 #include <iostream>
-#include "dx11/dx11_frame.h"
 #include "po/tool/mail.h"
-#include "dx/movement.h"
+#include "po_dx/movement.h"
 #include "DirectXTex.h"
-#include "dx11/dx11_renderer.h"
+#include "po_dx11/dx11_renderer.h"
 #include "po/plugin.h"
 #include "po/tool/scene.h"
 

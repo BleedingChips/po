@@ -1,11 +1,12 @@
 #pragma once
 #include <iostream>
 #include "po/tool/mail.h"
-#include "dx/movement.h"
+#include "po_dx/movement.h"
 #include "DirectXTex.h"
-#include "dx11/dx11_renderer.h"
+#include "po_dx11/dx11_renderer.h"
 #include "po/plugin.h"
 #include "po/tool/scene.h"
+
 using namespace PO::Dx;
 using namespace PO::Dx11;
 using namespace PO;
@@ -14,7 +15,6 @@ struct control_input {
 	alignas(16) float4 filter = float4{ 1.0, 1.0, 1.0, 1.0 };
 	alignas(16) float layout = 0;
 };
-
 
 struct new_creator
 {

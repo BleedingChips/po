@@ -223,37 +223,29 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
-    <Import Project="..\..\..\project\vs2017\dx\dx.props" />
-    <Import Project="..\..\..\project\vs2017\dxgi\dxgi.props" />
-    <Import Project="..\..\..\project\vs2017\win32\win32.props" />
-    <Import Project="..\..\..\project\vs2017\dx11\dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
-    <Import Project="..\..\..\project\vs2017\dx\dx.props" />
-    <Import Project="..\..\..\project\vs2017\dxgi\dxgi.props" />
-    <Import Project="..\..\..\project\vs2017\win32\win32.props" />
-    <Import Project="..\..\..\project\vs2017\dx11\dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
-    <Import Project="..\..\..\project\vs2017\dx\dx.props" />
-    <Import Project="..\..\..\project\vs2017\dxgi\dxgi.props" />
-    <Import Project="..\..\..\project\vs2017\win32\win32.props" />
-    <Import Project="..\..\..\project\vs2017\dx11\dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
-    <Import Project="..\..\..\project\vs2017\dx\dx.props" />
-    <Import Project="..\..\..\project\vs2017\dxgi\dxgi.props" />
-    <Import Project="..\..\..\project\vs2017\win32\win32.props" />
-    <Import Project="..\..\..\project\vs2017\dx11\dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
+    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -265,14 +257,14 @@
       <AdditionalIncludeDirectories>..\..\..\..\DirectXTex\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(DX11_OutDir)$(configuration)\$(Platform)\;$(WIN32_OutDir)$(configuration)\$(Platform)\;$(DXGI_OutDir)$(configuration)\$(Platform)\;$(DX_OutDir)$(configuration)\$(Platform)\;$(PO_OutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(PODx11DeferRendererOutDir)$(configuration)\$(Platform)\;..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(PODx11OutDir)$(configuration)\$(Platform)\;$(POOutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>directXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>$(DX11_Shader_Include);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(DX11_Shader_Include) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
+      <Command>xcopy $(PODx11ShaderInclude) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -283,14 +275,14 @@
       <AdditionalIncludeDirectories>..\..\..\..\DirectXTex\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(DX11_OutDir)$(configuration)\$(Platform)\;$(WIN32_OutDir)$(configuration)\$(Platform)\;$(DXGI_OutDir)$(configuration)\$(Platform)\;$(DX_OutDir)$(configuration)\$(Platform)\;$(PO_OutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(PODx11DeferRendererOutDir)$(configuration)\$(Platform)\;..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(PODx11OutDir)$(configuration)\$(Platform)\;$(POOutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>directXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>$(DX11_Shader_Include);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(DX11_Shader_Include) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
+      <Command>xcopy $(PODx11ShaderInclude) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -305,14 +297,14 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(DX11_OutDir)$(configuration)\$(Platform)\;$(WIN32_OutDir)$(configuration)\$(Platform)\;$(DXGI_OutDir)$(configuration)\$(Platform)\;$(DX_OutDir)$(configuration)\$(Platform)\;$(PO_OutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(PODx11DeferRendererOutDir)$(configuration)\$(Platform)\;..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(PODx11OutDir)$(configuration)\$(Platform)\;$(POOutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>directXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>$(DX11_Shader_Include);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(DX11_Shader_Include) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
+      <Command>xcopy $(PODx11ShaderInclude) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -327,14 +319,14 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(DX11_OutDir)$(configuration)\$(Platform)\;$(WIN32_OutDir)$(configuration)\$(Platform)\;$(DXGI_OutDir)$(configuration)\$(Platform)\;$(DX_OutDir)$(configuration)\$(Platform)\;$(PO_OutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(PODx11DeferRendererOutDir)$(configuration)\$(Platform)\;..\..\..\..\DirectXTex\DirectXTex\Bin\Desktop_2017\$(Platform)\$(configuration)\;$(PODx11OutDir)$(configuration)\$(Platform)\;$(POOutDir)$(configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>directXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>$(DX11_Shader_Include);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(DX11_Shader_Include) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
+      <Command>xcopy $(PODx11ShaderInclude) $(ProjectDir)shader_include\ /E/I/D/Y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

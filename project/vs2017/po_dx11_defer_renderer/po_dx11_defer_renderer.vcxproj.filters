@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="po_dx11_defer_renderer">
+      <UniqueIdentifier>{6cd7e9fe-3b81-4bc4-a2e8-39bee4111823}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11_defer_renderer\shader">
+      <UniqueIdentifier>{ea6f4324-9382-4314-b718-10b98ee013af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11_defer_renderer\shader\implement">
+      <UniqueIdentifier>{d3b1479d-af1b-427e-ab66-34676f797a07}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11_defer_renderer\shader\include">
+      <UniqueIdentifier>{10801362-159d-4493-b18a-1c542670ccf5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="po_dx11_defer_renderer\element">
+      <UniqueIdentifier>{3016ba1d-caa2-4848-8570-1c3cf42ffe87}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\buildin_vertext_shader.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_material_merga_gbuffer_ps.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_placement_screen_square_vs.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_placement_static_3d_vs.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_material_text_texcoord_ps.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.cpp">
+      <Filter>po_dx11_defer_renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\interface.cpp">
+      <Filter>po_dx11_defer_renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\material.cpp">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\placement.cpp">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.cpp">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\property.cpp">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.h">
+      <Filter>po_dx11_defer_renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\interface.h">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\material.h">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\placement.h">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.h">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\property.h">
+      <Filter>po_dx11_defer_renderer\element</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_screen_inout.hlsli">
+      <Filter>po_dx11_defer_renderer\shader\include</Filter>
+    </None>
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_defer_inout.hlsli">
+      <Filter>po_dx11_defer_renderer\shader\include</Filter>
+    </None>
+  </ItemGroup>
+</Project>

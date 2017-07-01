@@ -1,0 +1,74 @@
+#include "material.h"
+namespace PO
+{
+	namespace Dx11
+	{
+		namespace Material
+		{
+			merga_gbuffer::gbuffer::gbuffer() : property_interface(typeid(gbuffer)) {}
+
+			merga_gbuffer::merga_gbuffer() : material_interface(typeid(merga_gbuffer), renderer_order::Post) {}
+
+			void merga_gbuffer::init(creator& c, raw_scene& r)
+			{
+				path = u"shader_lib\\build_in_material_merga_gbuffer_ps.cso";
+				auto po = r.find(typeid(PO::binary), path.c_str(), true);
+				if (!po || !po->able_cast<PO::binary>()) throw 1;
+				ps << c.create_pixel_shader(po->cast<PO::binary>());
+				auto des = blend_state::default_dscription;
+				des.RenderTarget[0].BlendEnable = FALSE;
+				bs = c.create_blend_state(des);
+			}
+			
+			bool merga_gbuffer::update(property_interface& pi, pipeline& p, creator& c)
+			{
+				if (pi.is<gbuffer>())
+				{
+					auto& ref = pi.cast<gbuffer>();
+					ps << ref.ss[0] << ref.srv[0];
+					return true;
+				}
+				return false;
+			}
+
+			const std::set<std::type_index>& merga_gbuffer::acceptance() const
+			{
+				static const std::set<std::type_index> accept = { typeid(gbuffer) };
+				return accept;
+			}
+
+			test_texcoord::test_texcoord() : material_interface(typeid(test_texcoord), renderer_order::Defer) {}
+			test_texcoord::texture::texture() : property_interface(typeid(texture)) {}
+
+			void test_texcoord::init(creator& c, raw_scene& r)
+			{
+				path = u"shader_lib\\build_in_material_text_texcoord_ps.cso";
+				auto po = r.find(typeid(PO::binary), path.c_str(), true);
+				if (!po || !po->able_cast<PO::binary>()) throw 1;
+				ps << c.create_pixel_shader(po->cast<PO::binary>());
+				auto des = blend_state::default_dscription;
+				des.RenderTarget[0].BlendEnable = FALSE;
+				bs = c.create_blend_state(des);
+			}
+
+			bool test_texcoord::update(property_interface& mpi, pipeline& p, creator& c)
+			{
+				if (mpi.is<texture>())
+				{
+					auto& ref = mpi.cast<texture>();
+					ps << ref.ss[0] << ref.srv[0];
+					return true;
+				}
+				return false;
+			}
+
+			const std::set<std::type_index>& test_texcoord::acceptance() const
+			{
+				static const std::set<std::type_index> accept = { typeid(texture) };
+				return accept;
+			}
+
+		}
+
+	}
+}
