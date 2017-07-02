@@ -192,11 +192,14 @@ namespace PO
 				void init(creator& c);
 				
 
-				template<typename T, typename F> bool find(F&& f) {
-					static_assert(std::is_base_of<property_interface, T>::value, "property need derived form property_interface.");
-					auto tem = find(typeid(T));
-					if (tem)
-						return (f(static_cast<T&>(*tem)), true);
+				template<typename F> bool find(F&& f) {
+					using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<F>>::type>;
+					static_assert(funtype::size, "only receive one parameter");
+					using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+					static_assert(std::is_base_of<property_interface, true_type>::value, "property need derived form property_interface.");
+					auto tem = mapping.find(typeid(true_type));
+					if(tem != mapping.end())
+						return (f(static_cast<true_type&>(*(tem->second))), true);
 					return false;
 				}
 
@@ -239,7 +242,7 @@ namespace PO
 				void init(creator& c) { property_map.init(c); }
 				void clear_element();
 				void clear_property() { property_map.clear(); }
-				template<typename T, typename K> decltype(auto) find(K&& k) { return property_map.template find<T>(std::forward<K>(k)); }
+				template<typename K> decltype(auto) find(K&& k) { return property_map.find(std::forward<K>(k)); }
 				template<typename T, typename ...AT> decltype(auto) create(AT&& ...at) { return property_map.template create<T>(std::forward<AT>(at)...); }
 			};
 		}
@@ -281,9 +284,9 @@ namespace PO
 				*ptr = is.find(t, c);
 			}
 
-			template<typename T> decltype(auto) find() {
+			template<typename K> bool find(K&& k) {
 				if (!ptr) ptr = std::make_shared<Implement::element_implement>();
-				return ptr->property_map.template find<T>();
+				return ptr->property_map.find(std::forward<K>(k));
 			}
 			template<typename T, typename ...AT> decltype(auto) create(AT&& ...at) { 
 				if (!ptr) ptr = std::make_shared<Implement::element_implement>();

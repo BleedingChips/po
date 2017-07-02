@@ -7,27 +7,20 @@ namespace PO
 	{
 		class showcase
 		{
-			float3 roll_speed = float3{ 0.01, 0.01, 0.01 };
-			float translation_speed;
-			bool x_clockwise : 1;
-			bool x_anticlockwise : 1;
-			bool y_clockwise : 1;
-			bool y_anticlockwise : 1;
-			bool z_clockwise : 1;
-			bool z_anticlockwise : 1;
-			bool translation_add_state : 1;
-			bool translation_del_state : 1;
+			float3 roll_speed = float3{ 10.0f, 10.0f, 10.0f };
+			float translation_speed = 0.5f;
+			uint8_t state;
 		public:
-			enum class State
+			enum class State : uint8_t
 			{
-				X_CW,
-				X_ACW,
-				Y_CW,
-				Y_ACW,
-				Z_CW,
-				Z_ACW,
-				T_FRONT,
-				T_BACK
+				X_CW = 0x01,
+				Y_CW = 0x02,
+				Z_CW = 0x04,
+				T_FR = 0x08,
+				X_ACW = 0x10,
+				Y_ACW = 0x20,
+				Z_ACW = 0x40,
+				T_BA = 0x80,
 			};
 		private:
 			std::map<KeyValue, State> key_mapping;

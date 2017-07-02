@@ -63,13 +63,6 @@ namespace PO
 					mapping[index] = std::move(p);
 				}
 			}
-			std::shared_ptr<property_interface> property_storage::find(std::type_index ti) const
-			{
-				auto ite = mapping.find(ti);
-				if (ite == mapping.end())
-					return {};
-				return ite->second;
-			}
 
 			bool element_implement::call(pipeline& p, creator& c, const property_storage& out_mapping)
 			{

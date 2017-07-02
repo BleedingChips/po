@@ -60,7 +60,7 @@ namespace PO
 		void defer_renderer::pre_tick(duration da)
 		{
 			simple_renderer::pre_tick(da);
-			storage_elemnt.find<Property::renderer_3d>([this](Property::renderer_3d& r3) {
+			storage_elemnt.find([this](Property::renderer_3d& r3) {
 				r3.view = view;
 				r3.projection = projection;
 			});

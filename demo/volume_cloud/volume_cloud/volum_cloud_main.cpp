@@ -16,7 +16,7 @@ using namespace std;
 #include "po_dx11_defer_renderer\element\material.h"
 #include "po_dx11_defer_renderer\element\geometry.h"
 #include "po_dx11_defer_renderer\element\property.h"
-
+#include "po_dx\controller.h"
 using namespace PO;
 using namespace PO::Dx11;
 
@@ -25,12 +25,23 @@ struct material_testing
 	tex2 testing;
 	element ele;
 	transfer3D ts;
-	adapter_map mapping(self&)
+	showcase s;
+	adapter_map mapping(self& sel)
 	{
+		s.binding(KeyValue::K_D, showcase::State::Y_CW);
+		s.binding(KeyValue::K_A, showcase::State::Y_ACW);
+		s.binding(KeyValue::K_W, showcase::State::X_CW);
+		s.binding(KeyValue::K_S, showcase::State::X_ACW);
+		s.binding(KeyValue::K_Q, showcase::State::Z_CW);
+		s.binding(KeyValue::K_E, showcase::State::Z_ACW);
+		s.binding(KeyValue::K_R, showcase::State::T_FR);
+		s.binding(KeyValue::K_F, showcase::State::T_BA);
+		sel.auto_bind_respond(&material_testing::respond, this);
 		return {
 			make_member_adapter<defer_renderer>(this, &material_testing::init, &material_testing::tick)
 		};
 	}
+	Respond respond(event& e) { return s.respond(e); }
 	void init(defer_renderer& dr)
 	{
 		CoInitialize(NULL);
@@ -55,9 +66,14 @@ struct material_testing
 		o.local_to_world = ts;
 		ele.init(dr);
 	}
-	void tick(defer_renderer& dr)
+	void tick(defer_renderer& dr, duration da)
 	{
+		s.apply(da, ts);
+		if(!ele.find([&, this](Property::transfer_3d_static& t) {
+			t.local_to_world = ts;
+		})) __debugbreak();
 		dr.push_element(ele);
+		
 	}
 };
 

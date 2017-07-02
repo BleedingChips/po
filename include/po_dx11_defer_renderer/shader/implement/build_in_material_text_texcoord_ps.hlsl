@@ -5,5 +5,7 @@ SamplerState ss : register(s0);
 
 float4 main(placement_defer_vs_output pdo) : SV_TARGET
 {
-    return float4(pdo.local_position / 2.0 + 0.5, 1.0);
+    //return float4(pdo.local_position / 2.0 + 0.5, 1.0);
+    return tex.Sample(ss, pdo.texcoord);
+
 }
