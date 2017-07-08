@@ -3,6 +3,7 @@
 #include <typeindex>
 #include <future>
 #include <fstream>
+#include <set>
 #include "thread_tool.h"
 #include "utf_support.h"
 namespace PO
@@ -108,5 +109,71 @@ namespace PO
 		void pre_load(std::type_index ti, const std::u16string& path) { pre_load(ti, path, Tool::any{}); }
 		void pre_load(std::type_index, std::initializer_list<std::pair<std::u16string, Tool::any>> path);
 		void pre_load(std::type_index, std::initializer_list<std::u16string> path);
+	};
+
+	namespace Implement
+	{
+		template<typename T> struct scene_input_tanslate
+		{
+			using type = T;
+			template<typename F>
+			void operator()(std::shared_ptr<void> p, F&& f) const { 
+				return f(*std::static_pointer_cast<T>(p)); 
+			}
+		};
+
+		template<typename T> struct scene_input_tanslate <std::shared_ptr<T>>
+		{
+			using type = T;
+			template<typename F>
+			void operator()(std::shared_ptr<void> p, F&& f) const { 
+				return f(std::static_pointer_cast<T>(p)); 
+			}
+		};
+	}
+
+	class scene
+	{
+		std::map<std::type_index, std::map<std::u16string, std::shared_ptr<void>>> store;
+		std::map<std::type_index, std::vector<std::u16string>> special_path;
+
+		std::shared_ptr<void> load(std::type_index, const std::u16string&);
+		void push(std::type_index, const std::u16string&, std::shared_ptr<void>);
+		std::fstream load_file(std::type_index, const std::u16string& path, bool is_binary);
+		
+
+	public:
+
+		scene() = default;
+		scene(const scene&) = default;
+		scene(scene&&) = default;
+
+		scene& operator=(const scene&) = default;
+		scene& operator=(scene&&) = default;
+
+		bool add_path(std::type_index, const std::u16string& p);
+		template<typename T> bool add_path(const std::u16string& p) { return add_path(typeid(T), p); }
+		
+		template<typename func_t> bool load(const std::u16string& path, bool is_binary, func_t&& ff)
+		{
+			using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<func_t>>::type>;
+			static_assert(funtype::size == 1, "only receive one parameter");
+			using type = Implement::scene_input_tanslate<std::decay_t<typename funtype::template out<Tmp::itself>::type>>;
+			using true_type = typename type::type;
+			auto p = load(typeid(true_type), path);
+			if (p)
+				type{}(std::move(p), ff);
+			else {
+				auto file = load_file(typeid(true_type), path, is_binary);
+				if (file.is_open())
+				{
+					auto ptr = std::make_shared<true_type>(file);
+					push(typeid(true_type), path, ptr);
+					type{}(ptr, ff);
+				}
+				else return false;
+			}
+			return true;
+		}
 	};
 }

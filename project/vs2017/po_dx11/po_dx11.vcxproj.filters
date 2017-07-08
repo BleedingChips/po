@@ -54,6 +54,9 @@
     <ClCompile Include="..\..\..\include\po_dx\controller.cpp">
       <Filter>po_dx</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx\dx_type.cpp">
+      <Filter>po_dx</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h">

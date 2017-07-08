@@ -214,4 +214,55 @@ namespace PO
 			}
 		});
 	}
+
+	std::shared_ptr<void> scene::load(std::type_index ti, const std::u16string& p)
+	{
+		auto ite = store.find(ti);
+		if (ite != store.end())
+		{
+			auto ite2 = ite->second.find(p);
+			if (ite2 != ite->second.end())
+				return ite2->second;
+		}
+		return {};
+	}
+
+	void scene::push(std::type_index ti, const std::u16string& path, std::shared_ptr<void> p)
+	{
+		store[ti][path] = std::move(p);
+	}
+
+	std::fstream scene::load_file(std::type_index ti, const std::u16string& path, bool is_binary)
+	{
+		auto flag = is_binary ? std::ios::in | std::ios::binary : std::ios::in;
+		auto map_ite = special_path.find(ti);
+		if (map_ite != special_path.end())
+		{
+			for (auto& p : map_ite->second)
+			{
+				auto f = p + path;
+				std::fstream fem(reinterpret_cast<const wchar_t*>(f.c_str()), flag);
+				if (fem.is_open())
+					return std::move(fem);
+			}
+		}
+		std::fstream fem(reinterpret_cast<const wchar_t*>(path.c_str()), flag);
+		return std::move(fem);
+	}
+
+	bool scene::add_path(std::type_index ti, const std::u16string& p)
+	{
+		std::u16string tem;
+		tem.reserve(p.size() + 2);
+		tem = p;
+		if (*tem.rbegin() != char16_t{ '\\' })
+			tem.push_back('\\');
+
+		auto& vec = special_path[ti];
+		for (auto& ite : vec)
+			if (ite == tem) return false;
+
+		vec.push_back(std::move(tem));
+		return true;
+	}
 }

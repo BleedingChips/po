@@ -7,7 +7,7 @@ namespace PO
 	{
 		class showcase
 		{
-			float3 roll_speed = float3{ 10.0f, 10.0f, 10.0f };
+			float3 roll_speed = float3{ 40.0f, 40.0f, 40.0f };
 			float translation_speed = 0.5f;
 			uint8_t state;
 		public:
@@ -25,7 +25,10 @@ namespace PO
 		private:
 			std::map<KeyValue, State> key_mapping;
 		public:
+			void set_roll_spped(float3 s) { roll_speed = s; }
+			void set_translation_spped(float s) { translation_speed = s; }
 			void binding(KeyValue, State);
+			void binding(std::initializer_list<std::pair<KeyValue, State>>);
 			void remove_binding(KeyValue);
 			Respond respond(event& e);
 			void lose_focus();

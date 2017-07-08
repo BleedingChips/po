@@ -12,7 +12,7 @@ namespace PO
 			public:
 				void draw(pipeline& p);
 				screen_square();
-				virtual void init(creator& c, raw_scene& rs, interface_storage&) override;
+				virtual void init(creator& c, interface_storage&) override;
 			};
 
 			class cube_static_3d : public geometry_interface
@@ -22,7 +22,17 @@ namespace PO
 				float width;
 				void draw(pipeline& p);
 				cube_static_3d();
-				virtual void init(creator& c, raw_scene& rs, interface_storage&) override;
+				virtual void init(creator& c, interface_storage&) override;
+			};
+
+			class square_static_2d : public geometry_interface
+			{
+			public:
+				UINT index_draw;
+				float width;
+				void draw(pipeline& p);
+				square_static_2d();
+				virtual void init(creator& c, interface_storage&) override;
 			};
 		}
 	}

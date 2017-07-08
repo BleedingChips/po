@@ -8,6 +8,12 @@ namespace PO
 			key_mapping[kv] = s;
 		}
 
+		void showcase::binding(std::initializer_list<std::pair<KeyValue, State>> i)
+		{
+			for (auto ite : i)
+				binding(ite.first, ite.second);
+		}
+
 		void showcase::remove_binding(KeyValue kv)
 		{
 			auto ite = key_mapping.find(kv);

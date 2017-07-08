@@ -3,16 +3,22 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
     <PO>$(SolutionDir)..\..\</PO>
+    <ShaderLibOutDir>$(OutDir)</ShaderLibOutDir>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>
     <PreBuildEvent>
-      <Command>xcopy $(DX11_Shader_Include) $(ProjectDir)shader_include /E/I/D/Y</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="PO">
       <Value>$(PO)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ShaderLibOutDir">
+      <Value>$(ShaderLibOutDir)</Value>
       <EnvironmentVariable>true</EnvironmentVariable>
     </BuildMacro>
   </ItemGroup>

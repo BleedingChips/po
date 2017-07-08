@@ -4,19 +4,17 @@ using namespace std;
 #include <random>
 #include "po/po.h"
 #include "po_dx11/dx11_form.h"
-#include "test_plugin/test_plugin.h"
 #include <fstream>
 #include <algorithm>
-#include "ue4_testing/ue4_testing.h"
 #include "DirectXTex.h"
 #include <sstream>
-#include "new_creator/new_creater.h"
 #include "po_dx11/dx11_renderer.h"
 #include "po_dx11_defer_renderer\defer_renderer.h"
 #include "po_dx11_defer_renderer\element\material.h"
 #include "po_dx11_defer_renderer\element\geometry.h"
 #include "po_dx11_defer_renderer\element\property.h"
 #include "po_dx\controller.h"
+#include "new_plugin.h"
 using namespace PO;
 using namespace PO::Dx11;
 
@@ -24,18 +22,22 @@ struct material_testing
 {
 	tex2 testing;
 	element ele;
+	element ele2;
+	element compu;
 	transfer3D ts;
 	showcase s;
 	adapter_map mapping(self& sel)
 	{
-		s.binding(KeyValue::K_D, showcase::State::Y_CW);
-		s.binding(KeyValue::K_A, showcase::State::Y_ACW);
-		s.binding(KeyValue::K_W, showcase::State::X_CW);
-		s.binding(KeyValue::K_S, showcase::State::X_ACW);
-		s.binding(KeyValue::K_Q, showcase::State::Z_CW);
-		s.binding(KeyValue::K_E, showcase::State::Z_ACW);
-		s.binding(KeyValue::K_R, showcase::State::T_FR);
-		s.binding(KeyValue::K_F, showcase::State::T_BA);
+		s.binding({
+			{KeyValue::K_D, showcase::State::Y_CW},
+			{KeyValue::K_A, showcase::State::Y_ACW},
+			{KeyValue::K_S, showcase::State::X_CW},
+			{KeyValue::K_W, showcase::State::X_ACW},
+			{KeyValue::K_E, showcase::State::Z_CW},
+			{KeyValue::K_Q, showcase::State::Z_ACW},
+			{KeyValue::K_R, showcase::State::T_FR},
+			{KeyValue::K_F, showcase::State::T_BA}
+		});
 		sel.auto_bind_respond(&material_testing::respond, this);
 		return {
 			make_member_adapter<defer_renderer>(this, &material_testing::init, &material_testing::tick)
@@ -49,6 +51,10 @@ struct material_testing
 		TexMetadata TM;
 		ScratchImage SI;
 		HRESULT re = DirectX::LoadFromWICFile(u"text_tex.jpg"_wc, WIC_FLAGS_NONE, &TM, SI);
+		
+		if (!SUCCEEDED(re))
+			__debugbreak();
+		re = DirectX::SaveToDDSFile(*SI.GetImages(), 0, u"WTF.DDS"_wc);
 		if (!SUCCEEDED(re))
 			__debugbreak();
 		cout << TM.width << " *** " << TM.height << endl;
@@ -64,7 +70,7 @@ struct material_testing
 		tex_ref.srv = dr.cast_shader_resource_view(tex);
 		tex_ref.ss = dr.create_sample_state();
 		o.local_to_world = ts;
-		ele.init(dr);
+		ele.push(dr);
 	}
 	void tick(defer_renderer& dr, duration da)
 	{
@@ -79,42 +85,22 @@ struct material_testing
 
 int main()
 {
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
+	//PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
+
+
+	volatile size_t i = PO::Dx::Implement::calculate_start_size < sizeof(uint32_t3), sizeof(PO::Dx::aligned_array<float3, 100>)> ::size;
+
+	volatile size_t i2 = PO::Dx::Implement::aligned_storage_get<1, 0, uint32_t3, PO::Dx::aligned_array<float3, 100>>::size;
 
 	PO::context con;
-	
-	if(false)
-	{
-		auto fo = con.create(form<Dx11_form>{});
-		fo.lock([](decltype(fo)::type& ui) {
-			ui.create(renderer<defer_renderer>{});
-			ui.create(plugin<UE4_testing>{});
-		}); 
-	}
-
-	if(false)
-	{
-		auto fo = con.create(form<Dx11_form>{});
-		fo.lock([](decltype(fo)::type& ui) {
-			ui.create(renderer<defer_renderer>{});
-			ui.create(plugin<new_creator>{});
-		});
-	}
-
-	if(false)
-	{
-		auto fo = con.create(form<Dx11_form>{});
-		fo.lock([](decltype(fo)::type& ui) {
-			ui.create(renderer<defer_renderer>{});
-			ui.create(plugin<test_plugin>{});
-		});
-	}
 
 	if (true)
 	{
 		auto fo = con.create(form<Dx11_form>{});
 		fo.lock([](decltype(fo)::type& ui) {
 			ui.create(renderer<defer_renderer>{});
-			ui.create(plugin<material_testing>{});
+			ui.create(plugin<new_plugin>{});
 		});
 	}
 

@@ -2,26 +2,27 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <PODx11OutDir>$(PO)\project\vs2017\po_dx11\lib\</PODx11OutDir>
-    <PODx11ShaderInclude>$(PO)\include\po_dx11\shader\include</PODx11ShaderInclude>
-    <PODx11ShaderLib>$(PO)\include\po_dx11\shader\implement</PODx11ShaderLib>
-    <PODx11ShaderOutDir>$(PO)\project\vs2017\po_dx11\shader_lib</PODx11ShaderOutDir>
+    <PODx11OutDir>project\vs2017\po_dx11\lib\</PODx11OutDir>
+    <PODx11ShaderInclude>include\po_dx11\shader\include</PODx11ShaderInclude>
+    <PODx11ShaderLib>include\po_dx11\shader\implement</PODx11ShaderLib>
+    <PODx11ShaderOutDir>project\vs2017\po_dx11\shader_lib</PODx11ShaderOutDir>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>po_dx11</_PropertySheetDisplayName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(PO)include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(PO)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>po_dx11.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command />
+      <Command>xcopy $(PO)$(PODx11ShaderInclude) $(ProjectDir)shader_include /E/I/D/Y</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>xcopy $(PODx11ShaderOutDir) $(OutDir)shader_lib /E/I/D/Y</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

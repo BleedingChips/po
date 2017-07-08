@@ -9,19 +9,17 @@ namespace PO
 		{
 			screen_square::screen_square() : placement_interface(typeid(screen_square)) {}
 
-			void screen_square::init(creator& c, raw_scene& s)
+			void screen_square::init(creator& c)
 			{
-				auto po = s.find(typeid(PO::binary), u"shader_lib\\build_in_placement_screen_square_vs.cso", true);
-				if (!po || !po->able_cast<PO::binary>()) throw 1;
-				vs << c.create_vertex_shader(po->cast<PO::binary>());
+				if (!load_vs(u"build_in_placement_screen_square_vs.cso", c))
+					throw 1;
 			}
 
 			static_3d::static_3d() : placement_interface(typeid(static_3d)) {}
-			void static_3d::init(creator& c, raw_scene& s)
+			void static_3d::init(creator& c)
 			{
-				auto po = s.find(typeid(PO::binary), u"shader_lib\\build_in_placement_static_3d_vs.cso", true);
-				if (!po || !po->able_cast<PO::binary>()) throw 1;
-				vs << c.create_vertex_shader(po->cast<PO::binary>());
+				if (!load_vs(u"build_in_placement_static_3d_vs.cso", c))
+					throw 1;
 			}
 
 			const std::set<std::type_index>& static_3d::acceptance() const
@@ -30,7 +28,7 @@ namespace PO
 				return static_;
 			}
 
-			bool static_3d::update(property_interface& pi, pipeline& p, creator& c)
+			bool static_3d::update(property_interface& pi, pipeline& p)
 			{
 				using namespace PO::Dx11::Property;
 				if (pi.is<renderer_3d>())
@@ -45,6 +43,30 @@ namespace PO
 				}
 				return false;
 			}
+
+			static_2d::static_2d() : placement_interface(typeid(static_2d)) {}
+			void static_2d::init(creator& c)
+			{
+				if (!load_vs(u"build_in_placement_static_2d_vs.cso", c))
+					throw 1;
+			}
+
+			bool static_2d::update(property_interface& pi, pipeline& p)
+			{
+				return pi.cast([this](Property::transfer_2d_static& ip) {
+					vs << ip.get_buffer()[0];
+				})|| pi.cast([this](Property::renderer_3d& r3) {
+					vs << r3.cb[1];
+				});
+			}
+
+			const std::set<std::type_index>& static_2d::acceptance() const
+			{
+				static const std::set<std::type_index> acc = { typeid(Property::transfer_2d_static), typeid(Property::renderer_3d) };
+				return acc;
+			}
+
+
 		}
 	}
 }

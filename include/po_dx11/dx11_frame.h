@@ -3,6 +3,7 @@
 #include "../po_win32/win32_define.h"
 #include <tuple>
 #include "../po/tool/auto_adapter.h"
+#include "../po_dx/dx_type.h"
 namespace PO
 {
 	namespace Dx11
@@ -45,20 +46,34 @@ namespace PO
 			std::tuple<const index_vertex&, size_t> operator[](size_t i) const& { return std::tuple<const index_vertex&, size_t>{*this, i}; }
 		};
 
-		struct tex1 { Win32::com_ptr<ID3D11Texture1D> ptr; };
-		struct tex2 { Win32::com_ptr<ID3D11Texture2D> ptr; };
-		struct tex3 { Win32::com_ptr<ID3D11Texture3D> ptr; };
+		struct tex1 { 
+			Win32::com_ptr<ID3D11Texture1D> ptr; 
+			operator bool() const { return ptr; } 
+			uint32_t size() const;
+		};
+		struct tex2 { 
+			Win32::com_ptr<ID3D11Texture2D> ptr; 
+			operator bool() const { return ptr; }
+			PO::Dx::uint32_t2 size() const;
+		};
+		struct tex3 { 
+			Win32::com_ptr<ID3D11Texture3D> ptr; 
+			operator bool() const { return ptr; } 
+			PO::Dx::uint32_t3 size() const;
+		};
 
 		struct constant_buffer { 
 			Win32::com_ptr<ID3D11Buffer> ptr; 
 			std::tuple<constant_buffer, size_t> operator[](size_t i) && {return std::tuple<constant_buffer, size_t>{std::move(*this), i}; }
 			std::tuple<const constant_buffer&, size_t> operator[](size_t i) const& {return std::tuple<const constant_buffer&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
 		};
 		
 		struct structed_buffer { 
 			Win32::com_ptr<ID3D11Buffer> ptr;
 			std::tuple<structed_buffer, size_t> operator[](size_t i) && {return std::tuple<structed_buffer, size_t>{std::move(*this), i}; }
 			std::tuple<const structed_buffer&, size_t> operator[](size_t i) const& { return std::tuple<const structed_buffer&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
 		};
 		
 		struct readable_buffer { Win32::com_ptr<ID3D11Buffer> ptr; };
@@ -67,25 +82,32 @@ namespace PO
 			Win32::com_ptr<ID3D11ShaderResourceView> ptr;
 			std::tuple<shader_resource_view, size_t> operator[](size_t i) && {return std::tuple<shader_resource_view, size_t>{std::move(*this), i}; }
 			std::tuple<const shader_resource_view&, size_t> operator[](size_t i) const& { return std::tuple<const shader_resource_view&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
 		};
 
 		struct unordered_access_view { 
 			Win32::com_ptr<ID3D11UnorderedAccessView> ptr; UINT offset; 
 			std::tuple<unordered_access_view, size_t> operator[](size_t i) && {return std::tuple<unordered_access_view, size_t>{std::move(*this), i}; }
 			std::tuple<const unordered_access_view&, size_t> operator[](size_t i) const& { return std::tuple<const unordered_access_view&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
 		};
 
 		struct render_target_view { 
 			Win32::com_ptr<ID3D11RenderTargetView> ptr;
 			std::tuple<render_target_view, size_t> operator[](size_t i) && {return std::tuple<render_target_view, size_t>{std::move(*this), i}; }
 			std::tuple<const render_target_view&, size_t> operator[](size_t i) const& { return std::tuple<const render_target_view&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
 		};
 
-		struct depth_stencil_view { Win32::com_ptr<ID3D11DepthStencilView> ptr; };
+		struct depth_stencil_view { 
+			Win32::com_ptr<ID3D11DepthStencilView> ptr; 
+			operator bool() const { return ptr; }
+		};
 
 		struct sample_state { 
 			using scription = D3D11_SAMPLER_DESC;
 			static scription default_scription;
+			operator bool() const { return ptr; }
 			Win32::com_ptr<ID3D11SamplerState> ptr;
 			std::tuple<sample_state, size_t> operator[](size_t i) && {return std::tuple<sample_state, size_t>{std::move(*this), i}; }
 			std::tuple<const sample_state&, size_t> operator[](size_t i) const& { return std::tuple<const sample_state&, size_t>{std::move(*this), i}; }
@@ -105,6 +127,7 @@ namespace PO
 			using dscription = D3D11_RASTERIZER_DESC;
 			static dscription default_dscription;
 			Win32::com_ptr<ID3D11RasterizerState> ptr;
+			operator bool() const { return ptr; }
 		};
 
 		struct blend_state {
@@ -112,6 +135,7 @@ namespace PO
 			static dscription default_dscription;
 
 			Win32::com_ptr<ID3D11BlendState> ptr;
+			operator bool() const { return ptr; }
 			std::array<float, 4> bind_factor = {1.0f, 1.0f, 1.0f, 1.0f};
 			UINT sample_mask = 0xffffffff;
 		};
@@ -121,6 +145,7 @@ namespace PO
 			static dscription default_dscription;
 
 			Win32::com_ptr<ID3D11DepthStencilState> ptr;
+			operator bool() const { return ptr; }
 			UINT stencil_ref = 0;
 		};
 
@@ -179,8 +204,9 @@ namespace PO
 
 		struct vertex_shader
 		{
-			binary code;
+			std::shared_ptr<PO::Dx::shader_binary> code;
 			Win32::com_ptr<ID3D11VertexShader> ptr;
+			operator bool() const { return ptr; }
 		};
 
 		struct vertex_resource : shader_resource
@@ -335,6 +361,8 @@ namespace PO
 			Win32::com_ptr<ID3D11Device> dev;
 			creator(Win32::com_ptr<ID3D11Device> d) : dev(std::move(d)) {}
 			creator() {}
+			creator(const creator&) = default;
+			creator(creator&&) = default;
 			void init(Win32::com_ptr<ID3D11Device> d) { dev = std::move(d); }
 			operator bool() const { return dev; }
 
@@ -379,15 +407,18 @@ namespace PO
 			template<typename T, typename K> structed_buffer create_struct_buffer(const std::vector<T, K>& v, bool write_enable = true) {
 				return create_struct_buffer(static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), v.data(), write_enable);
 			}
+			template<typename T, size_t i> structed_buffer create_struct_buffer(const std::array<T, i>& v, bool write_enable = true) {
+				return create_struct_buffer(static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), v.data(), write_enable);
+			}
 			structed_buffer create_struct_buffer_unorder_access(UINT element_size, UINT element_num, const void* data = nullptr) {
 				structed_buffer sb;
 				sb.ptr = create_buffer_implement(element_size * element_num, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
 				return sb;
 			}
 
-			vertex_shader create_vertex_shader(binary b);
-			pixel_shader create_pixel_shader(const binary& b);
-			compute_shader create_compute_shader(const binary& b);
+			vertex_shader create_vertex_shader(std::shared_ptr<PO::Dx::shader_binary> b);
+			pixel_shader create_pixel_shader(const PO::Dx::shader_binary&);
+			compute_shader create_compute_shader(const PO::Dx::shader_binary&);
 
 			tex1 create_tex1_implement(DXGI_FORMAT DF, UINT length, UINT miplevel, UINT count, D3D11_USAGE DU, UINT BIND, UINT misc, void** data);
 			tex2 create_tex2_implement(DXGI_FORMAT DF, UINT width, UINT height, UINT miplevel, UINT count, UINT sample_num, UINT sample_quality, D3D11_USAGE usage, UINT bind, UINT mis, void** data, UINT* line);
@@ -556,6 +587,7 @@ namespace PO
 		struct pipeline
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
+			creator c;
 			Implement::input_assember_context_t IA;
 			Implement::vertex_shader_context_t VS;
 			Implement::raterizer_context_t RA;
@@ -564,14 +596,14 @@ namespace PO
 
 			Implement::compute_shader_context_t CS;
 
-			pipeline(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {}
+			pipeline(Win32::com_ptr<ID3D11DeviceContext> cp);
 			pipeline() {}
-			void init(Win32::com_ptr<ID3D11DeviceContext> d) { ptr = std::move(d); }
+			void init(Win32::com_ptr<ID3D11DeviceContext> d);
 			operator bool() const { return ptr; }
 			~pipeline() { clear(); }
 			void clear();
 
-
+			creator& get_creator() { return c; };
 
 			enum DrawMode
 			{

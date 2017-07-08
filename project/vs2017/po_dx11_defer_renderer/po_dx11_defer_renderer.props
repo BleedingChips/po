@@ -2,10 +2,8 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <PODx11DeferRendererOutDir>$(PO)\project\vs2017\po_dx11_defer_renderer\lib\</PODx11DeferRendererOutDir>
-    <PODx11DeferRendererShaderInclude>$(PO)\include\po_dx11_defer_renderer\shader\include</PODx11DeferRendererShaderInclude>
-    <PODx11DeferRendererShaderLib>$(PO)\project\vs2017\po_dx11_defer_renderer\shader_lib</PODx11DeferRendererShaderLib>
-    <PODx11DeferRendererShaderOutDir>$(PO)\project\vs2017\po_dx11_defer_renderer\shader_lib</PODx11DeferRendererShaderOutDir>
+    <PODx11DeferRendererOutDir>project\vs2017\po_dx11_defer_renderer\lib\</PODx11DeferRendererOutDir>
+    <PODx11DeferRendererShaderInclude>include\po_dx11_defer_renderer\shader\include</PODx11DeferRendererShaderInclude>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>
@@ -13,11 +11,14 @@
       <AdditionalDependencies>po_dx11_defer_renderer.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy $(PODx11DeferRendererShaderOutDir) $(OutDir)shader_lib /E/I/D/Y</Command>
+      <Command>xcopy $(PO)\$(PODx11DeferRendererShaderOutDir) $(OutDir)shader_lib /E/I/D/Y</Command>
     </PostBuildEvent>
     <ClCompile>
       <AdditionalIncludeDirectories>$(PO)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <PreBuildEvent>
+      <Command>xcopy $(PO)$(PODx11DeferRendererShaderInclude) $(ProjectDir)shader_include /E/I/D/Y</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="PODx11DeferRendererOutDir">
@@ -25,12 +26,6 @@
     </BuildMacro>
     <BuildMacro Include="PODx11DeferRendererShaderInclude">
       <Value>$(PODx11DeferRendererShaderInclude)</Value>
-    </BuildMacro>
-    <BuildMacro Include="PODx11DeferRendererShaderLib">
-      <Value>$(PODx11DeferRendererShaderLib)</Value>
-    </BuildMacro>
-    <BuildMacro Include="PODx11DeferRendererShaderOutDir">
-      <Value>$(PODx11DeferRendererShaderOutDir)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

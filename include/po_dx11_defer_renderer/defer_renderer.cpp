@@ -39,7 +39,7 @@ namespace PO
 			auto& transfer_ref = storage_elemnt.create<Property::renderer_3d>();
 			transfer_ref.projection = projection;
 			transfer_ref.view = view;
-			transfer_ref.init(*this);
+			transfer_ref.push(*this);
 
 			auto des = depth_stencil_state::default_dscription;
 			des.DepthEnable = TRUE;
@@ -54,18 +54,20 @@ namespace PO
 			merga_dss = create_depth_stencil_state(des);
 
 
-			merga.init(*this);
+			merga.push(*this);
 		}
 
 		void defer_renderer::pre_tick(duration da)
 		{
+			storage_elemnt.update();
 			simple_renderer::pre_tick(da);
 			storage_elemnt.find([this](Property::renderer_3d& r3) {
 				r3.view = view;
 				r3.projection = projection;
 			});
-			
-			storage_elemnt.update(*this);
+
+			storage_elemnt.dispatch(*this);
+			unbind();
 
 			pipeline::clear_render_target(oms, { 0.0, 0.0, 0.0, 1.0 });
 			pipeline::clear_depth_stencil(oms, 1.0, 0);
@@ -76,18 +78,19 @@ namespace PO
 
 		void defer_renderer::pos_tick(duration da)
 		{
-			storage_elemnt.call(renderer_order::Defer, *this, *this);
+			storage_elemnt.draw(renderer_order::Defer, *this);
 			unbind();
-			storage_elemnt.clear_element();
 			pipeline::clear_render_target(om, { 0.0, 0.0, 0.0, 1.0 });
 			*this << om << merga_dss;
-			merga.direct_call(*this, *this);
+			storage_elemnt.direct_draw(merga, *this);
+			storage_elemnt.draw(renderer_order::Post, *this);
 			unbind();
+			storage_elemnt.clear_element();
 		}
 
 		void defer_renderer::push_element(const element& ptr)
 		{
-			storage_elemnt.push_back(ptr);
+			storage_elemnt.push_back(ptr, *this);
 		}
 
 	}

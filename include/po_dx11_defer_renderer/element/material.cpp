@@ -9,18 +9,16 @@ namespace PO
 
 			merga_gbuffer::merga_gbuffer() : material_interface(typeid(merga_gbuffer), renderer_order::Post) {}
 
-			void merga_gbuffer::init(creator& c, raw_scene& r)
+			void merga_gbuffer::init(creator& c)
 			{
-				path = u"shader_lib\\build_in_material_merga_gbuffer_ps.cso";
-				auto po = r.find(typeid(PO::binary), path.c_str(), true);
-				if (!po || !po->able_cast<PO::binary>()) throw 1;
-				ps << c.create_pixel_shader(po->cast<PO::binary>());
+				if (!load_ps(u"build_in_material_merga_gbuffer_ps.cso", c))
+					throw 1;
 				auto des = blend_state::default_dscription;
 				des.RenderTarget[0].BlendEnable = FALSE;
 				bs = c.create_blend_state(des);
 			}
 			
-			bool merga_gbuffer::update(property_interface& pi, pipeline& p, creator& c)
+			bool merga_gbuffer::update(property_interface& pi, pipeline& p)
 			{
 				if (pi.is<gbuffer>())
 				{
@@ -40,18 +38,16 @@ namespace PO
 			test_texcoord::test_texcoord() : material_interface(typeid(test_texcoord), renderer_order::Defer) {}
 			test_texcoord::texture::texture() : property_interface(typeid(texture)) {}
 
-			void test_texcoord::init(creator& c, raw_scene& r)
+			void test_texcoord::init(creator& c)
 			{
-				path = u"shader_lib\\build_in_material_text_texcoord_ps.cso";
-				auto po = r.find(typeid(PO::binary), path.c_str(), true);
-				if (!po || !po->able_cast<PO::binary>()) throw 1;
-				ps << c.create_pixel_shader(po->cast<PO::binary>());
+				if (!load_ps(u"build_in_material_text_texcoord_ps.cso", c))
+					throw 1;
 				auto des = blend_state::default_dscription;
 				des.RenderTarget[0].BlendEnable = FALSE;
 				bs = c.create_blend_state(des);
 			}
 
-			bool test_texcoord::update(property_interface& mpi, pipeline& p, creator& c)
+			bool test_texcoord::update(property_interface& mpi, pipeline& p)
 			{
 				if (mpi.is<texture>())
 				{

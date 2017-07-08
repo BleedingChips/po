@@ -17,9 +17,9 @@ namespace PO
 					gbuffer();
 				};
 				merga_gbuffer();
-				virtual void init(creator&, raw_scene&) override;
-				virtual bool update(property_interface&, pipeline&, creator&);
-				virtual const std::set<std::type_index>& acceptance() const;
+				virtual void init(creator&) override;
+				virtual bool update(property_interface&, pipeline&) override;
+				virtual const std::set<std::type_index>& acceptance() const override;
 			};
 
 			class test_texcoord : public material_interface
@@ -35,9 +35,9 @@ namespace PO
 					texture();
 				};
 				test_texcoord();
-				virtual void init(creator&, raw_scene&) override;
-				virtual bool update(property_interface&, pipeline&, creator&);
-				virtual const std::set<std::type_index>& acceptance() const;
+				virtual void init(creator&) override;
+				virtual bool update(property_interface&, pipeline&) override;
+				virtual const std::set<std::type_index>& acceptance() const override;
 			};
 		}
 	}

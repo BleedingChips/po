@@ -13,95 +13,71 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="ue4_testing">
-      <UniqueIdentifier>{3a3f1d0d-42ce-4568-a558-5c9c10a88935}</UniqueIdentifier>
+    <Filter Include="material_testing">
+      <UniqueIdentifier>{ee639bf4-fa94-468b-b49f-fa711a03396d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ue4_testing\shader">
-      <UniqueIdentifier>{d5f13236-f039-4611-9085-0e9fdac4eb97}</UniqueIdentifier>
+    <Filter Include="material">
+      <UniqueIdentifier>{06d65d78-635e-44cb-8753-a7fe48fdd180}</UniqueIdentifier>
     </Filter>
-    <Filter Include="new_creator">
-      <UniqueIdentifier>{c8d21cd6-dbb6-40ed-aec8-5545ea7e2f31}</UniqueIdentifier>
+    <Filter Include="geometry">
+      <UniqueIdentifier>{b10f707d-5dee-4768-af92-d5bd2a50cf2b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="new_creator\shader">
-      <UniqueIdentifier>{7831cd24-1af1-49fc-a344-7f6ea6a4f81f}</UniqueIdentifier>
+    <Filter Include="compute">
+      <UniqueIdentifier>{3d322dda-0030-444b-b123-74ca908a3398}</UniqueIdentifier>
     </Filter>
-    <Filter Include="test_plugin">
-      <UniqueIdentifier>{8691ff0c-39ab-48c9-82ba-9a56251a6912}</UniqueIdentifier>
+    <Filter Include="material\shader">
+      <UniqueIdentifier>{8cd0f547-9941-4b42-b29e-e87babbe1629}</UniqueIdentifier>
     </Filter>
-    <Filter Include="test_plugin\shader">
-      <UniqueIdentifier>{ac462d02-5a26-4fce-9ee6-89ae773994b2}</UniqueIdentifier>
+    <Filter Include="compute\shader">
+      <UniqueIdentifier>{16046447-554e-46b0-bc4e-fafee3ce37ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="placement">
+      <UniqueIdentifier>{863a428f-d18f-496a-91c3-f84d588c1cda}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="placement\shader">
+      <UniqueIdentifier>{5c82a335-3592-45f0-a913-d17cc1747ed1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ue4_testing\ue4_testing.cpp">
-      <Filter>ue4_testing</Filter>
-    </ClCompile>
-    <ClCompile Include="new_creator\new_creater.cpp">
-      <Filter>new_creator</Filter>
-    </ClCompile>
     <ClCompile Include="volum_cloud_main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="test_plugin\test_plugin.cpp">
-      <Filter>test_plugin</Filter>
+    <ClCompile Include="compute\generator_3d_volume_texture.cpp">
+      <Filter>compute</Filter>
+    </ClCompile>
+    <ClCompile Include="material\texture_3d_viewer.cpp">
+      <Filter>material</Filter>
+    </ClCompile>
+    <ClCompile Include="placement\default_ui.cpp">
+      <Filter>placement</Filter>
+    </ClCompile>
+    <ClCompile Include="new_plugin.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ue4_testing\ue4_testing.h">
-      <Filter>ue4_testing</Filter>
+    <ClInclude Include="compute\generator_3d_volume_texture.h">
+      <Filter>compute</Filter>
     </ClInclude>
-    <ClInclude Include="new_creator\new_creater.h">
-      <Filter>new_creator</Filter>
+    <ClInclude Include="material\texture_3d_viewer.h">
+      <Filter>material</Filter>
     </ClInclude>
-    <ClInclude Include="test_plugin\test_plugin.h">
-      <Filter>test_plugin</Filter>
+    <ClInclude Include="placement\default_ui.h">
+      <Filter>placement</Filter>
+    </ClInclude>
+    <ClInclude Include="new_plugin.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="ue4_testing\shader\test_cs.hlsl">
-      <Filter>ue4_testing\shader</Filter>
+    <FxCompile Include="compute\shader\compute_generator_3d_volume_texture_cs.hlsl">
+      <Filter>compute\shader</Filter>
     </FxCompile>
-    <FxCompile Include="ue4_testing\shader\test_cs2.hlsl">
-      <Filter>ue4_testing\shader</Filter>
+    <FxCompile Include="material\shader\texture_3d_viewer_ps.hlsl">
+      <Filter>material\shader</Filter>
     </FxCompile>
-    <FxCompile Include="ue4_testing\shader\test_ps.hlsl">
-      <Filter>ue4_testing\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="ue4_testing\shader\test_vs.hlsl">
-      <Filter>ue4_testing\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="new_creator\shader\new_creater_ps.hlsl">
-      <Filter>new_creator\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="new_creator\shader\new_creater_vs.hlsl">
-      <Filter>new_creator\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="new_creator\shader\new_creator_cs.hlsl">
-      <Filter>new_creator\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\cube_ps.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\cube_vs.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\frame_ps.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\screen_ps.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\screen_vs.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\volum_cs.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\volum_ps.hlsl">
-      <Filter>test_plugin\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="test_plugin\shader\volum_shadow_cs.hlsl">
-      <Filter>test_plugin\shader</Filter>
+    <FxCompile Include="placement\shader\square_2d_vs.hlsl">
+      <Filter>placement\shader</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

@@ -25,6 +25,40 @@ namespace PO
 {
 	namespace Dx11
 	{
+		//*************************************************************************  texture
+		uint32_t tex1::size() const
+		{
+			if (ptr)
+			{
+				D3D11_TEXTURE1D_DESC DTD;
+				ptr->GetDesc(&DTD);
+				return { DTD.Width };
+			}
+			return { 0 };
+		}
+
+		PO::Dx::uint32_t2 tex2::size() const
+		{
+			if (ptr)
+			{
+				D3D11_TEXTURE2D_DESC DTD;
+				ptr->GetDesc(&DTD);
+				return { DTD.Width, DTD.Height };
+			}
+			return { 0 , 0};
+		}
+
+		PO::Dx::uint32_t3 tex3::size() const
+		{
+			if (ptr)
+			{
+				D3D11_TEXTURE3D_DESC DTD;
+				ptr->GetDesc(&DTD);
+				return { DTD.Width, DTD.Height, DTD.Depth };
+			}
+			return { 0, 0, 0 };
+		}
+
 
 		//*************************************************************************  input_assember_d
 		sample_state::scription sample_state::default_scription = sample_state::scription{
@@ -231,7 +265,7 @@ namespace PO
 		void creator::update_layout(input_assember_stage& ia, const vertex_shader& vd)
 		{
 			Win32::com_ptr<ID3D11InputLayout> lp;
-			HRESULT re = dev->CreateInputLayout(ia.input_element.data(), static_cast<UINT>(ia.input_element.size()), vd.code, static_cast<UINT>(vd.code.size()), lp.adress());
+			HRESULT re = dev->CreateInputLayout(ia.input_element.data(), static_cast<UINT>(ia.input_element.size()),  vd.code ? static_cast<const void*>(*vd.code) : nullptr, vd.code ? static_cast<UINT>(*vd.code) : 0, lp.adress());
 			if (SUCCEEDED(re)) ia.layout = lp;
 			else throw re;
 		}
@@ -271,26 +305,30 @@ namespace PO
 			};
 		}
 
-		vertex_shader creator::create_vertex_shader(binary b)
+		vertex_shader creator::create_vertex_shader(std::shared_ptr<PO::Dx::shader_binary> p)
 		{
-			Win32::com_ptr<ID3D11VertexShader> ptr;
-			HRESULT re = dev->CreateVertexShader(b, static_cast<UINT>(b.size()), nullptr, ptr.adress());
-			if (SUCCEEDED(re)) return vertex_shader{ std::move(b), std::move(ptr) };
-			throw(re);
+			if (p)
+			{
+				Win32::com_ptr<ID3D11VertexShader> ptr;
+				HRESULT re = dev->CreateVertexShader(*p, *p, nullptr, ptr.adress());
+				if (SUCCEEDED(re)) return vertex_shader{ std::move(p), std::move(ptr) };
+				throw(re);
+			}
+			return {};
 		}
 
-		pixel_shader creator::create_pixel_shader(const binary& b)
+		pixel_shader creator::create_pixel_shader(const PO::Dx::shader_binary& b)
 		{
 			Win32::com_ptr<ID3D11PixelShader> ptr;
-			HRESULT re = dev->CreatePixelShader(b, static_cast<UINT>(b.size()), nullptr, ptr.adress());
+			HRESULT re = dev->CreatePixelShader(b, b, nullptr, ptr.adress());
 			if (SUCCEEDED(re)) return pixel_shader{ std::move(ptr) };
 			throw(re);
 		}
 
-		compute_shader creator::create_compute_shader(const binary& b)
+		compute_shader creator::create_compute_shader(const PO::Dx::shader_binary& b)
 		{
 			Win32::com_ptr<ID3D11ComputeShader> ptr;
-			HRESULT re = dev->CreateComputeShader(b, static_cast<UINT>(b.size()), nullptr, ptr.adress());
+			HRESULT re = dev->CreateComputeShader(b, b, nullptr, ptr.adress());
 			if (SUCCEEDED(re)) return compute_shader{ std::move(ptr) };
 			throw(re);
 		}
@@ -300,7 +338,7 @@ namespace PO
 		constant_buffer creator::create_constant_buffer(UINT width, const void* data, bool write_enable)
 		{
 			UINT aligned_size = (width + 15) & ~(UINT{ 15 });
-			aligned_size = aligned_size >= 64 ? aligned_size : 64;
+			aligned_size = aligned_size >= 128 ? aligned_size : 128;
 			constant_buffer cb;
 			if (aligned_size != width && data != nullptr)
 			{
@@ -1113,6 +1151,26 @@ namespace PO
 		}
 
 		/*****  pipe   ******************************************************************************************/
+
+		pipeline::pipeline(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {
+			if (ptr)
+			{
+				Win32::com_ptr<ID3D11Device> tem;
+				ptr->GetDevice(tem.adress());
+				c.init(tem);
+			}
+		}
+
+		void pipeline::init(Win32::com_ptr<ID3D11DeviceContext> d)
+		{
+			ptr = std::move(d);
+			if (ptr)
+			{
+				Win32::com_ptr<ID3D11Device> tem;
+				ptr->GetDevice(tem.adress());
+				c.init(tem);
+			}
+		}
 
 		void pipeline::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);

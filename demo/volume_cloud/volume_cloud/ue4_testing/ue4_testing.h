@@ -17,7 +17,6 @@ struct UE4_testing
 	tex2 volume_texture[20];
 
 	size_t current_view = 0;
-	
 
 	input_assember_stage ia;
 	vertex_stage vs;

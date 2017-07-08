@@ -33,6 +33,9 @@
     <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_material_text_texcoord_ps.hlsl">
       <Filter>po_dx11_defer_renderer\shader\implement</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_placement_static_2d_vs.hlsl">
+      <Filter>po_dx11_defer_renderer\shader\implement</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.cpp">
@@ -79,6 +82,12 @@
       <Filter>po_dx11_defer_renderer\shader\include</Filter>
     </None>
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_defer_inout.hlsli">
+      <Filter>po_dx11_defer_renderer\shader\include</Filter>
+    </None>
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_ui_inout.hlsli">
+      <Filter>po_dx11_defer_renderer\shader\include</Filter>
+    </None>
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_property_buffer_type.hlsli">
       <Filter>po_dx11_defer_renderer\shader\include</Filter>
     </None>
   </ItemGroup>

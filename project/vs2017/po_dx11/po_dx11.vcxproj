@@ -27,6 +27,7 @@
     <ClCompile Include="..\..\..\include\po_dxgi\dxgi_log.cpp" />
     <ClCompile Include="..\..\..\include\po_dx\controller.cpp" />
     <ClCompile Include="..\..\..\include\po_dx\dx_math.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx\dx_type.cpp" />
     <ClCompile Include="..\..\..\include\po_dx\movement.cpp" />
     <ClCompile Include="..\..\..\include\po_win32\win32_form.cpp" />
     <ClCompile Include="..\..\..\include\po_win32\win32_log.cpp" />

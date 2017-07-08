@@ -88,8 +88,12 @@
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <FxCompile>
-      <ObjectFileOutput>$(ProjectDir)\shader_lib\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(OutDir)shader_lib\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,8 +102,12 @@
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <FxCompile>
-      <ObjectFileOutput>$(ProjectDir)\shader_lib\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(OutDir)shader_lib\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -114,8 +122,12 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <FxCompile>
-      <ObjectFileOutput>$(ProjectDir)\shader_lib\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(OutDir)shader_lib\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -130,8 +142,12 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <FxCompile>
-      <ObjectFileOutput>$(ProjectDir)\shader_lib\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(OutDir)shader_lib\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\buildin_vertext_shader.hlsl" />
@@ -146,6 +162,16 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_placement_static_2d_vs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\build_in_placement_static_3d_vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
@@ -179,6 +205,8 @@
   <ItemGroup>
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_defer_inout.hlsli" />
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_screen_inout.hlsli" />
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_ui_inout.hlsli" />
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_property_buffer_type.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
