@@ -7,7 +7,7 @@ namespace PO
 		{
 			merga_gbuffer::gbuffer::gbuffer() : property_interface(typeid(gbuffer)) {}
 
-			merga_gbuffer::merga_gbuffer() : material_interface(typeid(merga_gbuffer), renderer_order::Post) {}
+			merga_gbuffer::merga_gbuffer() : material_interface(typeid(merga_gbuffer), render_order::Post) {}
 
 			void merga_gbuffer::init(creator& c)
 			{
@@ -35,7 +35,7 @@ namespace PO
 				return accept;
 			}
 
-			test_texcoord::test_texcoord() : material_interface(typeid(test_texcoord), renderer_order::Defer) {}
+			test_texcoord::test_texcoord() : material_interface(typeid(test_texcoord), render_order::Defer) {}
 			test_texcoord::texture::texture() : property_interface(typeid(texture)) {}
 
 			void test_texcoord::init(creator& c)

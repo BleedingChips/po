@@ -14,8 +14,6 @@ public:
 		PO::Dx11::shader_resource_view srv;
 		PO::Dx11::constant_buffer cb;
 
-		PO::Dx11::constant_buffer debug_buffer;
-
 		PO::Dx11::tex3 t_buffer;
 
 		float layer;

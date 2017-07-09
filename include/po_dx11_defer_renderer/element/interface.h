@@ -106,14 +106,21 @@ namespace PO
 			virtual void draw(pipeline& p) = 0;
 		};
 
-		enum class renderer_order
+		enum class render_order
 		{
 			Defer = 0,
 			Forward,
 			Post,
-
-
-			Max
+			Max,
+			NotSet,
+		};
+		
+		enum class render_state
+		{
+			Null,
+			AtList,
+			Fail,
+			Success
 		};
 
 		class material_interface
@@ -122,17 +129,17 @@ namespace PO
 		protected:
 			pixel_stage ps;
 			blend_state bs;
-			renderer_order order = renderer_order::Defer;
+			render_order order = render_order::Defer;
 			std::u16string path;
 			bool load_ps(std::u16string path, creator& c);
 		public:
 			template<typename T> bool is() const { return id_info == typeid(T); }
 			std::type_index id() const { return id_info; }
 			
-			renderer_order get_order() const { return order; }
+			render_order get_order() const { return order; }
 
 			virtual ~material_interface();
-			material_interface(std::type_index ti, renderer_order o = renderer_order::Defer);
+			material_interface(std::type_index ti, render_order o = render_order::Defer);
 
 			virtual void apply(pipeline& c);
 
@@ -283,11 +290,15 @@ namespace PO
 
 			struct element_implement
 			{
-				renderer_order order = renderer_order::Defer;
+				render_order order = render_order::NotSet;
+				render_state state = render_state::Null;
 				std::shared_ptr<geometry_interface> geometry;
 				std::shared_ptr<material_interface> material;
 				std::vector<std::shared_ptr<compute_interface>> compute;
 				property_storage property_map;
+
+				bool dispatch(pipeline& p, property_storage& out_mapping, uint64_t vision);
+				bool draw(pipeline& p, property_storage& out_mapping, uint64_t vision);
 
 				element_implement& operator=(std::shared_ptr<geometry_interface> s);
 				element_implement& operator=(std::shared_ptr<material_interface> s);
@@ -298,15 +309,16 @@ namespace PO
 				element_implement(element_implement&&) = default;
 				element_implement& operator=(const element_implement&) = default;
 				element_implement& operator=(element_implement&&) = default;
-				bool dispatch(pipeline& p, property_storage& out_mapping, uint64_t vision);
-				bool draw(pipeline& p, property_storage& out_mapping, uint64_t vision);
+				
+				void dispatch_imp(pipeline& p, property_storage& out_mapping, uint64_t vision);
+				void draw_imp(pipeline& p, property_storage& out_mapping, uint64_t vision);
 				void clear_compute();
-				void push(creator& c) { property_map.push(c); }
+				void push(creator& c) { property_map.push(c); state = render_state::AtList;}
 			};
 
 			class element_implement_storage
 			{
-				std::map<renderer_order, std::vector<std::shared_ptr<element_implement>>> element_ptr;
+				std::map<render_order, std::vector<std::shared_ptr<element_implement>>> element_ptr;
 				property_storage property_map;
 				uint64_t vision_for_update;
 			public:
@@ -314,7 +326,7 @@ namespace PO
 				element_implement_storage();
 				bool push_back(std::shared_ptr<element_implement> p, creator& c);
 				bool dispatch(pipeline& p);
-				bool draw(renderer_order or, pipeline& p);
+				bool draw(render_order or, pipeline& p);
 				bool direct_draw(element_implement&, pipeline&);
 				void update();
 				void push(creator& c) { property_map.push(c); }

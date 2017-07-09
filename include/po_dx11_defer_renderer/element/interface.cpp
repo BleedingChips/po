@@ -78,7 +78,7 @@ namespace PO
 		material_interface::~material_interface() {}
 		bool material_interface::update(property_interface&, pipeline&) { return false; }
 		void material_interface::apply(pipeline& c) { c << ps << bs; }
-		material_interface::material_interface(std::type_index ti, renderer_order o) : id_info(ti), order(o) {}
+		material_interface::material_interface(std::type_index ti, render_order o) : id_info(ti), order(o) {}
 		const std::set<std::type_index>& material_interface::acceptance() const { return default_acceptance_set; }
 		bool material_interface::load_ps(std::u16string p, creator& c)
 		{
@@ -131,6 +131,18 @@ namespace PO
 					auto index = p->id();
 					mapping[index] = std::move(p);
 				}
+			}
+
+			void element_implement::dispatch_imp(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			{
+				if (!dispatch(p, out_mapping, vision))
+					state = render_state::Fail;
+			}
+
+			void element_implement::draw_imp(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			{
+				if (state == render_state::AtList)
+					state = draw(p, out_mapping, vision) ? render_state::Success : render_state::Fail;
 			}
 
 			element_implement& element_implement::operator=(std::shared_ptr<geometry_interface> s) { geometry = std::move(s); return *this; }
@@ -267,7 +279,7 @@ namespace PO
 				if (p)
 				{
 					p->push(c);
-					renderer_order o = p->order;
+					render_order o = p->order;
 					element_ptr[o].push_back(std::move(p));
 					return true;
 				}
@@ -286,7 +298,7 @@ namespace PO
 				return true;
 			}
 
-			bool element_implement_storage::draw(renderer_order or , pipeline& p)
+			bool element_implement_storage::draw(render_order or , pipeline& p)
 			{
 				bool re = true;
 				auto po = element_ptr.find(or);

@@ -78,12 +78,12 @@ namespace PO
 
 		void defer_renderer::pos_tick(duration da)
 		{
-			storage_elemnt.draw(renderer_order::Defer, *this);
+			storage_elemnt.draw(render_order::Defer, *this);
 			unbind();
 			pipeline::clear_render_target(om, { 0.0, 0.0, 0.0, 1.0 });
 			*this << om << merga_dss;
 			storage_elemnt.direct_draw(merga, *this);
-			storage_elemnt.draw(renderer_order::Post, *this);
+			storage_elemnt.draw(render_order::Post, *this);
 			unbind();
 			storage_elemnt.clear_element();
 		}
