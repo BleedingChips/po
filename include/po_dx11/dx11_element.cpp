@@ -1,13 +1,11 @@
 #include "dx11_element.h"
 #include "../po/tool/scene.h"
 namespace {
-
 	PO::Tool::scope_lock<PO::scene>& get_shader_scene()
 	{
 		static PO::Tool::scope_lock<PO::scene> scene;
 		return scene;
 	}
-
 }
 
 
@@ -50,11 +48,21 @@ namespace PO
 			}
 			return *(ite->second);
 		}
-		property_storage& property_mapping::re_create(const typename property_interface::acception_t::value_type& vt)
+		property_storage& property_mapping::recreate(const typename property_interface::acception_t::value_type& vt)
 		{
 			auto ptr = vt.second();
 			mapping.insert({ ptr->id(), ptr });
 			return *ptr;
+		}
+		bool property_mapping::create_and_construct(const typename property_interface::acception_t::value_type& vt, property_interface& pi, creator& c)
+		{
+			auto& ref = create(vt);
+			return pi.construct(ref, c);
+		}
+		bool property_mapping::recreate_and_construct(const typename property_interface::acception_t::value_type& vt, property_interface& pi, creator& c)
+		{
+			auto& ref = recreate(vt);
+			return pi.construct(ref, c);
 		}
 		void property_mapping::clear() { mapping.clear(); }
 		bool property_mapping::have(std::type_index ti) const
@@ -81,9 +89,14 @@ namespace PO
 		namespace Implement
 		{
 			bool stage_interface::update(property_interface&, pipeline&) { return false; }
-			auto stage_interface::acceptance() -> const acceptance_t& const{
+			auto stage_interface::acceptance() const -> const acceptance_t&
+			{
 				static const acceptance_t acce{};
 				return acce;
+			}
+			bool stage_interface::update_imple(property_interface&, pipeline&, property_mapping& pm)
+			{
+				if()
 			}
 		}
 
@@ -144,17 +157,113 @@ namespace PO
 				{
 					for (auto& ite2 : compute_vector)
 					{
-						auto& compu_ref = ite2->acceptance();
-						if (compu_ref.find(ite.first) != compu_ref.end())
-							return mapping.create(ite, pi);
+						auto& ref = ite2->acceptance();
+						if (ref.find(ite.first) != ref.end())
+							return mapping.create_and_construct(ite, pi, c);
 					}
+					if (geometry_ptr)
+					{
+						auto& ref = geometry_ptr->acceptance();
+						if (ref.find(ite.first) != ref.end())
+							return mapping.create_and_construct(ite, pi, c);
+					}
+					if (material_ptr)
+					{
+						auto& geo_ref = material_ptr->acceptance();
+						if (geo_ref.find(ite.first) != geo_ref.end())
+							return mapping.create_and_construct(ite, pi, c);
+					}
+					if (placement_ptr)
+					{
+						auto& geo_ref = placement_ptr->acceptance();
+						if (geo_ref.find(ite.first) != geo_ref.end())
+							return mapping.create_and_construct(ite, pi, c);
+					}
+				}
+				return false;
+			}
+
+			bool element_implmenet::reconstruct_imp(property_interface& pi, creator& c)
+			{
+				auto& pi_ref = pi.acception();
+				for (auto& ite : pi_ref)
+				{
+					for (auto& ite2 : compute_vector)
+					{
+						auto& ref = ite2->acceptance();
+						if (ref.find(ite.first) != ref.end())
+							return mapping.recreate_and_construct(ite, pi, c);
+					}
+					if (geometry_ptr)
+					{
+						auto& ref = geometry_ptr->acceptance();
+						if (ref.find(ite.first) != ref.end())
+							return mapping.recreate_and_construct(ite, pi, c);
+					}
+					if (material_ptr)
+					{
+						auto& geo_ref = material_ptr->acceptance();
+						if (geo_ref.find(ite.first) != geo_ref.end())
+							return mapping.recreate_and_construct(ite, pi, c);
+					}
+					if (placement_ptr)
+					{
+						auto& geo_ref = placement_ptr->acceptance();
+						if (geo_ref.find(ite.first) != geo_ref.end())
+							return mapping.recreate_and_construct(ite, pi, c);
+					}
+				}
+				return false;
+			}
+
+			void element_implmenet::clear_all()
+			{
+				clear_property();
+				clear_compute();
+				geometry_ptr.reset();
+				material_ptr.reset();
+				placement_ptr.reset();
+			}
+
+			element_implmenet& element_implmenet::operator=(std::shared_ptr<geometry_interface> p)
+			{
+				geometry_ptr = std::move(p);
+				return *this;
+			}
+			element_implmenet& element_implmenet::operator=(std::shared_ptr<material_interface> p)
+			{
+				material_ptr = std::move(p);
+				return *this;
+			}
+			element_implmenet& element_implmenet::operator=(std::shared_ptr<placement_interface> p)
+			{
+				placement_ptr = std::move(p);
+				return *this;
+			}
+			element_implmenet& element_implmenet::operator=(std::shared_ptr<compute_interface> p)
+			{
+				if (p)
+				{
+					compute_vector.push_back(std::move(p));
+				}
+				return *this;
+			}
+
+			
+
+			void element_implmenet::draw(pipeline& p)
+			{
+				for (auto& compute_ite : compute_vector)
+				{
+
 				}
 			}
 
-			bool element_implmenet::re_construct_imp(property_interface&, creator& c)
+			void draw(pipeline& p, property_mapping& mapping)
 			{
 
 			}
+
 		}
 
 		

@@ -73,10 +73,9 @@ namespace PO
 			bool insert(std::shared_ptr<property_storage> sp);
 
 			property_storage& create(const typename property_interface::acception_t::value_type&);
-			property_storage& re_create(const typename property_interface::acception_t::value_type&);
-
-			bool create_and_construct(const typename property_interface::acception_t::value_type& vt, )
-
+			property_storage& recreate(const typename property_interface::acception_t::value_type&);
+			bool create_and_construct(const typename property_interface::acception_t::value_type&, property_interface&, creator& c);
+			bool recreate_and_construct(const typename property_interface::acception_t::value_type&, property_interface&, creator& c);
 			void clear();
 
 			template<typename T> bool have() const { return have(typeid(T)); }
@@ -94,16 +93,18 @@ namespace PO
 		{
 			class stage_interface : public base_interface
 			{
-			protected:
-				property_mapping default_mapping;
 			public:
 				using Implement::base_interface::base_interface;
+				virtual bool update_imple(property_interface&, pipeline&, property_mapping& pm);
+				virtual bool update_imple(property_interface&, pipeline&);
+			protected:
+				property_mapping default_mapping;
+				virtual bool update(property_interface&, pipeline&);
+			public:
 				using acceptance_t = std::set<std::type_index>;
 
-				virtual bool update(property_interface&, pipeline&);
-				virtual auto acceptance() -> const acceptance_t& const;
+				virtual auto acceptance() const -> const acceptance_t&;
 				virtual void init(creator&) = 0;
-
 			};
 		}
 
@@ -133,7 +134,7 @@ namespace PO
 			using Implement::stage_interface::base_interface;
 
 			virtual void apply(pipeline&);
-			virtual const requirement_t& requirement() const = 0;
+			virtual auto requirement() const -> const requirement_t & = 0;
 			virtual void draw(pipeline&) = 0;
 		};
 
@@ -162,18 +163,29 @@ namespace PO
 
 		namespace Implement
 		{
-			struct element_implmenet
+			class element_implmenet
 			{
 				std::vector<std::shared_ptr<compute_interface>> compute_vector;
 				std::shared_ptr<geometry_interface> geometry_ptr;
-				std::shared_ptr<material_interface> material_interface;
-				std::shared_ptr<placement_interface> placement_interface;
+				std::shared_ptr<material_interface> material_ptr;
+				std::shared_ptr<placement_interface> placement_ptr;
 				property_mapping mapping;
 
 				bool construct_imp(property_interface&, creator& c);
-				bool re_construct_imp(property_interface&, creator& c);
+				bool reconstruct_imp(property_interface&, creator& c);
 
 			public:
+
+				void clear_property() { mapping.clear(); }
+				void clear_compute() { compute_vector.clear(); }
+				void clear_all();
+
+				element_implmenet& operator=(std::shared_ptr<geometry_interface> p);
+				element_implmenet& operator=(std::shared_ptr<material_interface> p);
+				element_implmenet& operator=(std::shared_ptr<placement_interface> p);
+				element_implmenet& operator=(std::shared_ptr<compute_interface> p);
+
+				bool insert(std::shared_ptr<property_storage> sp) { return mapping.insert(std::move(sp)); }
 
 				template<typename F> bool construct(creator& c, F&& f) {
 
@@ -188,7 +200,7 @@ namespace PO
 					return construct_imp(temporary, c);
 				}
 
-				template<typename T, typename ...AT> bool re_construct(AT&& ...at)
+				template<typename T, typename ...AT> bool reconstruct(AT&& ...at)
 				{
 					using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<F>>::type>;
 					static_assert(funtype::size == 1, "only receive one parameter");
@@ -200,6 +212,9 @@ namespace PO
 
 					return re_construct_imp(temporary, c);
 				}
+
+				void draw(pipeline& p);
+				void draw(pipeline& p, property_mapping& mapping);
 
 			};
 		}
