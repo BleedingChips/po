@@ -13,12 +13,37 @@ namespace PO
 		bool add_shader_path(std::type_index ti, const std::u16string& path);
 		template<typename T> bool add_shader_path(const std::u16string& s) { return add_shader_path(typeid(T), s); }
 
+		class base_interface
+		{
+			std::type_index id_info;
+		public:
+			base_interface(std::type_index ti) : id_info(ti) {}
+			virtual ~base_interface();
+			template<typename T> bool is() const { return id_info == typeid(T); }
+
+			template<typename T> T& cast() { return static_cast<T&>(*this); }
+
+			template<typename Function> bool cast(Function&& f)
+			{
+				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<Function>>::type>;
+				static_assert(funtype::size == 1, "only receive one parameter");
+				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+				static_assert(std::is_base_of<base_interface, true_type>::value, "need derived form base_interface.");
+				if (is<true_type>())
+					return (f(cast<true_type>()), true);
+				return false;
+			}
+
+		};
+
 		class property_interface
 		{
 			std::type_index id_info;
 			uint64_t vision_for_update;
 			bool is_need_to_push;
+
 		protected:
+
 			void need_push() { is_need_to_push = true; }
 
 			virtual void push(creator& c);
@@ -30,6 +55,9 @@ namespace PO
 			std::type_index id() const { return id_info; }
 
 			bool push_implmenet(creator&);
+
+			bool need_to_be_push() const { return is_need_to_push; }
+
 			bool update_vision(pipeline&, uint64_t);
 			void force_update(pipeline& p);
 
@@ -92,7 +120,7 @@ namespace PO
 
 			void apply(pipeline& p) { placement_ptr->apply(p); }
 
-			bool update_placement(property_interface& pi, pipeline& p) { return placement_ptr->update(pi, p); }
+			bool update_placement(property_interface& pi, pipeline& p) { pre_undate(pi, p); return placement_ptr->update(pi, p); }
 			const std::set<std::type_index>& acceptance_placement() const { return placement_ptr->acceptance(); }
 
 			virtual bool update(property_interface&, pipeline&);
@@ -102,6 +130,8 @@ namespace PO
 			virtual ~geometry_interface();
 			geometry_interface(std::type_index ti);
 
+			virtual void pre_undate(property_interface&, pipeline&);
+			virtual void pre_push(property_interface&);
 			virtual void init(creator& c, interface_storage&) = 0;
 			virtual void draw(pipeline& p) = 0;
 		};
@@ -159,11 +189,11 @@ namespace PO
 			std::type_index id() const { return id_info; }
 			bool load_cs(const std::u16string& path, creator& c);
 
-			virtual bool update(property_interface&, pipeline&);
-			virtual const std::set<std::type_index>& acceptance() const;
 			virtual ~compute_interface();
 			compute_interface(std::type_index ti);
 
+			virtual bool update(property_interface&, pipeline&);
+			virtual const std::set<std::type_index>& acceptance() const;
 			virtual bool draw(pipeline& c) = 0;
 			virtual void init(creator&) = 0;
 		};
@@ -250,7 +280,7 @@ namespace PO
 				friend struct element_implement;
 
 
-				void push(std::shared_ptr<property_interface> p);
+				void insert(std::shared_ptr<property_interface> p);
 
 			public:
 
@@ -266,6 +296,7 @@ namespace PO
 				bool have(std::type_index) const;
 				//void update(pipeline& p, uint64_t u);
 				void push(creator& c);
+				void pre_push(geometry_interface& gi);
 
 				template<typename F> bool find(F&& f) {
 					using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<F>>::type>;
@@ -282,7 +313,7 @@ namespace PO
 				{
 					static_assert(std::is_base_of<property_interface, T>::value, "property need derived form property_interface.");
 					auto p = std::make_shared<T>(std::forward<AT>(at)...);
-					this->push(p);
+					mapping[p->id()] = p;
 					return *p;
 				}
 			};
@@ -307,13 +338,15 @@ namespace PO
 				element_implement() = default;
 				element_implement(const element_implement&) = default;
 				element_implement(element_implement&&) = default;
+
 				element_implement& operator=(const element_implement&) = default;
 				element_implement& operator=(element_implement&&) = default;
 				
 				void dispatch_imp(pipeline& p, property_storage& out_mapping, uint64_t vision);
 				void draw_imp(pipeline& p, property_storage& out_mapping, uint64_t vision);
+				std::set<std::type_index> ckeck(const property_storage & p) const;
 				void clear_compute();
-				void push(creator& c) { property_map.push(c); state = render_state::AtList;}
+				void push(creator& c);
 			};
 
 			class element_implement_storage
@@ -323,6 +356,7 @@ namespace PO
 				uint64_t vision_for_update;
 			public:
 				uint64_t vision() const { return vision_for_update; }
+				std::set<std::type_index> check(const std::shared_ptr<element_implement>& p) const;
 				element_implement_storage();
 				bool push_back(std::shared_ptr<element_implement> p, creator& c);
 				bool dispatch(pipeline& p);
@@ -360,7 +394,7 @@ namespace PO
 				return *this;
 			}
 
-			void push(creator& c);
+			//void push(creator& c);
 			//bool draw(pipeline& p, creator& c);
 
 			operator bool() const { return ptr.operator bool(); }
@@ -378,7 +412,6 @@ namespace PO
 				if (!ptr) ptr = std::make_shared<Implement::element_implement>();
 				return ptr->property_map.template create<T>(std::forward<AT>(at)...);
 			}
-
 			void clear();
 			void clear_property();
 		};

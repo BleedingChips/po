@@ -1,7 +1,6 @@
-#include "interface.h"
-#include "../../po/tool/scene.h"
+#include "dx11_element.h"
+#include "../po/tool/scene.h"
 namespace {
-	const std::set<std::type_index> default_acceptance_set{};
 
 	PO::Tool::scope_lock<PO::scene>& get_shader_scene()
 	{
@@ -16,6 +15,7 @@ namespace PO
 {
 	namespace Dx11
 	{
+
 		bool add_shader_path(std::type_index ti, const std::u16string& path)
 		{
 			auto& sce = ::get_shader_scene();
@@ -23,6 +23,149 @@ namespace PO
 				return t.add_path(ti, path);
 			});
 		}
+
+		namespace Implement
+		{
+			base_interface::base_interface(std::type_index ti) : id_info(ti) {}
+			base_interface::~base_interface() {}
+		}
+
+		void property_storage::update_imp(pipeline& p) {  }
+		void property_storage::update(pipeline& p) {
+			if (need_to_be_update)
+			{
+				need_to_be_update = false;
+				update_imp(p);
+			}
+		}
+
+		property_storage& property_mapping::create(const typename property_interface::acception_t::value_type& vt)
+		{
+			auto ite = mapping.find(vt.first);
+			if (ite == mapping.end())
+			{
+				auto ptr = vt.second();
+				mapping.insert({ ptr->id(), ptr });
+				return *ptr;
+			}
+			return *(ite->second);
+		}
+		property_storage& property_mapping::re_create(const typename property_interface::acception_t::value_type& vt)
+		{
+			auto ptr = vt.second();
+			mapping.insert({ ptr->id(), ptr });
+			return *ptr;
+		}
+		void property_mapping::clear() { mapping.clear(); }
+		bool property_mapping::have(std::type_index ti) const
+		{
+			auto ite = mapping.find(ti);
+			return ite != mapping.end();
+		}
+		bool property_mapping::insert(std::shared_ptr<property_storage> sp)
+		{
+			if (sp)
+			{
+				auto id = sp->id();
+				mapping.insert({ id, std::move(sp) });
+				return true;
+			}
+			return false;
+		}
+		void property_mapping::update(pipeline& p)
+		{
+			for (auto& it : mapping)
+				(it.second)->update(p);
+		}
+
+		namespace Implement
+		{
+			bool stage_interface::update(property_interface&, pipeline&) { return false; }
+			auto stage_interface::acceptance() -> const acceptance_t& const{
+				static const acceptance_t acce{};
+				return acce;
+			}
+		}
+
+		bool placement_interface::load_vs(std::u16string p, creator& c)
+		{
+			path = std::move(p);
+			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
+				return s.load(path, true, [&, this](std::shared_ptr<PO::Dx::shader_binary> b) mutable {
+					stage_vs << c.create_vertex_shader(std::move(b));
+				});
+			});
+		}
+		void placement_interface::apply(pipeline& p)
+		{
+			p << stage_vs;
+		}
+
+		void geometry_interface::apply(pipeline& p)
+		{
+			p << stage_rs << stage_ia;
+		}
+
+		bool material_interface::load_ps(std::u16string p, creator& c)
+		{
+			path = std::move(p);
+			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
+				return s.load(path, true, [&, this](const PO::Dx::shader_binary& b) mutable {
+					stage_ps << c.create_pixel_shader(b);
+				});
+			});
+		}
+		void material_interface::apply(pipeline& p)
+		{
+			p << stage_ps;
+		}
+
+		bool compute_interface::load_cs(std::u16string p, creator& c)
+		{
+			path = std::move(p);
+			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
+				return s.load(path, true, [&, this](const PO::Dx::shader_binary& b) mutable {
+					stage_cs << c.create_compute_shader(b);
+				});
+			});
+		}
+		void compute_interface::apply(pipeline& p)
+		{
+			p << stage_cs;
+		}
+
+
+		namespace Implement
+		{
+			bool element_implmenet::construct_imp(property_interface& pi, creator& c)
+			{
+				auto& pi_ref = pi.acception();
+				for (auto& ite : pi_ref)
+				{
+					for (auto& ite2 : compute_vector)
+					{
+						auto& compu_ref = ite2->acceptance();
+						if (compu_ref.find(ite.first) != compu_ref.end())
+							return mapping.create(ite, pi);
+					}
+				}
+			}
+
+			bool element_implmenet::re_construct_imp(property_interface&, creator& c)
+			{
+
+			}
+		}
+
+		
+
+		/******************************************************************************************************/
+
+
+
+
+
+		
 
 		void property_interface::push(creator& c) {}
 		void property_interface::update(pipeline& p) {}
@@ -59,7 +202,7 @@ namespace PO
 		void placement_interface::apply(pipeline& p) { p << vs; }
 		bool placement_interface::load_vs(const std::u16string& path, creator& c)
 		{
-			return get_shader_scene().lock([&, this] (PO::scene& s) mutable {
+			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
 				return s.load(path, true, [&, this](std::shared_ptr<PO::Dx::shader_binary> b) mutable {
 					vs << c.create_vertex_shader(std::move(b));
 				});
@@ -116,9 +259,9 @@ namespace PO
 			/*
 			void property_storage::update(pipeline& p, uint64_t u)
 			{
-				for (auto& ite : mapping)
-					if(ite.second->update_vision(u))
-						ite.second->update(p);
+			for (auto& ite : mapping)
+			if(ite.second->update_vision(u))
+			ite.second->update(p);
 			}
 			*/
 			void property_storage::push(creator& c)
@@ -167,7 +310,7 @@ namespace PO
 					auto& ioset = i->acceptance();
 					for (auto& ti : ioset)
 					{
-						if (!(property_map.have(ti) || p.have(ti) ))
+						if (!(property_map.have(ti) || p.have(ti)))
 							result.insert(ti);
 					}
 				}
@@ -199,11 +342,11 @@ namespace PO
 			}
 
 			element_implement& element_implement::operator=(std::shared_ptr<geometry_interface> s) { geometry = std::move(s); return *this; }
-			element_implement& element_implement::operator=(std::shared_ptr<material_interface> s) { 
-				material = std::move(s); 
+			element_implement& element_implement::operator=(std::shared_ptr<material_interface> s) {
+				material = std::move(s);
 				if (material)
 					order = material->get_order();
-				return *this; 
+				return *this;
 			}
 			element_implement& element_implement::operator=(std::shared_ptr<compute_interface> s) { compute.push_back(std::move(s)); return *this; }
 			void element_implement::clear_compute() { compute.clear(); }
@@ -256,7 +399,8 @@ namespace PO
 							{
 								ite2->second->update_vision(p, vision);
 								if (!geometry->update(*ite2->second, p)) return false;
-							}else 
+							}
+							else
 								return false;
 						}
 					}
@@ -361,7 +505,7 @@ namespace PO
 			bool element_implement_storage::draw(render_order or , pipeline& p)
 			{
 				bool re = true;
-				auto po = element_ptr.find(or);
+				auto po = element_ptr.find(or );
 				if (po != element_ptr.end())
 					for (auto& i : po->second)
 						if (!(re = (re && i &&  i->draw(p, property_map, vision_for_update)))) break;
@@ -404,8 +548,8 @@ namespace PO
 		/*
 		void element::push(creator& c)
 		{
-			if (ptr)
-				ptr->property_map.push(c);
+		if (ptr)
+		ptr->property_map.push(c);
 		}
 		*/
 	}

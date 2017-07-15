@@ -39,7 +39,7 @@ namespace PO
 			void screen_square::init(creator& c, interface_storage& eis)
 			{
 				ia << c.create_vertex(screen_vertex, layout_type<syntax<SCREEN_INDEX, 0, uint16_t>>{})[0];
-				decltype(ra)::dscription des = decltype(ra)::default_dscription;
+				decltype(ra)::description des = decltype(ra)::default_description;
 				des.CullMode = decltype(des.CullMode)::D3D11_CULL_NONE;
 				ra = c.create_raterizer_state(des);
 				set_placement<Placement::screen_square>(c, eis);
@@ -135,7 +135,7 @@ namespace PO
 			{
 				ia << c.create_vertex(cube_poi, cube_vertex::type{})[0]
 					<< c.create_index(cube_ind);
-				auto des = raterizer_state::default_dscription;
+				auto des = raterizer_state::default_description;
 				//des.FrontCounterClockwise = TRUE;
 				ra = c.create_raterizer_state(des);
 				set_placement<Placement::static_3d>(c, eis);
@@ -182,13 +182,14 @@ namespace PO
 			{
 				p << ia << ra;
 				p.draw_index(6, 0, 0);
+				p.draw_index_instance(6, 1, 0, 0, 0);
 			}
 
 			void square_static_2d::init(creator& c, interface_storage& eis)
 			{
 				ia << c.create_vertex(s2s_vertex, square_2d_static_vertex::type{})[0]
 					<< c.create_index(s2s_index);
-				auto des = raterizer_state::default_dscription;
+				auto des = raterizer_state::default_description;
 				des.FrontCounterClockwise = TRUE;
 				ra = c.create_raterizer_state(des);
 				set_placement<Placement::static_2d>(c, eis);

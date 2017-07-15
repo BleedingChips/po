@@ -13,7 +13,7 @@ namespace PO
 			{
 				if (!load_ps(u"build_in_material_merga_gbuffer_ps.cso", c))
 					throw 1;
-				auto des = blend_state::default_dscription;
+				auto des = blend_state::default_description;
 				des.RenderTarget[0].BlendEnable = FALSE;
 				bs = c.create_blend_state(des);
 			}
@@ -24,6 +24,12 @@ namespace PO
 				{
 					auto& ref = pi.cast<gbuffer>();
 					ps << ref.ss[0] << ref.srv[0];
+
+					aligned_storage<uint32_t4, float, aligned_array<float3, 300>> bp{ uint32_t4{100, 100, 100, 100}, 2.0f, aligned_array<float3, 300>{ { {1.0, 1.0, 1.0}}} };
+					constant_buffer cb = p.get_creator().create_constant_buffer(&bp);
+					ps << cb[1];
+
+
 					return true;
 				}
 				return false;
@@ -42,7 +48,7 @@ namespace PO
 			{
 				if (!load_ps(u"build_in_material_text_texcoord_ps.cso", c))
 					throw 1;
-				auto des = blend_state::default_dscription;
+				auto des = blend_state::default_description;
 				des.RenderTarget[0].BlendEnable = FALSE;
 				bs = c.create_blend_state(des);
 			}

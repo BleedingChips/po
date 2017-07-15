@@ -207,6 +207,7 @@
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_screen_inout.hlsli" />
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_ui_inout.hlsli" />
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_property_buffer_type.hlsli" />
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_standard_input_type.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

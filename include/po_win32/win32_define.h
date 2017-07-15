@@ -74,6 +74,7 @@ namespace PO
 		template<typename T, typename K = std::allocator<T>> struct com_vector
 		{
 			std::vector<T*, K> ptr;
+			void resize(size_t i) { ptr.resize(i); }
 			UINT size() const { return static_cast<UINT>(ptr.size()); }
 			T*const* data() const { return ptr.data(); }
 			T** data() { return ptr.data(); }
@@ -102,8 +103,8 @@ namespace PO
 					if (ui != nullptr) ui->AddRef();
 				return *this;
 			}
-			com_vector& operator=(const com_vector&& dra) {
-				clear(); ptr = std::move(dre.ptr);
+			com_vector& operator=(com_vector&& dra) {
+				clear(); ptr = std::move(dra.ptr);
 				return *this;
 			}
 			auto begin() { return ptr.begin(); }

@@ -15,6 +15,7 @@ using namespace std;
 #include "po_dx11_defer_renderer\element\property.h"
 #include "po_dx\controller.h"
 #include "new_plugin.h"
+
 using namespace PO;
 using namespace PO::Dx11;
 
@@ -70,7 +71,7 @@ struct material_testing
 		tex_ref.srv = dr.cast_shader_resource_view(tex);
 		tex_ref.ss = dr.create_sample_state();
 		o.local_to_world = ts;
-		ele.push(dr);
+		//ele.push(dr);
 	}
 	void tick(defer_renderer& dr, duration da)
 	{

@@ -10,9 +10,13 @@ struct new_plugin
 	tex2 testing;
 	element ele;
 	element ele2;
+	element ele3;
+	element testing_2d_texture;
+	element compu;
 	transfer3D ts;
 	showcase s;
 	float layer = 0.5;
+	float max_denstiy;
 	adapter_map mapping(self& sel);
 	void init(defer_renderer& dr);
 	void tick(defer_renderer& dr, duration da);

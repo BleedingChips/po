@@ -33,7 +33,12 @@ void texture_3d_viewer::input_property::update(PO::Dx11::pipeline& p)
 {
 	auto& c = p.get_creator();
 	if (!ss)
-		ss = c.create_sample_state();
+	{
+		auto des = sample_state::default_description;
+		des.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		ss = c.create_sample_state(des);
+	}
+		
 
 	if (layer_change)
 	{

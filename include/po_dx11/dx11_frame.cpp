@@ -61,7 +61,7 @@ namespace PO
 
 
 		//*************************************************************************  input_assember_d
-		sample_state::scription sample_state::default_scription = sample_state::scription{
+		sample_state::description sample_state::default_description = sample_state::description{
 			D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, 0.0f, 1,
 			D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX
 		};
@@ -90,17 +90,17 @@ namespace PO
 		}
 
 		//*************************************************************************  raterizer_state
-		raterizer_state::dscription raterizer_state::default_dscription = raterizer_state::dscription{
+		raterizer_state::description raterizer_state::default_description = raterizer_state::description{
 			D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE, 0,0.0f, 0.0f, TRUE, FALSE,FALSE
 		};
 
 		//*************************************************************************  blend_state
-		blend_state::dscription blend_state::default_dscription = blend_state::dscription{
+		blend_state::description blend_state::default_description = blend_state::description{
 			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ FALSE, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
 		};
 
 		//*************************************************************************  depth_stencil_state
-		depth_stencil_state::dscription depth_stencil_state::default_dscription = depth_stencil_state::dscription{
+		depth_stencil_state::description depth_stencil_state::default_description = depth_stencil_state::description{
 			TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
 			D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS },
 			D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
@@ -221,7 +221,7 @@ namespace PO
 			return 0;
 		}
 
-		sample_state creator::create_sample_state(const sample_state::scription& scri)
+		sample_state creator::create_sample_state(const sample_state::description& scri)
 		{
 			sample_state ss;
 			HRESULT re = dev->CreateSamplerState(&scri, ss.ptr.adress());
@@ -229,7 +229,7 @@ namespace PO
 			throw re;
 		}
 
-		raterizer_state creator::create_raterizer_state(const raterizer_state::dscription& scri)
+		raterizer_state creator::create_raterizer_state(const raterizer_state::description& scri)
 		{
 			raterizer_state rs;
 			HRESULT re = dev->CreateRasterizerState(&scri, rs.ptr.adress());
@@ -237,7 +237,7 @@ namespace PO
 			throw re;
 		}
 
-		blend_state creator::create_blend_state(const blend_state::dscription& scri, std::array<float, 4> bind_factor, UINT sample_mask)
+		blend_state creator::create_blend_state(const blend_state::description& scri, std::array<float, 4> bind_factor, UINT sample_mask)
 		{
 			blend_state bs;
 			HRESULT re = dev->CreateBlendState(&scri, bs.ptr.adress());
@@ -250,7 +250,7 @@ namespace PO
 			throw re;
 		}
 
-		depth_stencil_state creator::create_depth_stencil_state(const depth_stencil_state::dscription& scri, UINT stencil_ref)
+		depth_stencil_state creator::create_depth_stencil_state(const depth_stencil_state::description& scri, UINT stencil_ref)
 		{
 			depth_stencil_state dss;
 			HRESULT re = dev->CreateDepthStencilState(&scri, dss.ptr.adress());
@@ -436,7 +436,7 @@ namespace PO
 			return create_tex2_implement(translate_depth_stencil_format_to_dxgi_format(DF), DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, data, line);
 		}
 
-		shader_resource_view creator::cast_shader_resource_view(const structed_buffer& t, Tool::optional<UINT2> range)
+		shader_resource_view creator::cast_shader_resource_view(const structured_buffer& t, Tool::optional<UINT2> range)
 		{
 			shader_resource_view tem;
 			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DXGI_FORMAT::DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_BUFFER };
@@ -757,7 +757,7 @@ namespace PO
 			throw re;
 		}
 
-		unordered_access_view creator::cast_unordered_access_view(const structed_buffer& tp, Tool::optional<UINT2> elemnt_start_and_count, Tool::optional<UINT> offset, bool is_append_or_consume)
+		unordered_access_view creator::cast_unordered_access_view(const structured_buffer& tp, Tool::optional<UINT2> elemnt_start_and_count, Tool::optional<UINT> offset, bool is_append_or_consume)
 		{
 			unordered_access_view tem;
 			tem.offset = offset ? *offset : -1;
@@ -849,6 +849,72 @@ namespace PO
 		namespace Implement
 		{
 
+			static std::array<ID3D11Buffer*, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> nullptr_cbuffer;
+			static std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> nullptr_shader_resource_view;
+			static std::array<ID3D11SamplerState*, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> nullptr_sampler_state;
+
+			template<typename T, typename K, typename L>
+			void binding_implement(ID3D11DeviceContext& con, UINT& count, const T& input, const K& null, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			{
+				UINT input_size = static_cast<UINT>(input.size());
+				if (count > input_size)
+					(con.*f)(input_size, count - input_size, null.data());
+				count = input_size;
+				if(count != 0)
+					(con.*f)(0, count, input.data());
+			}
+
+			template<typename K, typename L>
+			void unbinding_implement(ID3D11DeviceContext& con, UINT& count, const K& null, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			{
+				if (count != 0)
+				{
+					(con.*f)(0, count, null.data());
+					count = 0;
+				}
+			}
+
+			template<typename K, typename L>
+			void extract_implement(ID3D11DeviceContext& con, UINT count, K& out, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			{
+				out.resize(count);
+				(con.*f)(0, count, out.data());
+			}
+
+			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource& id,
+				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+			)
+			{
+				binding_implement(*cp, cb_count, id.cbuffer_array, nullptr_cbuffer, cb_f);
+				binding_implement(*cp, srv_count, id.shader_resource_view_array, nullptr_shader_resource_view, srv_f);
+				binding_implement(*cp, sample_count, id.sample_array, nullptr_sampler_state, sample_f);
+			}
+
+			void shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp,
+				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+			)
+			{
+				unbinding_implement(*cp, cb_count, nullptr_cbuffer, cb_f);
+				unbinding_implement(*cp, srv_count, nullptr_shader_resource_view, srv_f);
+				unbinding_implement(*cp, sample_count, nullptr_sampler_state, sample_f);
+			}
+
+			void shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, shader_resource& id,
+				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
+				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
+				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
+			)
+			{
+				shader_resource tem;
+				extract_implement(*cp, cb_count, tem.cbuffer_array, cb_f);
+				extract_implement(*cp, srv_count, tem.shader_resource_view_array, srv_f);
+				extract_implement(*cp, sample_count, tem.sample_array, sample_f);
+			}
+
 			static std::array<ID3D11Buffer*, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> input_assember_context_nullptr_array = {};
 			static std::array<UINT, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> input_assember_context_zero_array = {};
 
@@ -857,20 +923,36 @@ namespace PO
 			{
 				cp->IASetInputLayout(id.layout);
 				cp->IASetPrimitiveTopology(id.primitive);
-				if (id.vertex_array.size() < max_buffer_solt)
-					cp->IASetVertexBuffers(static_cast<UINT>(id.vertex_array.size() - 1), static_cast<UINT>(max_buffer_solt - id.vertex_array.size()), input_assember_context_nullptr_array.data(),
-						input_assember_context_zero_array.data(), input_assember_context_zero_array.data());
-				max_buffer_solt = id.vertex_array.size();
-				cp->IASetVertexBuffers(0, static_cast<UINT>(id.vertex_array.size()), id.vertex_array.data(), id.element_array.data(), id.offset_array.data());
+
+				UINT size = static_cast<UINT>(id.vertex_array.size());
+				if (vb_count > size)
+					cp->IASetVertexBuffers(size, vb_count - size, input_assember_context_nullptr_array.data(), input_assember_context_zero_array.data(), input_assember_context_zero_array.data());
+				vb_count = size;
+				cp->IASetVertexBuffers(0, vb_count, id.vertex_array.data(), id.element_array.data(), id.offset_array.data());
 				cp->IASetIndexBuffer(id.index_ptr, id.format, id.offset);
+			}
+
+			void input_assember_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_assember_stage& id)
+			{
+				input_assember_stage is;
+				cp->IAGetInputLayout(is.layout.adress());
+				cp->IAGetPrimitiveTopology(&is.primitive);
+				
+				is.vertex_array.resize(vb_count);
+				is.element_array.resize(vb_count);
+				is.offset_array.resize(vb_count);
+
+				cp->IAGetVertexBuffers(0, vb_count, is.vertex_array.data(), is.element_array.data(), is.offset_array.data());
+				cp->IAGetIndexBuffer(is.index_ptr.adress(), &is.format, &is.offset);
+				id = std::move(is);
 			}
 
 			void input_assember_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->IASetInputLayout(nullptr);
-				cp->IASetVertexBuffers(0, static_cast<UINT>(max_buffer_solt), input_assember_context_nullptr_array.data(), input_assember_context_zero_array.data(), input_assember_context_zero_array.data());
+				cp->IASetVertexBuffers(0, vb_count, input_assember_context_nullptr_array.data(), input_assember_context_zero_array.data(), input_assember_context_zero_array.data());
 				cp->IASetIndexBuffer(nullptr, DXGI_FORMAT::DXGI_FORMAT_R16_UINT, 0);
-				max_buffer_solt = 0;
+				cp->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			}
 
 			void input_assember_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
@@ -878,49 +960,61 @@ namespace PO
 				unbind(cp);
 			}
 
-			static std::array<ID3D11Buffer*, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> nullptr_cbuffer;
-			static std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> nullptr_shader_resource_view;
-			static std::array<ID3D11SamplerState*, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> nullptr_sampler_state;
-
 			/*****  vertex_shader_context_t   ******************************************************************************************/
 			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_resource& vs)
 			{
-				if (!vs.cbuffer_array.empty())
-					cp->VSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
+				shader_context_t::bind(
+					cp, vs, 
+					&ID3D11DeviceContext::VSSetConstantBuffers,
+					&ID3D11DeviceContext::VSSetShaderResources,
+					&ID3D11DeviceContext::VSSetSamplers
+				);
+			}
 
-				if (!vs.shader_resource_view_array.empty())
-				{
-					cp->VSSetShaderResources(0, static_cast<UINT>(vs.shader_resource_view_array.size()), vs.shader_resource_view_array.data());
-					max_shader_resource_view = max_shader_resource_view < vs.shader_resource_view_array.size() ? vs.shader_resource_view_array.size() : max_shader_resource_view;
-				}
+			void vertex_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, vertex_resource& v)
+			{
+				shader_context_t::extract(cp, v,
+					&ID3D11DeviceContext::VSGetConstantBuffers,
+					&ID3D11DeviceContext::VSGetShaderResources,
+					&ID3D11DeviceContext::VSGetSamplers
+					);
+			}
 
-				if (!vs.sample_array.empty()) {
-					cp->VSSetSamplers(0, static_cast<UINT>(vs.sample_array.size()), vs.sample_array.data());
-					max_sample = max_sample < vs.sample_array.size() ? vs.sample_array.size() : max_sample;
-				}
+			void vertex_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, vertex_shader& vs)
+			{
+				vertex_shader s;
+				cp->VSGetShader(s.ptr.adress(), nullptr, nullptr);
+				vs = std::move(s);
 			}
 
 			void vertex_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->VSSetShader(nullptr, nullptr, 0);
-				if (max_shader_resource_view != 0)
-				{
-					cp->VSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
-					max_shader_resource_view = 0;
-				}
-					
+				shader_context_t::unbind(
+					cp,
+					&ID3D11DeviceContext::VSSetConstantBuffers,
+					&ID3D11DeviceContext::VSSetShaderResources,
+					&ID3D11DeviceContext::VSSetSamplers
+				);
 			}
+
 			void vertex_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
-				cp->VSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
-				if (max_sample != 0)
-				{
-					cp->VSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
-					max_sample = 0;
-				}
+				unbind(cp);
 			}
 
 			/*****  raterizer_context_t   ******************************************************************************************/
+
+			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs)
+			{
+				//cp->RSSetState(rs.ptr);
+				//view_count.bind(rs.views, )
+				cp->RSSetScissorRects(static_cast<UINT>(rs.scissor.size()), rs.scissor.data());
+				cp->RSSetViewports(static_cast<UINT>(rs.views.size()), rs.views.data());
+				//cp->PSS
+			}
+
+
 			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const raterizer_state& rs)
 			{
 				cp->RSSetState(rs.ptr);
@@ -928,14 +1022,7 @@ namespace PO
 				//cp->RSSetViewports(static_cast<UINT>(rs.viewports.size()), rs.viewports.data());
 				//cp->PSS
 			}
-
-			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs)
-			{
-				//cp->RSSetState(rs.ptr);
-				cp->RSSetScissorRects(static_cast<UINT>(rs.scissor.size()), rs.scissor.data());
-				cp->RSSetViewports(static_cast<UINT>(rs.views.size()), rs.views.data());
-				//cp->PSS
-			}
+			
 
 			void raterizer_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
@@ -956,52 +1043,53 @@ namespace PO
 			/*****  pixel_shader_context_t   ******************************************************************************************/
 			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_resource& vs)
 			{
-				if (!vs.cbuffer_array.empty())
-					cp->PSSetConstantBuffers(0, static_cast<UINT>(vs.cbuffer_array.size()), vs.cbuffer_array.data());
-
-				if (!vs.shader_resource_view_array.empty())
-				{
-					cp->PSSetShaderResources(0, static_cast<UINT>(vs.shader_resource_view_array.size()), vs.shader_resource_view_array.data());
-					max_shader_resource_view = max_shader_resource_view < vs.shader_resource_view_array.size() ? vs.shader_resource_view_array.size() : max_shader_resource_view;
-				}
-
-				if (!vs.sample_array.empty()) {
-					cp->PSSetSamplers(0, static_cast<UINT>(vs.sample_array.size()), vs.sample_array.data());
-					max_sample = max_sample < vs.sample_array.size() ? vs.sample_array.size() : max_sample;
-				}
-
+				shader_context_t::bind(
+					cp, vs,
+					&ID3D11DeviceContext::PSSetConstantBuffers,
+					&ID3D11DeviceContext::PSSetShaderResources,
+					&ID3D11DeviceContext::PSSetSamplers
+				);
 			}
 
 			void pixel_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->PSSetShader(nullptr, nullptr, 0);
 
-				if (max_shader_resource_view != 0)
-				{
-					cp->PSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
-					max_shader_resource_view = 0;
-				}
+				shader_context_t::unbind(
+					cp,
+					&ID3D11DeviceContext::PSSetConstantBuffers,
+					&ID3D11DeviceContext::PSSetShaderResources,
+					&ID3D11DeviceContext::PSSetSamplers
+				);
 					
+			}
+
+			void pixel_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, pixel_resource& ps)
+			{
+				shader_context_t::extract(
+					cp, ps,
+					&ID3D11DeviceContext::PSGetConstantBuffers,
+					&ID3D11DeviceContext::PSGetShaderResources,
+					&ID3D11DeviceContext::PSGetSamplers
+				);
+			}
+
+			void pixel_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, pixel_shader& ps)
+			{
+				pixel_shader p;
+				cp->PSGetShader(p.ptr.adress(), nullptr, nullptr);
+				ps = std::move(p);
 			}
 
 			void pixel_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				unbind(cp);
-				cp->PSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
-				if (max_sample != 0)
-				{
-					cp->PSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
-					max_sample = 0;
-				}
-				
 			}
 			
 			static std::array<ID3D11RenderTargetView*, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> nullptr_render_target;
 			/*****  output_merge_context_t   ******************************************************************************************/
 			void output_merge_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const output_merge_stage& od)
 			{
-				if (max_render_target > od.render_array.size()) 
-					cp->OMSetRenderTargets(static_cast<UINT>(max_render_target), nullptr_render_target.data(), nullptr);
 				max_render_target = od.render_array.size();
 				cp->OMSetRenderTargets(static_cast<UINT>(od.render_array.size()), od.render_array.data(), od.depth.ptr);
 			}
@@ -1015,16 +1103,24 @@ namespace PO
 
 			void output_merge_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
-				cp->OMSetRenderTargets(static_cast<UINT>(max_render_target), nullptr_render_target.data(), nullptr);
+				cp->OMSetRenderTargets(0, nullptr, nullptr);
 				max_render_target = 0;
 			}
 
 			void output_merge_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				unbind(cp);
-				float co[4] = { 1.0, 1.0, 1.0, 1.0 };
-				cp->OMSetBlendState(nullptr, co, 0);
-				cp->OMSetDepthStencilState(nullptr, 0);
+				//float co[4] = { 1.0, 1.0, 1.0, 1.0 };
+				//cp->OMSetBlendState(nullptr, co, 0);
+				//cp->OMSetDepthStencilState(nullptr, 0);
+			}
+
+			void output_merge_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& ps)
+			{
+				output_merge_stage tem;
+				tem.render_array.resize(max_render_target);
+				cp->OMGetRenderTargets(max_render_target, tem.render_array.data(), tem.depth.ptr.adress());
+				ps = std::move(tem);
 			}
 
 			void output_merge_context_t::clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, size_t solt, const std::array<float, 4>& color)
@@ -1102,50 +1198,65 @@ namespace PO
 
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_resource& cd)
 			{
-				cp->CSSetUnorderedAccessViews(0, static_cast<UINT>(cd.UAV_array.size()), cd.UAV_array.data(), cd.offset.data());
-				max_unorder_access_view = max_unorder_access_view < cd.UAV_array.size() ? cd.UAV_array.size() : max_unorder_access_view;
+				shader_context_t::bind(
+					cp, cd,
+					&ID3D11DeviceContext::CSSetConstantBuffers,
+					&ID3D11DeviceContext::CSSetShaderResources,
+					&ID3D11DeviceContext::CSSetSamplers
+				);
 
-				if (!cd.cbuffer_array.empty())
-					cp->CSSetConstantBuffers(0, static_cast<UINT>(cd.cbuffer_array.size()), cd.cbuffer_array.data());
-
-				if (!cd.shader_resource_view_array.empty())
-				{
-					cp->CSSetShaderResources(0, static_cast<UINT>(cd.shader_resource_view_array.size()), cd.shader_resource_view_array.data());
-					max_shader_resource_view = max_shader_resource_view < cd.shader_resource_view_array.size() ? cd.shader_resource_view_array.size() : max_shader_resource_view;
-				}
-				
-				if (!cd.sample_array.empty()) {
-					cp->CSSetSamplers(0, static_cast<UINT>(cd.sample_array.size()), cd.sample_array.data());
-					max_sample = max_sample < cd.sample_array.size() ? cd.sample_array.size() : max_sample;
-				}
-					
+				UINT size = static_cast<UINT>(cd.UAV_array.size());
+				if (count > size)
+					cp->CSSetUnorderedAccessViews(size, count - size, nullptr_unordered_access_array.data(), nullptr_unordered_access_offset_array.data());
+				count = size;
+				if(count != 0)
+					cp->CSSetUnorderedAccessViews(0, count, cd.UAV_array.data(), cd.offset.data());
 			}
 
 			void compute_shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				cp->CSSetShader(nullptr, nullptr, 0);
-				if (max_shader_resource_view != 0)
+				shader_context_t::unbind(
+					cp,
+					&ID3D11DeviceContext::CSSetConstantBuffers,
+					&ID3D11DeviceContext::CSSetShaderResources,
+					&ID3D11DeviceContext::CSSetSamplers
+				);
+				if (count != 0)
 				{
-					cp->CSSetShaderResources(0, static_cast<UINT>(max_shader_resource_view), nullptr_shader_resource_view.data());
-					max_shader_resource_view = 0;
-				}
-				if (max_unorder_access_view != 0)
-				{
-					cp->CSSetUnorderedAccessViews(0, static_cast<UINT>(max_unorder_access_view), nullptr_unordered_access_array.data(), nullptr_unordered_access_offset_array.data());
-					max_unorder_access_view = 0;
+					cp->CSSetUnorderedAccessViews(0, count, nullptr_unordered_access_array.data(), nullptr_unordered_access_offset_array.data());
+					count = 0;
 				}
 			}
 
 			void compute_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				unbind(cp);
-				cp->CSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, nullptr_cbuffer.data());
-				if (max_sample != 0)
-				{
-					cp->CSSetSamplers(0, static_cast<UINT>(max_sample), nullptr_sampler_state.data());
-					max_sample = 0;
-				}
-				
+			}
+
+			void compute_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, compute_resource& ps)
+			{
+				shader_context_t::extract(
+					cp, ps,
+					&ID3D11DeviceContext::CSGetConstantBuffers,
+					&ID3D11DeviceContext::CSGetShaderResources,
+					&ID3D11DeviceContext::CSGetSamplers
+				);
+
+				decltype(ps.UAV_array) tem;
+				tem.resize(count);
+				cp->CSGetUnorderedAccessViews(0, count, tem.data());
+				decltype(ps.offset) tem2;
+				tem2.resize(count, 0);
+				ps.UAV_array = std::move(tem);
+				ps.offset = std::move(tem2);
+			}
+
+			void compute_shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, compute_shader& ps)
+			{
+				compute_shader cs;
+				cp->CSGetShader(cs.ptr.adress(), nullptr, nullptr);
+				ps = std::move(cs);
 			}
 
 		}

@@ -5,6 +5,7 @@ struct renderer_3d_buffer_t
     float4x4 world_to_screen;
     float4x4 screen_to_world;
     float rate;
+    float time;
 };
 
 struct transfer_3d_static_buffer_t

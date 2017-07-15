@@ -37,6 +37,9 @@
     <Filter Include="placement\shader">
       <UniqueIdentifier>{5c82a335-3592-45f0-a913-d17cc1747ed1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shader_include">
+      <UniqueIdentifier>{0bf3018a-7caa-48af-8833-8129ef388747}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="volum_cloud_main.cpp">
@@ -54,6 +57,15 @@
     <ClCompile Include="new_plugin.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="compute\generator_3d_shadow_texture_64.cpp">
+      <Filter>compute</Filter>
+    </ClCompile>
+    <ClCompile Include="material\render_3d_volume_texture_64.cpp">
+      <Filter>material</Filter>
+    </ClCompile>
+    <ClCompile Include="compute\generator_2d_worley_noise_texture.cpp">
+      <Filter>compute</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="compute\generator_3d_volume_texture.h">
@@ -68,6 +80,15 @@
     <ClInclude Include="new_plugin.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="compute\generator_3d_shadow_texture_64.h">
+      <Filter>compute</Filter>
+    </ClInclude>
+    <ClInclude Include="material\render_3d_volume_texture_64.h">
+      <Filter>material</Filter>
+    </ClInclude>
+    <ClInclude Include="compute\generator_2d_worley_noise_texture.h">
+      <Filter>compute</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="compute\shader\compute_generator_3d_volume_texture_cs.hlsl">
@@ -79,5 +100,16 @@
     <FxCompile Include="placement\shader\square_2d_vs.hlsl">
       <Filter>placement\shader</Filter>
     </FxCompile>
+    <FxCompile Include="material\shader\render_3d_volume_texture_64_ps.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\generator_2d_worley_noise_texture_cs.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader_include\ray_function.hlsli">
+      <Filter>shader_include</Filter>
+    </None>
   </ItemGroup>
 </Project>

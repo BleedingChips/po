@@ -66,6 +66,8 @@ namespace PO
 				return *this;
 			}
 
+			
+
 			aligned_array& operator=(std::array<T, count>&& aa)
 			{
 				for (size_t i = 0; i < count; ++i)
@@ -84,6 +86,18 @@ namespace PO
 			{
 				for (size_t i = 0; i < count; ++i)
 					this->operator[](i).~T();
+			}
+			aligned_array(const std::array<T, count>& il)
+			{
+				size_t curent_size = 0;
+				for (; curent_size < count; ++curent_size)
+					new(data + single_size * curent_size) T{ il[curent_size] };
+			}
+			aligned_array(std::array<T, count>&& il)
+			{
+				size_t curent_size = 0;
+				for (; curent_size < count; ++curent_size)
+					new(data + single_size * curent_size) T{ std::move(il[curent_size]) };
 			}
 			aligned_array(const aligned_array& aa)
 			{
@@ -112,6 +126,7 @@ namespace PO
 				for (; curent_size < count; ++curent_size)
 					new(data + single_size * curent_size) T{ };
 			}
+
 		};
 
 		namespace Implement

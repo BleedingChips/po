@@ -57,6 +57,9 @@
     <ClCompile Include="..\..\..\include\po_dx\dx_type.cpp">
       <Filter>po_dx</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_element.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h">
@@ -100,6 +103,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\include\po_dx\controller.h">
       <Filter>po_dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_element.h">
+      <Filter>po_dx11</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

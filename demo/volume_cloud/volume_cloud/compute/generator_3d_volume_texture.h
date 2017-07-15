@@ -7,7 +7,7 @@ namespace SelfProperty
 {
 	class generator_3d_volume_texture_property : public PO::Dx11::property_interface
 	{
-		std::array<PO::Dx::float3, 100> wise_nosie_point;
+		std::array<PO::Dx::float3, 200> wise_nosie_point;
 		std::array<PO::Dx::float3, 4> perlin_noise_factor;
 		PO::Dx11::tex3 texture;
 		PO::Dx::uint32_t3 size;
@@ -31,7 +31,7 @@ namespace SelfProperty
 class generator_3d_volume_texture : public PO::Dx11::compute_interface
 {
 
-	PO::Dx::uint32_t3 size;
+	PO::Dx::uint32_t3 size = PO::Dx::uint32_t3{0, 0, 0};
 
 public:
 

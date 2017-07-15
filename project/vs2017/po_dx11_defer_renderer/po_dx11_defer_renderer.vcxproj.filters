@@ -90,5 +90,8 @@
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_property_buffer_type.hlsli">
       <Filter>po_dx11_defer_renderer\shader\include</Filter>
     </None>
+    <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_standard_input_type.hlsli">
+      <Filter>po_dx11_defer_renderer\shader\include</Filter>
+    </None>
   </ItemGroup>
 </Project>

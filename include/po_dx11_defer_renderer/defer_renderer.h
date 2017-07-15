@@ -27,6 +27,8 @@ namespace PO
 			depth_stencil_state defer_dss;
 			depth_stencil_state merga_dss;
 
+			float time;
+
 			proxy mapping(std::type_index, adapter_interface& ai);
 
 			void init(value_table&);
@@ -36,6 +38,8 @@ namespace PO
 
 			template<typename T> decltype(auto) find(T t) { return storage_inter.find(t, *this);}
 			void push_element(const element& ptr);
+
+			std::set<std::type_index> check(const element& ptr) { return storage_elemnt.check(ptr); }
 		};
 	}
 }

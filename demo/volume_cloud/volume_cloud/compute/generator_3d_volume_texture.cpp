@@ -25,6 +25,7 @@ namespace SelfProperty
 		std::mt19937 mty(random_seed2);
 		std::mt19937 mtz(random_seed3);
 		std::normal_distribution<double> nd(0.0f, 0.2f);
+		std::uniform_real_distribution<float> nd2(-1.0, 1.0);
 		
 		for (auto& p : perlin_noise_factor)
 		{
@@ -38,9 +39,8 @@ namespace SelfProperty
 		for (auto& p : wise_nosie_point)
 		{
 			p = float3{
-				static_cast<float>(nd(mtx)), static_cast<float>(nd(mty)), static_cast<float>(nd(mtz))
+				nd2(mtx), nd2(mty), nd2(mtz)
 			};
-			//std::cout << p << std::endl;
 		}
 
 		need_push();
@@ -49,7 +49,7 @@ namespace SelfProperty
 	void generator_3d_volume_texture_property::push(creator& p)
 	{
 		output_texture = p.cast_unordered_access_view(texture);
-		aligned_storage<uint32_t3, aligned_array<float3, 100>, aligned_array<float3, 4>> storage;
+		aligned_storage<uint32_t3, aligned_array<float3, 200>, aligned_array<float3, 4>> storage;
 		storage.get<0>() = size;
 		storage.get<1>() = wise_nosie_point;
 		storage.get<2>() = perlin_noise_factor;

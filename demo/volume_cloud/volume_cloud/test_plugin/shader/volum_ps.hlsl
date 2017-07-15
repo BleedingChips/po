@@ -40,7 +40,6 @@ float3 adject_view_ray(float3 n)
 }
 
 
-
 float4 main(in vs_output i) : SV_TARGET
 {
 	float4 eye_poi = mul(view_to_local, float4(0.0, 0.0, 0.0, 1.0));

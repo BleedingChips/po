@@ -11,6 +11,7 @@ namespace PO
 				float4x4 projection;
 				float4x4 view;
 				float screen_rate;
+				float time;
 
 				struct buffer_type
 				{

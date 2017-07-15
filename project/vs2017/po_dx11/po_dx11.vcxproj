@@ -23,6 +23,7 @@
     <ClCompile Include="..\..\..\include\po_dx11\dx11_form.cpp" />
     <ClCompile Include="..\..\..\include\po_dx11\dx11_frame.cpp" />
     <ClCompile Include="..\..\..\include\po_dx11\dx11_renderer.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_element.cpp" />
     <ClCompile Include="..\..\..\include\po_dxgi\dxgi_define.cpp" />
     <ClCompile Include="..\..\..\include\po_dxgi\dxgi_log.cpp" />
     <ClCompile Include="..\..\..\include\po_dx\controller.cpp" />
@@ -38,6 +39,7 @@
     <ClInclude Include="..\..\..\include\po_dx11\dx11_frame.h" />
     <ClInclude Include="..\..\..\include\po_dx11\dx11_renderer.h" />
     <ClInclude Include="..\..\..\include\po_dx11\dx11_vertex.h" />
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_element.h" />
     <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h" />
     <ClInclude Include="..\..\..\include\po_dxgi\dxgi_log.h" />
     <ClInclude Include="..\..\..\include\po_dx\controller.h" />

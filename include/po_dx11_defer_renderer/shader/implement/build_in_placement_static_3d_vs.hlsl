@@ -14,10 +14,14 @@ cbuffer Tra : register(b1)
 placement_defer_vs_output main(placement_defer_vs_input i)
 {
     placement_defer_vs_output o;
-    float4 poi = mul(renderer.world_to_screen, mul(transfer.local_to_world, float4(i.poi, 1.0)));
+    float4 world_poi = mul(transfer.local_to_world, float4(i.poi, 1.0));
+
+    float4 screen_poi = mul(renderer.world_to_screen, world_poi);
+
+    o.screen_position = screen_poi.xyz / screen_poi.w;
     o.local_position = i.poi;
-    o.out_poisition = poi;
-    o.world_position = poi.xyz / poi.w;
+    o.out_poisition = screen_poi;
+    o.world_position = world_poi.xyz / world_poi.w;
     o.texcoord = i.tex;
     return o;
 }

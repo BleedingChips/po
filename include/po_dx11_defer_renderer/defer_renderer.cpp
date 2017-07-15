@@ -16,6 +16,7 @@ namespace PO
 
 		void defer_renderer::init(value_table& vt)
 		{
+			time = 0.0;
 			simple_renderer::init(vt);
 
 			depth_stencial = create_tex2_depth_stencil(DST_format::D24_UI8, simple_renderer::back_buffer);
@@ -41,7 +42,7 @@ namespace PO
 			transfer_ref.view = view;
 			transfer_ref.push(*this);
 
-			auto des = depth_stencil_state::default_dscription;
+			auto des = depth_stencil_state::default_description;
 			des.DepthEnable = TRUE;
 			des.DepthFunc = decltype(des.DepthFunc)::D3D11_COMPARISON_LESS;
 			des.DepthWriteMask = decltype(des.DepthWriteMask)::D3D11_DEPTH_WRITE_MASK_ALL;
@@ -54,16 +55,18 @@ namespace PO
 			merga_dss = create_depth_stencil_state(des);
 
 
-			merga.push(*this);
+			//merga.push(*this);
 		}
 
 		void defer_renderer::pre_tick(duration da)
 		{
+			time += da.count();
 			storage_elemnt.update();
 			simple_renderer::pre_tick(da);
 			storage_elemnt.find([this](Property::renderer_3d& r3) {
 				r3.view = view;
 				r3.projection = projection;
+				r3.time = time;
 			});
 
 			storage_elemnt.dispatch(*this);
