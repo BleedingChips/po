@@ -1,8 +1,4 @@
 #include "defer_renderer.h"
-#include "element\material.h"
-#include "element\geometry.h"
-#include "element\placement.h"
-#include "element\property.h"
 namespace PO
 {
 	namespace Dx11
@@ -16,6 +12,7 @@ namespace PO
 
 		void defer_renderer::init(value_table& vt)
 		{
+			/*
 			time = 0.0;
 			simple_renderer::init(vt);
 
@@ -53,13 +50,14 @@ namespace PO
 			des.DepthWriteMask = decltype(des.DepthWriteMask)::D3D11_DEPTH_WRITE_MASK_ZERO;
 			des.StencilEnable = FALSE;
 			merga_dss = create_depth_stencil_state(des);
-
+			*/
 
 			//merga.push(*this);
 		}
 
 		void defer_renderer::pre_tick(duration da)
 		{
+			/*
 			time += da.count();
 			storage_elemnt.update();
 			simple_renderer::pre_tick(da);
@@ -76,11 +74,12 @@ namespace PO
 			pipeline::clear_depth_stencil(oms, 1.0, 0);
 
 			*this << oms << defer_dss;
-			
+			*/
 		}
 
 		void defer_renderer::pos_tick(duration da)
 		{
+			/*
 			storage_elemnt.draw(render_order::Defer, *this);
 			unbind();
 			pipeline::clear_render_target(om, { 0.0, 0.0, 0.0, 1.0 });
@@ -89,12 +88,17 @@ namespace PO
 			storage_elemnt.draw(render_order::Post, *this);
 			unbind();
 			storage_elemnt.clear_element();
+			*/
 		}
 
+		/*
 		void defer_renderer::push_element(const element& ptr)
 		{
+			
 			storage_elemnt.push_back(ptr, *this);
+			
 		}
+		*/
 
 	}
 }

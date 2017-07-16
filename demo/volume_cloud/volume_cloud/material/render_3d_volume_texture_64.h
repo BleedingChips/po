@@ -1,6 +1,6 @@
 #pragma once
 #include "po_dx11_defer_renderer\element\interface.h"
-
+/*
 using namespace PO;
 using namespace PO::Dx;
 using namespace PO::Dx11;
@@ -48,3 +48,4 @@ struct render_3d_volume_texture_64 : material_interface
 
 	render_3d_volume_texture_64();
 };
+*/

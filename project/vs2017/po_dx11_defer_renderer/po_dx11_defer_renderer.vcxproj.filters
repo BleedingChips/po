@@ -13,9 +13,6 @@
     <Filter Include="po_dx11_defer_renderer\shader\include">
       <UniqueIdentifier>{10801362-159d-4493-b18a-1c542670ccf5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="po_dx11_defer_renderer\element">
-      <UniqueIdentifier>{3016ba1d-caa2-4848-8570-1c3cf42ffe87}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\..\..\include\po_dx11_defer_renderer\shader\implement\buildin_vertext_shader.hlsl">
@@ -41,40 +38,22 @@
     <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.cpp">
       <Filter>po_dx11_defer_renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\material.cpp">
-      <Filter>po_dx11_defer_renderer\element</Filter>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_element.cpp">
+      <Filter>po_dx11_defer_renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\placement.cpp">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.cpp">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\property.cpp">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\interface.cpp">
-      <Filter>po_dx11_defer_renderer\element</Filter>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\build_in_element.cpp">
+      <Filter>po_dx11_defer_renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.h">
       <Filter>po_dx11_defer_renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\interface.h">
-      <Filter>po_dx11_defer_renderer\element</Filter>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\defer_element.h">
+      <Filter>po_dx11_defer_renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\material.h">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\placement.h">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.h">
-      <Filter>po_dx11_defer_renderer\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\property.h">
-      <Filter>po_dx11_defer_renderer\element</Filter>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\build_in_element.h">
+      <Filter>po_dx11_defer_renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

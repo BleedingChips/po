@@ -1,4 +1,5 @@
 #include "placement.h"
+/*
 #include "property.h"
 
 namespace PO
@@ -70,3 +71,4 @@ namespace PO
 		}
 	}
 }
+*/

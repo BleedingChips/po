@@ -14,6 +14,18 @@
 
 using namespace std;
 
+
+
+
+
+
+
+
+
+
+
+
+/*
 adapter_map new_plugin::mapping(self& sel)
 {
 	max_denstiy = 1.0f;
@@ -155,6 +167,7 @@ void new_plugin::init(defer_renderer& dr)
 	assert(dr.check(compu).empty());
 	assert(dr.check(ele3).empty());
 	assert(dr.check(testing_2d_texture).empty());
+	*/
 
 	/*
 	void* data = SI.GetPixels();
@@ -171,6 +184,7 @@ void new_plugin::init(defer_renderer& dr)
 	o.local_to_world = ts;
 	ele.push(dr);
 	*/
+/*
 }
 
 void new_plugin::tick(defer_renderer& dr, duration da)
@@ -192,4 +206,7 @@ void new_plugin::tick(defer_renderer& dr, duration da)
 	})) __debugbreak();
 	dr.push_element(ele);
 	*/
+/*
 }
+
+*/

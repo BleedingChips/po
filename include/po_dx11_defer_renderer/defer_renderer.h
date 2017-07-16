@@ -1,9 +1,8 @@
 #pragma once
 #include "../po_dx11/dx11_frame.h"
-#include "element\interface.h"
-#include "../po/tool/scene.h"
 #include "../po/renderer.h"
 #include "../po_dx11/dx11_renderer.h"
+#include "defer_element.h"
 #include <typeindex>
 namespace PO
 {
@@ -17,7 +16,7 @@ namespace PO
 			output_merge_stage oms;
 
 			interface_storage storage_inter;
-			Implement::element_implement_storage storage_elemnt;
+			defer_element_implement_storage storage_elemnt;
 
 			float4x4 view;
 			float4x4 projection;
@@ -36,10 +35,19 @@ namespace PO
 			void pre_tick(duration);
 			void pos_tick(duration);
 
+			/*
 			template<typename T> decltype(auto) find(T t) { return storage_inter.find(t, *this);}
 			void push_element(const element& ptr);
 
 			std::set<std::type_index> check(const element& ptr) { return storage_elemnt.check(ptr); }
+			*/
 		};
+
+		class geomerty_render_screen : public geometry_interface
+		{
+		public:
+
+		};
+
 	}
 }

@@ -1,4 +1,5 @@
 #include "geometry.h"
+/*
 #include "../../po_dx11/dx11_vertex.h"
 #include "placement.h"
 namespace
@@ -197,4 +198,5 @@ namespace PO
 		}
 	}
 }
+*/
 

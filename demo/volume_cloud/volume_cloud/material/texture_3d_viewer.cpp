@@ -1,6 +1,7 @@
 #include "texture_3d_viewer.h"
 #include <random>
 #undef max
+/*
 using namespace PO::Dx;
 using namespace PO::Dx11; 
 using namespace PO;
@@ -68,3 +69,5 @@ void texture_3d_viewer::input_property::update(PO::Dx11::pipeline& p)
 }
 
 texture_3d_viewer::input_property::input_property() : property_interface(typeid(input_property)), layer_change(false), layer(0.0f), filter(float4{ 1.0f, 1.0f, 1.0f, 1.0f }) {}
+
+*/

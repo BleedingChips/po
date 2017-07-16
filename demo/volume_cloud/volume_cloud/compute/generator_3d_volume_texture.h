@@ -1,4 +1,5 @@
 #pragma once
+/*
 #include "po_dx11_defer_renderer\element\interface.h"
 
 class generator_3d_volume_texture;
@@ -45,3 +46,4 @@ public:
 	virtual bool draw(PO::Dx11::pipeline& c) override;
 	virtual void init(PO::Dx11::creator&) override;
 };
+*/

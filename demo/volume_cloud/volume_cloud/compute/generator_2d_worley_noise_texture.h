@@ -1,5 +1,6 @@
 #pragma once
 #include "po_dx11_defer_renderer\element\interface.h"
+/*
 class generator_2d_worley_noise_texture;
 namespace Property_t
 {
@@ -35,3 +36,4 @@ public:
 	virtual bool draw(PO::Dx11::pipeline& c) override;
 	virtual void init(PO::Dx11::creator&) override;
 };
+*/

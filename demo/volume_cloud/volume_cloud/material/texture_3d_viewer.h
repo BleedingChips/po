@@ -1,6 +1,6 @@
 #pragma once
 #include "po_dx11_defer_renderer\element\interface.h"
-
+/*
 class texture_3d_viewer : public PO::Dx11::material_interface
 { 
 	
@@ -36,3 +36,4 @@ public:
 	virtual const std::set<std::type_index>& acceptance() const override;
 	virtual void init(PO::Dx11::creator&) override;
 };
+*/

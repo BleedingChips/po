@@ -2,6 +2,7 @@
 #include <random>
 using namespace PO::Dx;
 using namespace PO::Dx11;
+/*
 namespace Property_t
 {
 	generator_2d_worley_noise_texture_property::generator_2d_worley_noise_texture_property() : property_interface(typeid(generator_2d_worley_noise_texture_property)) {}
@@ -67,3 +68,4 @@ bool generator_2d_worley_noise_texture::draw(PO::Dx11::pipeline& c)
 	c.dispatch(draw_call.x / 32, draw_call.y / 32, 1);
 	return true;
 }
+*/

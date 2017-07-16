@@ -1,4 +1,5 @@
 #pragma once
+/*
 #include "interface.h"
 #include "../../po/tool/scene.h"
 namespace PO 
@@ -31,3 +32,4 @@ namespace PO
 		}
 	}
 }
+*/

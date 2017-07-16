@@ -1,4 +1,5 @@
 #include "material.h"
+/*
 namespace PO
 {
 	namespace Dx11
@@ -74,3 +75,4 @@ namespace PO
 
 	}
 }
+*/

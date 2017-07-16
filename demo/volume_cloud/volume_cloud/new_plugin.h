@@ -4,7 +4,7 @@
 #include "po\plugin.h"
 using namespace PO;
 using namespace PO::Dx11;
-
+/*
 struct new_plugin
 {
 	tex2 testing;
@@ -22,3 +22,4 @@ struct new_plugin
 	void tick(defer_renderer& dr, duration da);
 	Respond respond(event& e);
 };
+*/

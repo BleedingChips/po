@@ -1,5 +1,6 @@
 #include "render_3d_volume_texture_64.h"
 #include "po_dx11_defer_renderer\element\property.h"
+/*
 namespace Implement
 {
 	render_3d_volume_texture_64_property::render_3d_volume_texture_64_property() : property_interface(typeid(render_3d_volume_texture_64_property)) {}
@@ -85,4 +86,5 @@ void render_3d_volume_texture_64::init(creator& c)
 	des.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	bs = c.create_blend_state(des);
 }
+*/
 

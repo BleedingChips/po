@@ -1,6 +1,5 @@
 #pragma once
-#include "interface.h"
-#include "../../po/tool/scene.h"
+/*
 namespace PO
 {
 	namespace Dx11
@@ -37,3 +36,4 @@ namespace PO
 		}
 	}
 }
+*/

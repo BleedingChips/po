@@ -1,8 +1,10 @@
 #include "property.h"
+/*
 namespace PO
 {
 	namespace Dx11
 	{
+		
 		namespace Property
 		{
 			renderer_3d::renderer_3d() : property_interface(typeid(renderer_3d)) {}
@@ -70,3 +72,4 @@ namespace PO
 		}
 	}
 }
+*/

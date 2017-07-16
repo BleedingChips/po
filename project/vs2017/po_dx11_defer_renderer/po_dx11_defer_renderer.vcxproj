@@ -187,20 +187,14 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\build_in_element.cpp" />
+    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_element.cpp" />
     <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.cpp" />
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\interface.cpp" />
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\material.cpp" />
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.cpp" />
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\placement.cpp" />
-    <ClCompile Include="..\..\..\include\po_dx11_defer_renderer\element\property.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\build_in_element.h" />
+    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\defer_element.h" />
     <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\defer_renderer.h" />
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\interface.h" />
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\material.h" />
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\geometry.h" />
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\placement.h" />
-    <ClInclude Include="..\..\..\include\po_dx11_defer_renderer\element\property.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\include\po_dx11_defer_renderer\shader\include\build_in_placement_defer_inout.hlsli" />

@@ -1,29 +1,59 @@
-#include "interface.h"
-#include "../../po/tool/scene.h"
-namespace {
-	const std::set<std::type_index> default_acceptance_set{};
-
-	PO::Tool::scope_lock<PO::scene>& get_shader_scene()
-	{
-		static PO::Tool::scope_lock<PO::scene> scene;
-		return scene;
-	}
-
-}
-
+#include "defer_element.h"
 
 namespace PO
 {
 	namespace Dx11
 	{
-		bool add_shader_path(std::type_index ti, const std::u16string& path)
+		
+		defer_material_interface::defer_material_interface(std::type_index ti, render_order ro) : material_interface(ti), order_(ro) {}
+
+		namespace Implement
 		{
-			auto& sce = ::get_shader_scene();
-			return sce.lock([&](PO::scene& t) {
-				return t.add_path(ti, path);
-			});
+			defer_element_implement& defer_element_implement::operator=(std::shared_ptr<defer_material_interface> di)
+			{
+				order_ = di ? di->order() : render_order::NotSet;
+				element_implement::operator=(std::static_pointer_cast<material_interface>(std::move(di)));
+				return *this;
+			}
+			void defer_element_implement::clear_all()
+			{
+				order_ = render_order::NotSet;
+				element_implement::clear_all();
+			}
 		}
 
+		void defer_element::clear_all()
+		{
+			if (element_ptr)
+				element_ptr->clear_all();
+		}
+
+		void defer_element::check_ptr()
+		{
+			if (!element_ptr) element_ptr = std::make_shared<Implement::defer_element_implement>();
+		}
+
+		void defer_element_implement_storage::draw(render_order or , pipeline& p)
+		{
+			for (auto& ite : element_ptr[or ])
+				ite->draw(p, mapping);
+		}
+		void defer_element_implement_storage::draw(defer_element& de, pipeline& p)
+		{
+			if (de.element_ptr)
+				(de.element_ptr)->draw(p, mapping);
+		}
+		bool defer_element_implement_storage::insert(defer_element& de)
+		{
+			if (de.element_ptr)
+			{
+				render_order ro = (de.element_ptr)->order();
+				element_ptr[ro].push_back(de.element_ptr);
+			}
+			return false;
+		}
+
+		/*
 		void property_interface::push(creator& c) {}
 		void property_interface::update(pipeline& p) {}
 		property_interface::property_interface(std::type_index ti) : id_info(std::move(ti)), vision_for_update(0), is_need_to_push(true) {}
@@ -113,14 +143,14 @@ namespace PO
 			}
 			void property_storage::clear() { mapping.clear(); }
 			property_storage::~property_storage() {}
-			/*
+			
 			void property_storage::update(pipeline& p, uint64_t u)
 			{
 				for (auto& ite : mapping)
 					if(ite.second->update_vision(u))
 						ite.second->update(p);
 			}
-			*/
+			
 			void property_storage::push(creator& c)
 			{
 				for (auto& ite : mapping)
@@ -399,7 +429,7 @@ namespace PO
 			if (!ptr)
 				ptr = std::make_shared<Implement::element_implement>();
 			return *ptr;
-		}
+		}*/
 
 		/*
 		void element::push(creator& c)

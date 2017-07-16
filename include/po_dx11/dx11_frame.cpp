@@ -1331,8 +1331,11 @@ namespace PO
 		}
 
 		void pipeline::clear() {
-			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
-			PS.clear(ptr); OM.clear(ptr);
+			if (ptr)
+			{
+				CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
+				PS.clear(ptr); OM.clear(ptr);
+			}
 		}
 	}
 }

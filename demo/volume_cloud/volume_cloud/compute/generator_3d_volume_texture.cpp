@@ -1,7 +1,7 @@
 #include "generator_3d_volume_texture.h"
 #include <random>
 #include <array>
-
+/*
 using namespace PO;
 using namespace PO::Dx;
 using namespace PO::Dx11;
@@ -104,3 +104,4 @@ void generator_3d_volume_texture::init(creator& c)
 	if (!load_cs(u"compute_generator_3d_volume_texture_cs.cso", c))
 		throw 1;
 }
+*/
