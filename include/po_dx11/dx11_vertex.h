@@ -7,12 +7,13 @@ namespace PO
 	namespace Dx11
 	{
 
-		template<typename syntax_t, size_t i, typename store_type, size_t ic = 0>
+		template<typename syntax_t, size_t i, typename store_type, size_t ic = 0, bool force_instance = false>
 		struct syntax : DXGI::data_format<store_type>
 		{
 			static constexpr size_t align = alignof(store_type);
 			static constexpr size_t size = sizeof(store_type);
 			static constexpr size_t index = i;
+			static constexpr D3D11_INPUT_CLASSIFICATION buffer_type = ((!force_instance && ic == 0) ? D3D11_INPUT_PER_VERTEX_DATA : D3D11_INPUT_PER_INSTANCE_DATA);
 			static constexpr size_t instance_used = ic;
 			static const char* name() { return syntax_t{}(); }
 		};
@@ -28,7 +29,7 @@ namespace PO
 				{
 					return D3D11_INPUT_ELEMENT_DESC{
 						T::name(), static_cast<UINT>(T::index), T::format, static_cast<UINT>(solt), static_cast<UINT>(d),
-						(T::instance_used == 0 ? D3D11_INPUT_CLASSIFICATION::D3D11_INPUT_PER_VERTEX_DATA : D3D11_INPUT_CLASSIFICATION::D3D11_INPUT_PER_INSTANCE_DATA),
+						T::buffer_type,
 						static_cast<UINT>(T::instance_used)
 					};
 				}

@@ -25,6 +25,26 @@ namespace PO
 {
 	namespace Dx11
 	{
+
+		input_element& input_element::insert_with_solt(const input_element& ie, size_t i)
+		{
+			insert(ie, [&, this](D3D11_INPUT_ELEMENT_DESC& des) {
+				des.InputSlot = static_cast<UINT>(i);
+			});
+			return *this;
+		}
+
+		input_element& input_element::insert_offset_solt(const input_element& ie, size_t i)
+		{
+			insert(ie, [&, this](D3D11_INPUT_ELEMENT_DESC& des) {
+				des.InputSlot += static_cast<UINT>(i);
+			});
+			return *this;
+		}
+
+
+
+
 		//*************************************************************************  texture
 		uint32_t tex1::size() const
 		{
@@ -112,7 +132,8 @@ namespace PO
 		shader_resource& shader_resource::set(const sample_state& sd, size_t solt) { sample_array.set(solt, sd.ptr); return *this; }
 
 		//*************************************************************************  input_assember_d
-		input_assember_stage& input_assember_stage::set(const vertex& v, size_t solt)
+
+		input_assember_stage& input_assember_stage::set_without_input_element(const vertex& v, size_t solt)
 		{
 			size_t array_size = vertex_array.size();
 			vertex_array.set(solt, v.ptr);
@@ -122,18 +143,26 @@ namespace PO
 				offset_array.insert(offset_array.end(), append, 0);
 				element_array.insert(element_array.end(), append, 0);
 			}
+			offset_array[solt] = v.offset;
+			element_array[solt] = v.element_size;
+			return *this;
+		}
 
-			input_element.erase(std::remove_if(input_element.begin(), input_element.end(), [solt](D3D11_INPUT_ELEMENT_DESC& DI) {
+		input_assember_stage& input_assember_stage::set(const vertex& v, size_t solt)
+		{
+			set_without_input_element(v, solt);
+			set_input_element(v.layout, solt);
+			return *this;
+		}
+
+		input_assember_stage& input_assember_stage::set_input_element(const input_element& v, size_t solt)
+		{
+			element.remove_if([&](D3D11_INPUT_ELEMENT_DESC& DI) {
 				if (DI.InputSlot == solt)
 					return true;
 				return false;
-			}), input_element.end());
-
-			offset_array[solt] = v.offset;
-			element_array[solt] = v.element_size;
-			auto ite = input_element.insert(input_element.end(), v.layout.begin(), v.layout.end());
-			for (; ite != input_element.end(); ++ite)
-				ite->InputSlot = static_cast<UINT>(solt);
+			});
+			element.insert_with_solt(v, solt);
 			return *this;
 		}
 
@@ -156,17 +185,15 @@ namespace PO
 				element_array.insert(element_array.end(), append, 0);
 			}
 
-			input_element.erase(std::remove_if(input_element.begin(), input_element.end(), [solt](D3D11_INPUT_ELEMENT_DESC& DI) {
+			element.remove_if([solt](D3D11_INPUT_ELEMENT_DESC& DI) {
 				if (DI.InputSlot == solt)
 					return true;
 				return false;
-			}), input_element.end());
+			});
 
 			offset_array[solt] = s.v_offset;
 			element_array[solt] = s.v_element_size;
-			auto ite = input_element.insert(input_element.end(), s.v_layout.begin(), s.v_layout.end());
-			for (; ite != input_element.end(); ++ite)
-				ite->InputSlot = static_cast<UINT>(solt);
+			element.insert_with_solt(s.v_layout, solt);
 			index_ptr = s.ptr;
 			offset = s.i_offset;
 			format = s.i_format;
@@ -188,20 +215,53 @@ namespace PO
 
 		//*************************************************************************  creator
 
-		DXGI_FORMAT creator::translate_depth_stencil_format_to_dxgi_format(DST_format dsf)
+		DXGI_FORMAT creator::DST_format_to_dstex_format(DST_format dsf)
 		{
 			switch (dsf)
 			{
 			case DST_format::D16:
-				return DXGI_FORMAT_D16_UNORM;
+				return DXGI_FORMAT_R16_TYPELESS;
 			case DST_format::D24_UI8:
-				return DXGI_FORMAT_D24_UNORM_S8_UINT;
+				return DXGI_FORMAT_R24G8_TYPELESS;
 			case DST_format::F32:
-				return DXGI_FORMAT_D32_FLOAT;
+				return DXGI_FORMAT_R32_FLOAT;
 			case DST_format::F32_UI8:
-				return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+				return DXGI_FORMAT_R32G8X24_TYPELESS;
 			default:
 				return DXGI_FORMAT_UNKNOWN;
+			}
+		}
+
+		DXGI_FORMAT creator::dstex_format_to_dsview_format(DXGI_FORMAT input)
+		{
+			switch (input)
+			{
+			case DXGI_FORMAT_R16_TYPELESS:
+				return DXGI_FORMAT_D16_UNORM;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				return DXGI_FORMAT_D24_UNORM_S8_UINT;
+			case DXGI_FORMAT_R32_FLOAT:
+				return DXGI_FORMAT_D32_FLOAT;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			default:
+				return input;
+			}
+		}
+		DXGI_FORMAT creator::dstex_format_to_srview_format(DXGI_FORMAT input)
+		{
+			switch (input)
+			{
+			case DXGI_FORMAT_R16_TYPELESS:
+				return DXGI_FORMAT_R16_UNORM;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			case DXGI_FORMAT_R32_FLOAT:
+				return DXGI_FORMAT_R32_FLOAT;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+			default:
+				return input;
 			}
 		}
 
@@ -262,11 +322,11 @@ namespace PO
 			throw re;
 		}
 
-		void creator::update_layout(input_assember_stage& ia, const vertex_shader& vd)
+		input_layout creator::create_layout(const input_element& ie, const vertex_shader& vd)
 		{
 			Win32::com_ptr<ID3D11InputLayout> lp;
-			HRESULT re = dev->CreateInputLayout(ia.input_element.data(), static_cast<UINT>(ia.input_element.size()),  vd.code ? static_cast<const void*>(*vd.code) : nullptr, vd.code ? static_cast<UINT>(*vd.code) : 0, lp.adress());
-			if (SUCCEEDED(re)) ia.layout = lp;
+			HRESULT re = dev->CreateInputLayout(ie.layout.data(), static_cast<UINT>(ie.layout.size()),  vd.code ? static_cast<const void*>(*vd.code) : nullptr, vd.code ? static_cast<UINT>(*vd.code) : 0, lp.adress());
+			if (SUCCEEDED(re)) return { lp };
 			else throw re;
 		}
 
@@ -293,6 +353,22 @@ namespace PO
 		{
 			return vertex{
 				create_buffer_implement(ele * num, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_VERTEX_BUFFER, 0, 0, data),
+				0, ele, num, std::move(layout)
+			};
+		}
+
+		vertex creator::create_vertex_shader_resource(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able)
+		{
+			return vertex{
+				create_buffer_implement(ele * num, (write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, ele, data),
+				0, ele, num, std::move(layout)
+			};
+		}
+
+		vertex creator::create_vertex_unordered_access(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout)
+		{
+			return vertex{
+				create_buffer_implement(ele * num, D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, ele, data),
 				0, ele, num, std::move(layout)
 			};
 		}
@@ -404,6 +480,14 @@ namespace PO
 			return create_tex2_implement(DF, DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, usage, D3D11_BIND_SHADER_RESOURCE, 0, data, line);
 		}
 
+		tex2 creator::create_tex2_unordered_access(DXGI_FORMAT DF, const tex2& t, void** data, UINT* line)
+		{
+			if (!t.ptr) return tex2{};
+			D3D11_TEXTURE2D_DESC DTD;
+			t.ptr->GetDesc(&DTD);
+			return create_tex2_implement(DF, DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, data, line);
+		}
+
 		tex3 creator::create_tex3_implement(DXGI_FORMAT DF, UINT width, UINT height, UINT depth, UINT miplevel, D3D11_USAGE usage, UINT bind, UINT mis, void* data, UINT line, UINT slice)
 		{
 			D3D11_TEXTURE3D_DESC DTD{ width, height, depth, miplevel,
@@ -433,7 +517,7 @@ namespace PO
 			D3D11_TEXTURE2D_DESC DTD;
 			auto p = t.ptr;
 			p.ptr->GetDesc(&DTD);
-			return create_tex2_implement(translate_depth_stencil_format_to_dxgi_format(DF), DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, data, line);
+			return create_tex2_implement(DST_format_to_dstex_format(DF), DTD.Width, DTD.Height, DTD.MipLevels, DTD.ArraySize, DTD.SampleDesc.Count, DTD.SampleDesc.Quality, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE, 0, data, line);
 		}
 
 		shader_resource_view creator::cast_shader_resource_view(const structured_buffer& t, Tool::optional<UINT2> range)
@@ -459,7 +543,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE1D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE1D };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE1D };
 			UINT2 mip = mip_range ? *mip_range : UINT2{ 0, DTD.MipLevels };
 			DSRVD.Texture1D = D3D11_TEX1D_SRV{ mip.x, mip.y };
 			HRESULT re = dev->CreateShaderResourceView(ptr, &DSRVD, tem.ptr.adress());
@@ -473,7 +557,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE2D };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE2D };
 			UINT2 mip = mip_range ? *mip_range : UINT2{ 0, DTD.MipLevels };
 			DSRVD.Texture2D = D3D11_TEX2D_SRV{ mip.x, mip.y };
 			HRESULT re = dev->CreateShaderResourceView(ptr, &DSRVD, tem.ptr.adress());
@@ -487,7 +571,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE1D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE1DARRAY };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE1DARRAY };
 			UINT2 mip = mip_range ? *mip_range : UINT2{0, DTD.MipLevels};
 			UINT2 arr = array ? *array : UINT2{ 0, DTD.ArraySize };
 			DSRVD.Texture1DArray = D3D11_TEX1D_ARRAY_SRV{ mip.x, mip.y, arr.x, arr.y };
@@ -502,7 +586,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE2DARRAY };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE2DARRAY };
 			UINT2 mip = mip_range ? *mip_range : UINT2{ 0, DTD.MipLevels };
 			UINT2 arr = array ? *array : UINT2{ 0, DTD.ArraySize };
 			DSRVD.Texture2DArray = D3D11_TEX2D_ARRAY_SRV{ mip.x, mip.y, arr.x, arr.y };
@@ -517,7 +601,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE2DMS };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE2DMS };
 			DSRVD.Texture2DMS = D3D11_TEX2DMS_SRV{};
 			HRESULT re = dev->CreateShaderResourceView(ptr, &DSRVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
@@ -530,7 +614,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY };
 			UINT2 arr = array ? *array : UINT2{ 0, DTD.ArraySize };
 			DSRVD.Texture2DMSArray = D3D11_TEX2DMS_ARRAY_SRV{ arr.x, arr.y };
 			HRESULT re = dev->CreateShaderResourceView(ptr, &DSRVD, tem.ptr.adress());
@@ -544,7 +628,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURECUBE };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURECUBE };
 			UINT2 mip = mip_range ? *mip_range : UINT2{ 0, DTD.MipLevels };
 			DSRVD.TextureCube = D3D11_TEXCUBE_SRV{ mip.x, mip.y };
 			HRESULT re = dev->CreateShaderResourceView(ptr, &DSRVD, tem.ptr.adress());
@@ -558,7 +642,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DTD.Format, D3D11_SRV_DIMENSION_TEXTURECUBEARRAY };
+			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ dstex_format_to_srview_format(DTD.Format), D3D11_SRV_DIMENSION_TEXTURECUBEARRAY };
 			UINT2 mip = mip_range ? *mip_range : UINT2{ 0, DTD.MipLevels };
 			UINT2 arr = array ? *array : UINT2{ 0, DTD.ArraySize / 6 };
 			DSRVD.TextureCubeArray = D3D11_TEXCUBE_ARRAY_SRV{ mip.x, mip.y, arr.x, arr.y };
@@ -695,7 +779,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format, D3D11_DSV_DIMENSION_TEXTURE2D, 0 };
+			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ dstex_format_to_dsview_format(DTD.Format), D3D11_DSV_DIMENSION_TEXTURE2D, 0 };
 			DDSVD.Texture2D = D3D11_TEX2D_DSV{ miplevel };
 			HRESULT re = dev->CreateDepthStencilView(ptr, &DDSVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
@@ -708,7 +792,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE1D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format, D3D11_DSV_DIMENSION_TEXTURE1DARRAY, 0 };
+			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ dstex_format_to_dsview_format(DTD.Format), D3D11_DSV_DIMENSION_TEXTURE1DARRAY, 0 };
 			UINT2 arr = array_range ? *array_range : UINT2{ 0, DTD.ArraySize };
 			DDSVD.Texture1DArray = D3D11_TEX1D_ARRAY_DSV{ miplevel, arr.x, arr.y };
 			HRESULT re = dev->CreateDepthStencilView(ptr, &DDSVD, tem.ptr.adress());
@@ -722,7 +806,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format, D3D11_DSV_DIMENSION_TEXTURE2DARRAY, 0 };
+			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ dstex_format_to_dsview_format(DTD.Format), D3D11_DSV_DIMENSION_TEXTURE2DARRAY, 0 };
 			UINT2 arr = array_range ? *array_range : UINT2{ 0, DTD.ArraySize };
 			DDSVD.Texture2DArray = D3D11_TEX2D_ARRAY_DSV{ miplevel, arr.x, arr.y };
 			HRESULT re = dev->CreateDepthStencilView(ptr, &DDSVD, tem.ptr.adress());
@@ -736,7 +820,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format, D3D11_DSV_DIMENSION_TEXTURE2DMS, 0 };
+			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ dstex_format_to_dsview_format(DTD.Format), D3D11_DSV_DIMENSION_TEXTURE2DMS, 0 };
 			DDSVD.Texture2DMS = D3D11_TEX2DMS_DSV{};
 			HRESULT re = dev->CreateDepthStencilView(ptr, &DDSVD, tem.ptr.adress());
 			if (SUCCEEDED(re)) return tem;
@@ -749,7 +833,7 @@ namespace PO
 			auto ptr = t.ptr;
 			D3D11_TEXTURE2D_DESC DTD;
 			ptr->GetDesc(&DTD);
-			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ DTD.Format, D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY, 0 };
+			D3D11_DEPTH_STENCIL_VIEW_DESC DDSVD{ dstex_format_to_dsview_format(DTD.Format), D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY, 0 };
 			UINT2 arr = array_range ? *array_range : UINT2{ 0, DTD.ArraySize };
 			DDSVD.Texture2DMSArray = D3D11_TEX2DMS_ARRAY_DSV{ arr.x, arr.y };
 			HRESULT re = dev->CreateDepthStencilView(ptr, &DDSVD, tem.ptr.adress());
@@ -921,7 +1005,7 @@ namespace PO
 			/*****  input_assember_context_t   ******************************************************************************************/
 			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_assember_stage& id)
 			{
-				cp->IASetInputLayout(id.layout);
+				
 				cp->IASetPrimitiveTopology(id.primitive);
 
 				UINT size = static_cast<UINT>(id.vertex_array.size());
@@ -932,10 +1016,14 @@ namespace PO
 				cp->IASetIndexBuffer(id.index_ptr, id.format, id.offset);
 			}
 
+			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_layout& il)
+			{
+				cp->IASetInputLayout(il.ptr);
+			}
+
 			void input_assember_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_assember_stage& id)
 			{
 				input_assember_stage is;
-				cp->IAGetInputLayout(is.layout.adress());
 				cp->IAGetPrimitiveTopology(&is.primitive);
 				
 				is.vertex_array.resize(vb_count);
@@ -945,6 +1033,13 @@ namespace PO
 				cp->IAGetVertexBuffers(0, vb_count, is.vertex_array.data(), is.element_array.data(), is.offset_array.data());
 				cp->IAGetIndexBuffer(is.index_ptr.adress(), &is.format, &is.offset);
 				id = std::move(is);
+			}
+
+			void input_assember_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_layout& id)
+			{
+				input_layout tem;
+				cp->IAGetInputLayout(tem.ptr.adress());
+				id = std::move(tem);
 			}
 
 			void input_assember_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp)
@@ -1322,12 +1417,12 @@ namespace PO
 			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
 		}
 
-		void pipeline::draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start) {
+		void pipeline::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
 			last_mode = DrawMode::PIPELINE;
-			ptr->DrawIndexedInstanced(index_pre_instance, index_count, index_start, vertex_start, instance_start);
+			ptr->DrawIndexedInstanced(index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 		}
 
 		void pipeline::clear() {

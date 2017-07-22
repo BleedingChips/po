@@ -11,16 +11,55 @@ namespace PO
 
 		struct UINT2 { UINT x, y; };
 
+		struct structured_buffer {
+			Win32::com_ptr<ID3D11Buffer> ptr;
+			std::tuple<structured_buffer, size_t> operator[](size_t i) && {return std::tuple<structured_buffer, size_t>{std::move(*this), i}; }
+			std::tuple<const structured_buffer&, size_t> operator[](size_t i) const& { return std::tuple<const structured_buffer&, size_t>{std::move(*this), i}; }
+			operator bool() const { return ptr; }
+		};
+
+		struct input_element
+		{
+			std::vector<D3D11_INPUT_ELEMENT_DESC> layout;
+			template<typename F>
+			void insert(const input_element& ie, F&& f)
+			{
+				auto ite = layout.insert(layout.end(), ie.layout.begin(), ie.layout.end());
+				for (; ite != layout.end(); ++ite)
+					f(*ite);
+			}
+			template<typename F>
+			void remove_if(F&& f)
+			{
+				layout.erase(
+					std::remove_if(layout.begin(), layout.end(), f),
+					layout.end()
+				);
+			}
+			input_element& insert_with_solt(const input_element& ie, size_t i);
+			input_element& insert_offset_solt(const input_element& ie, size_t i);
+			input_element() = default;
+			input_element(const input_element&) = default;
+			input_element(input_element&&) = default;
+			input_element& operator=(const input_element&) = default;
+			input_element& operator=(input_element&&) = default;
+			input_element(std::vector<D3D11_INPUT_ELEMENT_DESC> p) : layout(std::move(p)) {}
+		};
+
 		struct vertex
 		{
 			Win32::com_ptr<ID3D11Buffer> ptr;
 			UINT offset;
 			UINT element_size;
 			UINT num;
-			std::vector<D3D11_INPUT_ELEMENT_DESC> layout;
+
+			input_element layout;
 
 			std::tuple<vertex, size_t> operator[](size_t i) && {return std::tuple<vertex, size_t>{std::move(*this), i}; }
 			std::tuple<const vertex&, size_t> operator[](size_t i) const& { return std::tuple<const vertex&, size_t>{*this, i}; }
+
+			operator structured_buffer() const { return structured_buffer{ptr}; }
+			operator bool() const { return ptr; }
 
 		};
 
@@ -38,7 +77,7 @@ namespace PO
 			UINT v_offset;
 			UINT v_element_size;
 			UINT v_num;
-			std::vector<D3D11_INPUT_ELEMENT_DESC> v_layout;
+			input_element v_layout;
 			UINT i_offset;
 			DXGI_FORMAT i_format;
 			UINT i_num;
@@ -66,13 +105,6 @@ namespace PO
 			Win32::com_ptr<ID3D11Buffer> ptr; 
 			std::tuple<constant_buffer, size_t> operator[](size_t i) && {return std::tuple<constant_buffer, size_t>{std::move(*this), i}; }
 			std::tuple<const constant_buffer&, size_t> operator[](size_t i) const& {return std::tuple<const constant_buffer&, size_t>{std::move(*this), i}; }
-			operator bool() const { return ptr; }
-		};
-		
-		struct structured_buffer { 
-			Win32::com_ptr<ID3D11Buffer> ptr;
-			std::tuple<structured_buffer, size_t> operator[](size_t i) && {return std::tuple<structured_buffer, size_t>{std::move(*this), i}; }
-			std::tuple<const structured_buffer&, size_t> operator[](size_t i) const& { return std::tuple<const structured_buffer&, size_t>{std::move(*this), i}; }
 			operator bool() const { return ptr; }
 		};
 		
@@ -168,14 +200,19 @@ namespace PO
 
 		};
 
+		struct input_layout
+		{
+			Win32::com_ptr<ID3D11InputLayout> ptr;
+			operator bool() const { return ptr; }
+		};
+
 		struct input_assember_stage
 		{
 			Win32::com_vector<ID3D11Buffer> vertex_array;
 			std::vector<UINT> offset_array;
 			std::vector<UINT> element_array;
-			std::vector<D3D11_INPUT_ELEMENT_DESC> input_element;
 
-			Win32::com_ptr<ID3D11InputLayout> layout;
+			input_element element;
 
 			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
@@ -195,12 +232,15 @@ namespace PO
 
 			input_assember_stage& operator<<(D3D11_PRIMITIVE_TOPOLOGY DPT) { return set(DPT); }
 
+			input_assember_stage& set_without_input_element(const vertex& v, size_t = 0);
+			input_assember_stage& set_input_element(const input_element& v, size_t = 0);
+
 			input_assember_stage& set(const vertex& v, size_t solt = 0);
 			input_assember_stage& set(index bp);
 			input_assember_stage& set(const index_vertex& iv, size_t solt = 0);
 
 			input_assember_stage& set(D3D11_PRIMITIVE_TOPOLOGY DPT) { primitive = DPT; return *this; }
-
+			operator const input_element& () const { return element; }
 			bool check() const;
 		};
 
@@ -368,7 +408,9 @@ namespace PO
 			void init(Win32::com_ptr<ID3D11Device> d) { dev = std::move(d); }
 			operator bool() const { return dev; }
 
-			static DXGI_FORMAT translate_depth_stencil_format_to_dxgi_format(DST_format dsf);
+			static DXGI_FORMAT DST_format_to_dstex_format(DST_format dsf);
+			static DXGI_FORMAT dstex_format_to_dsview_format(DXGI_FORMAT);
+			static DXGI_FORMAT dstex_format_to_srview_format(DXGI_FORMAT);
 			static UINT creator::translate_usage_to_cpu_flag(D3D11_USAGE DU);
 
 			sample_state create_sample_state(const sample_state::description& scri = sample_state::default_description);
@@ -376,7 +418,7 @@ namespace PO
 			blend_state create_blend_state(const blend_state::description& scri = blend_state::default_description, std::array<float, 4> bind_factor = { 1.0f, 1.0f, 1.0f, 1.0f }, UINT sample_mask = 0xffffffff);
 			depth_stencil_state create_depth_stencil_state(const depth_stencil_state::description& scri = depth_stencil_state::default_description, UINT stencil_ref = 0);
 
-			void update_layout(input_assember_stage& ia, const vertex_shader& vd);
+			input_layout create_layout(const input_element& ia, const vertex_shader& vd);
 
 			Win32::com_ptr<ID3D11Buffer> create_buffer_implement(UINT width, D3D11_USAGE DU, UINT BIND, UINT misc_flag, UINT struct_byte,  const void* data);
 
@@ -387,6 +429,24 @@ namespace PO
 
 			template<typename T, size_t i> vertex create_vertex(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
 				return create_vertex(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout), write_able);
+			}
+
+			vertex create_vertex_shader_resource(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false);
+			template<typename T, typename K> vertex create_vertex_shader_resource(const std::vector<T, K>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
+				return create_vertex_shader_resource(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), std::move(layout), write_able);
+			}
+
+			template<typename T, size_t i> vertex create_vertex_shader_resource(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
+				return create_vertex_shader_resource(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout), write_able);
+			}
+
+			vertex create_vertex_unordered_access(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout);
+			template<typename T, typename K> vertex create_vertex_unordered_access(const std::vector<T, K>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout) {
+				return create_vertex_unordered_access(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), std::move(layout));
+			}
+
+			template<typename T, size_t i> vertex create_vertex_unordered_access(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout) {
+				return create_vertex_unordered_access(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout));
 			}
 
 			index create_index(const void* data, UINT size, UINT num, DXGI_FORMAT DF, bool write_able = false);
@@ -417,6 +477,12 @@ namespace PO
 				sb.ptr = create_buffer_implement(element_size * element_num, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
 				return sb;
 			}
+			template<typename T, typename K> structured_buffer create_structured_buffer_unorder_access(const std::vector<T, K>& v) {
+				return create_structured_buffer_unorder_access(static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), v.data());
+			}
+			template<typename T, size_t i> structured_buffer create_structured_buffer_unorder_access(const std::array<T, i>& v) {
+				return create_structured_buffer_unorder_access(static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), v.data());
+			}
 
 			vertex_shader create_vertex_shader(std::shared_ptr<PO::Dx::shader_binary> b);
 			pixel_shader create_pixel_shader(const PO::Dx::shader_binary&);
@@ -436,7 +502,7 @@ namespace PO
 				return create_tex1_implement(DF, length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data);
 			}
 			tex1 create_tex1_depth_stencil(DST_format DF, UINT length, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr) {
-				return create_tex1_implement(translate_depth_stencil_format_to_dxgi_format(DF), length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data);
+				return create_tex1_implement(DST_format_to_dstex_format(DF), length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, data);
 			}
 
 			tex2 create_tex2(DXGI_FORMAT DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, D3D11_USAGE usage = D3D11_USAGE_DYNAMIC, void** data = nullptr, UINT* line = nullptr) {
@@ -450,6 +516,7 @@ namespace PO
 				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
 				return create_tex2_implement(DF, width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, data, line);
 			}
+			tex2 create_tex2_unordered_access(DXGI_FORMAT DF, const tex2& t, void** data = nullptr, UINT* line = nullptr);
 			tex2 create_tex2_render_target(DXGI_FORMAT DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
 				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
 				return create_tex2_implement(DF, width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data, line);
@@ -457,7 +524,7 @@ namespace PO
 			tex2 create_tex2_render_target(DXGI_FORMAT DF, const tex2& t);
 			tex2 create_tex2_depth_stencil(DST_format DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
 				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
-				return create_tex2_implement(translate_depth_stencil_format_to_dxgi_format(DF), width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data, line);
+				return create_tex2_implement(DST_format_to_dstex_format(DF), width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, data, line);
 			}
 			tex2 create_tex2_depth_stencil(DST_format DF, const tex2& t, void** data = nullptr, UINT* line = nullptr);
 
@@ -549,7 +616,9 @@ namespace PO
 			{
 				UINT vb_count = 0;
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_assember_stage& id);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_layout& id);
 				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_assember_stage& id);
+				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_layout& id);
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
@@ -667,11 +736,12 @@ namespace PO
 			void draw_vertex(UINT count, UINT start);
 			void draw_index(UINT index_count, UINT index_start, UINT vertex_start);
 			void draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start);
-			void draw_index_instance(UINT index_pre_instance, UINT index_count, UINT index_start, UINT vertex_start, UINT instance_start);
+			void draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start);
 
 			void unbind();
 
 			pipeline& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
+			pipeline& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
 			pipeline& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
 			pipeline& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
 			pipeline& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
@@ -696,6 +766,18 @@ namespace PO
 			pipeline& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
+			{
+				if (b.ptr == nullptr) return false;
+				D3D11_MAPPED_SUBRESOURCE DMS;
+				if (SUCCEEDED(ptr->Map(b.ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
+				{
+					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(b.ptr, 0); });
+					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
+				}
+				return false;
+			}
+
+			template<typename T> bool write_structured_buffer(structured_buffer& b, T&& t)
 			{
 				if (b.ptr == nullptr) return false;
 				D3D11_MAPPED_SUBRESOURCE DMS;

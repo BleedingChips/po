@@ -111,6 +111,19 @@ namespace PO
 			};
 		}
 
+
+		matrix transfer3D::inverse_matrix() const
+		{
+			return DirectX::XMMatrixInverse(nullptr, qua.to_XMMATRIX(sca, poi));
+		}
+
+		float4x4 transfer3D::inverse_float4x4() const
+		{
+			float4x4 tem;
+			DirectX::XMStoreFloat4x4(&tem, inverse_matrix());
+			return tem;
+		}
+
 	}
 }
 

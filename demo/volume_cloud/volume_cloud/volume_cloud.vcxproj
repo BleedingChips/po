@@ -22,8 +22,10 @@
     <ClCompile Include="compute\generator_2d_worley_noise_texture.cpp" />
     <ClCompile Include="compute\generator_3d_shadow_texture_64.cpp" />
     <ClCompile Include="compute\generator_3d_volume_texture.cpp" />
+    <ClCompile Include="compute\volume_cloud_compute.cpp" />
     <ClCompile Include="material\render_3d_volume_texture_64.cpp" />
     <ClCompile Include="material\texture_3d_viewer.cpp" />
+    <ClCompile Include="material\volume_cloud_material.cpp" />
     <ClCompile Include="new_plugin.cpp" />
     <ClCompile Include="placement\default_ui.cpp" />
     <ClCompile Include="volum_cloud_main.cpp" />
@@ -32,57 +34,35 @@
     <ClInclude Include="compute\generator_2d_worley_noise_texture.h" />
     <ClInclude Include="compute\generator_3d_shadow_texture_64.h" />
     <ClInclude Include="compute\generator_3d_volume_texture.h" />
+    <ClInclude Include="compute\volume_cloud_compute.h" />
     <ClInclude Include="material\render_3d_volume_texture_64.h" />
     <ClInclude Include="material\texture_3d_viewer.h" />
+    <ClInclude Include="material\volume_cloud_material.h" />
     <ClInclude Include="new_plugin.h" />
     <ClInclude Include="placement\default_ui.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="compute\shader\compute_generator_3d_volume_texture_cs.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="compute\shader\generator_2d_worley_noise_texture_cs.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="material\shader\render_3d_volume_texture_64_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="material\shader\texture_3d_viewer_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="placement\shader\square_2d_vs.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-    </FxCompile>
+    <None Include="compute\shader\volume_cloud_compute_property.hlsli" />
+    <None Include="material\shader\volume_cloud_material_property.hlsli" />
+    <None Include="shader_include\ray_function.hlsli" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader_include\ray_function.hlsli" />
+    <FxCompile Include="compute\shader\volume_cloud_compute_worley_noise_tex2_3d_cs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="material\shader\volume_cloud_material_transparent_render_2d_for_3d_64_ps.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -167,9 +147,8 @@
       <AdditionalIncludeDirectories>D:\GitHub\po\include\po_dx11\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(PO)$(PODx11ShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $(OutDir)shader_lib /E/I/Y/V</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command />
@@ -190,9 +169,8 @@ xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $
       <AdditionalIncludeDirectories>D:\GitHub\po\include\po_dx11\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(PO)$(PODx11ShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $(OutDir)shader_lib /E/I/Y/V</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command />
@@ -217,9 +195,8 @@ xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $
       <AdditionalIncludeDirectories>D:\GitHub\po\include\po_dx11\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(PO)$(PODx11ShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $(OutDir)shader_lib /E/I/Y/V</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command />
@@ -244,9 +221,8 @@ xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $
       <AdditionalIncludeDirectories>D:\GitHub\po\include\po_dx11\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy $(PO)$(PODx11ShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererShaderInclude) $(ProjectDir)shader_include /E/I/Y/V
-xcopy $(PO)$(PODx11DeferRendererOutDir)$(Configuration)\$(Platform)\shader_lib $(OutDir)shader_lib /E/I/Y/V</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command />

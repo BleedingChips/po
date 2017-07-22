@@ -1,5 +1,5 @@
 #pragma once
-#include "po_dx11_defer_renderer\element\interface.h"
+//#include "po_dx11_defer_renderer\element\interface.h"
 /*
 class texture_3d_viewer : public PO::Dx11::material_interface
 { 
@@ -7,7 +7,7 @@ class texture_3d_viewer : public PO::Dx11::material_interface
 public:
 
 
-	class input_property : public PO::Dx11::property_interface
+	class input_property : public PO::Dx11::property_constructor
 	{
 
 		PO::Dx11::sample_state ss;
@@ -32,7 +32,7 @@ public:
 
 	texture_3d_viewer();
 
-	virtual bool update(PO::Dx11::property_interface&, PO::Dx11::pipeline&) override;
+	virtual bool update(PO::Dx11::property_constructor&, PO::Dx11::pipeline&) override;
 	virtual const std::set<std::type_index>& acceptance() const override;
 	virtual void init(PO::Dx11::creator&) override;
 };

@@ -63,6 +63,8 @@ namespace PO
 			transfer3D() = default;
 			transfer3D(const transfer3D&) = default;
 			transfer3D& set_eul(const eulerian_angle& e) { qua = e; return *this; }
+			float4x4 inverse_float4x4() const;
+			matrix inverse_matrix() const;
 			operator float4x4() const { return qua.to_float4x4(sca, poi); }
 			operator matrix() const { return qua.to_XMMATRIX(sca, poi); }
 		};

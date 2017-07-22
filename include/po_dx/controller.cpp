@@ -44,28 +44,34 @@ namespace PO
 			state = 0;
 		}
 
-		void showcase::apply(duration da, transfer3D& t3)
+		bool showcase::apply(duration da, transfer3D& t3)
 		{
+			bool apply_state = false;
 			if (static_cast<bool>(state & static_cast<uint8_t>(State::X_CW)) != static_cast<bool>(state & static_cast<uint8_t>(State::X_ACW)))
 			{
 				t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.x / ((state & static_cast<uint8_t>(State::X_CW)) ? 1000.0f : -1000.0f) ,{ 1.0, 0.0, 0.0 } };
+				apply_state = true;
 			}
 
 			if (static_cast<bool>(state & static_cast<uint8_t>(State::Y_CW)) != static_cast<bool>(state & static_cast<uint8_t>(State::Y_ACW)))
 			{
-				t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.x / ((state & static_cast<uint8_t>(State::Y_CW)) ? 1000.0f : -1000.0f) ,{ 0.0, 1.0, 0.0 } };
+				t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.y / ((state & static_cast<uint8_t>(State::Y_CW)) ? 1000.0f : -1000.0f) ,{ 0.0, 1.0, 0.0 } };
+				apply_state = true;
 			}
 
 			if (static_cast<bool>(state & static_cast<uint8_t>(State::Z_CW)) != static_cast<bool>(state & static_cast<uint8_t>(State::Z_ACW)))
 			{
-				t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.x / ((state & static_cast<uint8_t>(State::Z_CW)) ? 1000.0f : -1000.0f) ,{ 0.0, 0.0, 1.0 } };
+				t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.z / ((state & static_cast<uint8_t>(State::Z_CW)) ? 1000.0f : -1000.0f) ,{ 0.0, 0.0, 1.0 } };
+				apply_state = true;
 			}
 
 			if (static_cast<bool>(state & static_cast<uint8_t>(State::T_FR)) != static_cast<bool>(state & static_cast<uint8_t>(State::T_BA)))
 			{
-				t3.poi = t3.poi + float3(0.0, 0.0, da.count() * roll_speed.x / ((state & static_cast<uint8_t>(State::T_FR)) ? 1000.0f : -1000.0f));
+				t3.poi = t3.poi + float3(0.0, 0.0, da.count() * translation_speed / ((state & static_cast<uint8_t>(State::T_FR)) ? 1000.0f : -1000.0f));
+				apply_state = true;
 				//t3.qua = t3.qua * PO::Dx::rotation_axis{ da.count() * roll_speed.x / ((state & static_cast<uint8_t>(State::Z_CW)) ? 1000.0f : -1000.0f) ,{ 0.0, 11.0, 0.0 } };
 			}
+			return apply_state;
 		}
 	}
 }

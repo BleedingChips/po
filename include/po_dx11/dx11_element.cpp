@@ -28,16 +28,15 @@ namespace PO
 			base_interface::~base_interface() {}
 		}
 
-		void property_storage::update_imp(pipeline& p) {  }
-		void property_storage::update(pipeline& p) {
-			if (need_to_be_update)
+		void property_interface::update(pipeline& p) {
+			if (update_function)
 			{
-				need_to_be_update = false;
-				update_imp(p);
+				update_function(p);
+				update_function = std::function<void(pipeline& p)>{};
 			}
 		}
 
-		property_storage& property_mapping::create(const typename property_interface::acception_t::value_type& vt)
+		property_interface& property_mapping::create(const typename property_constructor::construction_t::value_type& vt)
 		{
 			auto ite = mapping.find(vt.first);
 			if (ite == mapping.end())
@@ -48,18 +47,18 @@ namespace PO
 			}
 			return *(ite->second);
 		}
-		property_storage& property_mapping::recreate(const typename property_interface::acception_t::value_type& vt)
+		property_interface& property_mapping::recreate(const typename property_constructor::construction_t::value_type& vt)
 		{
 			auto ptr = vt.second();
 			mapping.insert({ ptr->id(), ptr });
 			return *ptr;
 		}
-		bool property_mapping::create_and_construct(const typename property_interface::acception_t::value_type& vt, property_interface& pi, creator& c)
+		bool property_mapping::create_and_construct(const typename property_constructor::construction_t::value_type& vt, property_constructor& pi, creator& c)
 		{
 			auto& ref = create(vt);
 			return pi.construct(ref, c);
 		}
-		bool property_mapping::recreate_and_construct(const typename property_interface::acception_t::value_type& vt, property_interface& pi, creator& c)
+		bool property_mapping::recreate_and_construct(const typename property_constructor::construction_t::value_type& vt, property_constructor& pi, creator& c)
 		{
 			auto& ref = recreate(vt);
 			return pi.construct(ref, c);
@@ -70,7 +69,7 @@ namespace PO
 			auto ite = mapping.find(ti);
 			return ite != mapping.end();
 		}
-		bool property_mapping::insert(std::shared_ptr<property_storage> sp)
+		bool property_mapping::insert(std::shared_ptr<property_interface> sp)
 		{
 			if (sp)
 			{
@@ -88,40 +87,44 @@ namespace PO
 
 		namespace Implement
 		{
-			bool stage_interface::update_imp(property_storage&, pipeline&) { return false; }
+			bool stage_interface::update(property_interface&, pipeline&) { return false; }
 			auto stage_interface::acceptance() const -> const acceptance_t&
 			{
 				static const acceptance_t acce{};
 				return acce;
 			}
-			bool stage_interface::update(pipeline& p, property_mapping& pi, property_mapping& pm)
+			bool stage_interface::update_implement(pipeline& p, property_mapping& pi, property_mapping& pm)
 			{
 				for (auto& acce_ite : acceptance())
 				{
-					return pi.find(acce_ite, [&, this](property_storage& ps) {
+					bool result = true;
+					if(!(pi.find(acce_ite, [&, this](property_interface& ps) {
 						ps.update(p);
-						return update_imp(ps, p);
-					}) || pm.find(acce_ite, [&, this](property_storage& ps) {
+						result = update(ps, p);
+					}) || pm.find(acce_ite, [&, this](property_interface& ps) {
 						ps.update(p);
-						return update_imp(ps, p);
-					}) || default_mapping.find(acce_ite, [&, this](property_storage& ps) {
+						result = update(ps, p);
+					}) || default_mapping.find(acce_ite, [&, this](property_interface& ps) {
 						ps.update(p);
-						return update_imp(ps, p);
-					});
+						result = update(ps, p);
+					})) || !result)
+						return false;
 				}
 				return true;
 			}
-			bool stage_interface::update(pipeline& p, property_mapping& pi)
+			bool stage_interface::update_implement(pipeline& p, property_mapping& pi)
 			{
 				for (auto& acce_ite : acceptance())
 				{
-					return pi.find(acce_ite, [&, this](property_storage& ps) {
+					bool result = true;
+					if(!(pi.find(acce_ite, [&, this](property_interface& ps) {
 						ps.update(p);
-						return update_imp(ps, p);
-					}) || default_mapping.find(acce_ite, [&, this](property_storage& ps) {
+						result = update(ps, p);
+					}) || default_mapping.find(acce_ite, [&, this](property_interface& ps) {
 						ps.update(p);
-						return update_imp(ps, p);
-					});
+						result = update(ps, p);
+					})) || !result)
+						return false;
 				}
 				return true;
 			}
@@ -145,6 +148,29 @@ namespace PO
 				}
 				return false;
 			}
+
+			auto stage_interface::lack_acceptance(const property_mapping& pm) const ->acceptance_t
+			{
+				acceptance_t tem;
+				auto& rqueire = acceptance();
+				for (auto& ite : rqueire)
+				{
+					if (!pm.have(ite) && !default_mapping.have(ite))
+						tem.insert(ite);
+				}
+				return tem;
+			}
+			auto stage_interface::lack_acceptance(const property_mapping& pm, const property_mapping& pm2) const ->acceptance_t
+			{
+				acceptance_t tem;
+				auto& rqueire = acceptance();
+				for (auto& ite : rqueire)
+				{
+					if (!pm.have(ite) && !pm2.have(ite) && !default_mapping.have(ite))
+						tem.insert(ite);
+				}
+				return tem;
+			}
 		}
 
 		bool placement_interface::load_vs(std::u16string p, creator& c)
@@ -164,61 +190,6 @@ namespace PO
 		void geometry_interface::apply(pipeline& p)
 		{
 			p << stage_rs << stage_ia;
-		}
-		bool geometry_interface::set_placement(std::shared_ptr<placement_interface> ptr)
-		{
-			if (ptr && ptr->id() == std::get<0>(requirement()))
-			{
-				placement_ptr = std::move(ptr);
-				return true;
-			}
-			return false;
-		}
-		bool geometry_interface::update_placement(pipeline& p, property_mapping& pm)
-		{
-			if (placement_ptr)
-			{
-				return placement_ptr->update(p, pm);
-			}
-			return false;
-		}
-		bool geometry_interface::update_placement(pipeline& p, property_mapping& pm, property_mapping& pm2)
-		{
-			if (placement_ptr)
-			{
-				return placement_ptr->update(p, pm, pm2);
-			}
-			return false;
-		}
-		auto geometry_interface::acceptance_placement() const -> const acceptance_t&
-		{
-			if (placement_ptr)
-			{
-				return placement_ptr->acceptance();
-			}
-			else {
-				static const acceptance_t acce{};
-				return acce;
-			}
-		}
-		void geometry_interface::apply_placement(pipeline& p)
-		{
-			if(placement_ptr)
-				placement_ptr->apply(p);
-		}
-
-		bool geometry_interface::check(const property_mapping& pm) const
-		{
-			if (placement_ptr)
-				return placement_ptr->check(pm) && stage_interface::check(pm);
-			return stage_interface::check(pm);
-			
-		}
-		bool geometry_interface::check(const property_mapping& pm, const property_mapping& pm2) const
-		{
-			if (placement_ptr)
-				return placement_ptr->check(pm, pm2) && stage_interface::check(pm, pm2);
-			return stage_interface::check(pm, pm2);
 		}
 
 		bool material_interface::load_ps(std::u16string p, creator& c)
@@ -252,9 +223,9 @@ namespace PO
 
 		namespace Implement
 		{
-			bool element_implement::construct_imp(property_interface& pi, creator& c)
+			bool element_implement::construct_imp(property_constructor& pi, creator& c)
 			{
-				auto& pi_ref = pi.acception();
+				auto& pi_ref = pi.construction();
 				for (auto& ite : pi_ref)
 				{
 					for (auto& ite2 : compute_vector)
@@ -269,53 +240,63 @@ namespace PO
 						if (geo_ref.find(ite.first) != geo_ref.end())
 							return mapping.create_and_construct(ite, pi, c);
 					}
+					if (placemenet_ptr)
+					{
+						auto& reff = placemenet_ptr->acceptance();
+						if (reff.find(ite.first) != reff.end())
+							return mapping.create_and_construct(ite, pi, c);
+					}
 					if (geometry_ptr)
 					{
 						auto& ref = geometry_ptr->acceptance();
 						if (ref.find(ite.first) != ref.end())
-							return mapping.create_and_construct(ite, pi, c);
-						auto& reff = geometry_ptr->acceptance_placement();
-						if (reff.find(ite.first) != reff.end())
 							return mapping.create_and_construct(ite, pi, c);
 					}
 				}
 				return false;
 			}
 
-			bool element_implement::reconstruct_imp(property_interface& pi, creator& c)
+			bool element_implement::reconstruct_imp(property_constructor& pi, creator& c)
 			{
-				auto& pi_ref = pi.acception();
+				auto& pi_ref = pi.construction();
 				for (auto& ite : pi_ref)
 				{
 					for (auto& ite2 : compute_vector)
 					{
 						auto& ref = ite2->acceptance();
 						if (ref.find(ite.first) != ref.end())
-							return mapping.recreate_and_construct(ite, pi, c);
+							if (!mapping.recreate_and_construct(ite, pi, c))
+								return false;
 					}
 					if (material_ptr)
 					{
 						auto& geo_ref = material_ptr->acceptance();
 						if (geo_ref.find(ite.first) != geo_ref.end())
-							return mapping.recreate_and_construct(ite, pi, c);
+							if (!mapping.recreate_and_construct(ite, pi, c))
+								return false;
+					}
+					if (placemenet_ptr)
+					{
+						auto& reff = placemenet_ptr->acceptance();
+						if (reff.find(ite.first) != reff.end())
+							if (!mapping.recreate_and_construct(ite, pi, c))
+								return false;
 					}
 					if (geometry_ptr)
 					{
 						auto& ref = geometry_ptr->acceptance();
 						if (ref.find(ite.first) != ref.end())
-							return mapping.recreate_and_construct(ite, pi, c);
-						auto& reff = geometry_ptr->acceptance_placement();
-						if (reff.find(ite.first) != reff.end())
-							return mapping.recreate_and_construct(ite, pi, c);
+							if (!mapping.recreate_and_construct(ite, pi, c))
+								return false;
 					}
 					
 				}
-				return false;
+				return true;
 			}
 
 			void element_implement::clear_unuesd_property()
 			{
-				mapping.remove_if([this](property_storage& ps) {
+				mapping.remove_if([this](property_interface& ps) {
 					for (auto& compu : compute_vector)
 					{
 						auto& re = compu->acceptance();
@@ -328,13 +309,16 @@ namespace PO
 						if (re.find(ps.id()) != re.end())
 							return false;
 					}
+					if (placemenet_ptr)
+					{
+						auto& ref = placemenet_ptr->acceptance();
+						if (ref.find(ps.id()) != ref.end())
+							return false;
+					}
 					if (geometry_ptr)
 					{
 						auto& re = geometry_ptr->acceptance();
 						if (re.find(ps.id()) != re.end())
-							return false;
-						auto& ref = geometry_ptr->acceptance_placement();
-						if (ref.find(ps.id()) != ref.end())
 							return false;
 					}
 					return true;
@@ -345,11 +329,14 @@ namespace PO
 				for (auto& ite : compute_vector)
 					if (!ite->check(mapping))
 						return false;
-				if (geometry_ptr)
-					if (!geometry_ptr->check(mapping))
+				if (placemenet_ptr)
+					if (!placemenet_ptr->check(mapping))
 						return false;
 				if (material_ptr)
 					if (!material_ptr->check(mapping))
+						return false;
+				if (geometry_ptr)
+					if (!geometry_ptr->check(mapping))
 						return false;
 				return true;
 			}
@@ -358,13 +345,68 @@ namespace PO
 				for (auto& ite : compute_vector)
 					if (!ite->check(mapping, pm))
 						return false;
-				if (geometry_ptr)
-					if (!geometry_ptr->check(mapping, pm))
+				if (placemenet_ptr)
+					if (!placemenet_ptr->check(mapping, pm))
 						return false;
 				if (material_ptr)
 					if (!material_ptr->check(mapping, pm))
 						return false;
+				if (geometry_ptr)
+					if (!geometry_ptr->check(mapping, pm))
+						return false;
 				return true;
+			}
+
+			Implement::stage_interface::acceptance_t element_implement::lack_acceptance(const property_mapping& pm) const
+			{
+				Implement::stage_interface::acceptance_t temporary;
+				for (auto& compu : compute_vector)
+				{
+					auto tem = compu->lack_acceptance(mapping, pm);
+					temporary.insert(tem.begin(), tem.end());
+				}
+				if (material_ptr)
+				{
+					auto mat = material_ptr->lack_acceptance(mapping, pm);
+					temporary.insert(mat.begin(), mat.end());
+				}
+				if (placemenet_ptr)
+				{
+					auto pla = placemenet_ptr->lack_acceptance(mapping, pm);
+					temporary.insert(pla.begin(), pla.end());
+				}
+				if (geometry_ptr)
+				{
+					auto geo = geometry_ptr->lack_acceptance(mapping, pm);
+					temporary.insert(geo.begin(), geo.end());
+				}
+				
+				return temporary;
+			}
+			Implement::stage_interface::acceptance_t element_implement::lack_acceptance() const
+			{
+				Implement::stage_interface::acceptance_t temporary;
+				for (auto& compu : compute_vector)
+				{
+					auto tem = compu->lack_acceptance(mapping);
+					temporary.insert(tem.begin(), tem.end());
+				}
+				if (material_ptr)
+				{
+					auto mat = material_ptr->lack_acceptance(mapping);
+					temporary.insert(mat.begin(), mat.end());
+				}
+				if (placemenet_ptr)
+				{
+					auto pla = placemenet_ptr->lack_acceptance(mapping);
+					temporary.insert(pla.begin(), pla.end());
+				}
+				if (geometry_ptr)
+				{
+					auto geo = geometry_ptr->lack_acceptance(mapping);
+					temporary.insert(geo.begin(), geo.end());
+				}
+				return temporary;
 			}
 
 			void element_implement::clear_all()
@@ -375,36 +417,39 @@ namespace PO
 				material_ptr.reset();
 			}
 
-			element_implement& element_implement::operator=(std::shared_ptr<geometry_interface> p)
+			void element_implement::set(std::shared_ptr<geometry_interface> gp, std::shared_ptr<placement_interface> pp, input_layout lay)
 			{
-				geometry_ptr = std::move(p);
-				return *this;
+				geometry_ptr = std::move(gp);
+				placemenet_ptr = std::move(pp);
+				layout = std::move(lay);
 			}
-			element_implement& element_implement::operator=(std::shared_ptr<material_interface> p)
+			void element_implement::set(std::shared_ptr<material_interface> mp)
 			{
-				material_ptr = std::move(p);
-				return *this;
+				material_ptr = std::move(mp);
 			}
-			element_implement& element_implement::operator=(std::shared_ptr<compute_interface> p)
+			void element_implement::set(std::shared_ptr<compute_interface> cp)
 			{
-				if (p)
-					compute_vector.push_back(std::move(p));
-				return *this;
+				compute_vector.push_back(std::move(cp));
 			}
 
 			void element_implement::draw(pipeline& p)
 			{
 				for (auto& compute_ite : compute_vector)
 				{
-					if (compute_ite->update(p, mapping))
-						compute_ite->dispath(p);
-				}
-				if (geometry_ptr && material_ptr)
-				{
-					if (material_ptr->update(p, mapping) && geometry_ptr->update_placement(p, mapping) && geometry_ptr->update(p, mapping))
+					if (compute_ite->update_implement(p, mapping))
 					{
+						compute_ite->apply(p);
+						compute_ite->dispath(p);
+					}
+						
+				}
+				if (geometry_ptr && material_ptr && placemenet_ptr)
+				{
+					if (material_ptr->update_implement(p, mapping) && placemenet_ptr->update_implement(p, mapping) && geometry_ptr->update_implement(p, mapping))
+					{
+						p << layout;
 						geometry_ptr->apply(p);
-						geometry_ptr->apply_placement(p);
+						placemenet_ptr->apply(p);
 						material_ptr->apply(p);
 						geometry_ptr->draw(p);
 					}
@@ -415,15 +460,19 @@ namespace PO
 			{
 				for (auto& compute_ite : compute_vector)
 				{
-					if (compute_ite->update(p, mapping, map))
-						compute_ite->dispath(p);
-				}
-				if (geometry_ptr && material_ptr)
-				{
-					if (material_ptr->update(p, mapping, map) && geometry_ptr->update_placement(p, mapping, map) && geometry_ptr->update(p, mapping, map))
+					if (compute_ite->update_implement(p, mapping, map))
 					{
+						compute_ite->apply(p);
+						compute_ite->dispath(p);
+					}
+				}
+				if (geometry_ptr && material_ptr && placemenet_ptr)
+				{
+					if (material_ptr->update_implement(p, mapping, map) && placemenet_ptr->update_implement(p, mapping, map) && geometry_ptr->update_implement(p, mapping, map))
+					{
+						p << layout;
 						geometry_ptr->apply(p);
-						geometry_ptr->apply_placement(p);
+						placemenet_ptr->apply(p);
 						material_ptr->apply(p);
 						geometry_ptr->draw(p);
 					}
@@ -442,7 +491,32 @@ namespace PO
 			if (element_ptr)
 				element_ptr->draw(p, mapping);
 		}
+
+		bool element::check() const
+		{
+			if (element_ptr)
+				return element_ptr->check();
+			return true;
+		}
+		bool element::check(const property_mapping& pm) const
+		{
+			if (element_ptr)
+				return element_ptr->check(pm);
+			return true;
+		}
 		
+		Implement::stage_interface::acceptance_t element::lack_acceptance() const
+		{
+			if (element_ptr)
+				return element_ptr->lack_acceptance();
+			return {};
+		}
+		Implement::stage_interface::acceptance_t element::lack_acceptance(const property_mapping& pm) const
+		{
+			if (element_ptr)
+				return element_ptr->lack_acceptance(pm);
+			return {};
+		}
 
 		/******************************************************************************************************/
 	}

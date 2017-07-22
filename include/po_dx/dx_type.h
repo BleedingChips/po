@@ -1,5 +1,6 @@
 #pragma once
 #include "../po_dxgi/dxgi_define.h"
+#include "../po/tool/tool.h"
 #include <DirectXMath.h>
 #include <fstream>
 namespace PO
@@ -17,6 +18,7 @@ namespace PO
 		using uint32_t3 = DirectX::XMUINT3;
 		using uint32_t4 = DirectX::XMUINT4;
 		using matrix = DirectX::XMMATRIX;
+		using matrix_ref = DirectX::CXMMATRIX;
 		using vector = DirectX::XMVECTOR;
 
 		struct tex_sample
@@ -66,7 +68,7 @@ namespace PO
 				return *this;
 			}
 
-			
+
 
 			aligned_array& operator=(std::array<T, count>&& aa)
 			{
@@ -103,7 +105,7 @@ namespace PO
 			{
 				for (size_t i = 0; i < count; ++i)
 				{
-					new(data + single_size * i) T{aa[i]};
+					new(data + single_size * i) T{ aa[i] };
 				}
 			}
 			aligned_array(aligned_array&& aa)
@@ -131,109 +133,148 @@ namespace PO
 
 		namespace Implement
 		{
-			template<size_t last, size_t current> struct calculate_start_size
+			template<size_t last, size_t current> struct shader_storage_start_size
 			{
 				static constexpr size_t fix_size = (last % 4 == 0) ? last : last + 4 - last % 4;
 
 				static constexpr size_t size =
 					(last % 16 == 0) ?
-						last :
-						(
-							((fix_size % 16) + current > 16) ?
-								(fix_size - fix_size % 16 + 16)
-								: fix_size
-							)
+					last :
+					(
+					((fix_size % 16) + current > 16) ?
+						(fix_size - fix_size % 16 + 16)
+						: fix_size
+						)
 					;
 			};
 
-			template<size_t last, typename ...T> struct aligned_storage_count_size
+			template<size_t last, typename ...T> struct shader_storage_count_size
 			{
-				static constexpr size_t size = (last == 0) ?  1 : last;
+				static constexpr size_t size = (last == 0) ? 1 : last;
 			};
 
-			template<size_t last, typename T, typename ...K> struct aligned_storage_count_size<last, T, K...>
+			template<size_t last, typename T, typename ...K> struct shader_storage_count_size<last, T, K...>
 			{
-				static constexpr size_t size = aligned_storage_count_size<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::size;
+				static constexpr size_t size = shader_storage_count_size<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::size;
 			};
 
-			template<size_t last, typename ...K> struct aligned_storage_element_handle
+			template<size_t last, typename ...K> struct shader_storage_element_handle
 			{
 				static void construction(char*) {}
 				static void destruction(char*) {}
 				static void equal(char*, const char*) {}
 				static void equal(char*, char*&&) {}
+				static void construct_sample_type(char* da, const char* src) {}
+				static void construct_sample_type(char* da, char*&& src) {}
 			};
 
-			template<size_t last, typename T, typename ...K> struct aligned_storage_element_handle<last, T, K...>
+			template<size_t last, typename T, typename ...K> struct shader_storage_element_handle<last, T, K...>
 			{
 				template<typename P, typename ...AK> static void construction(char* da, P&& p, AK&& ...ak)
 				{
-					new (da + calculate_start_size<last, sizeof(T)>::size) T(std::forward<P>(p));
-					aligned_storage_element_handle<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construction(da, std::forward<AK>(ak)...);
+					new (da + shader_storage_start_size<last, sizeof(T)>::size) T(std::forward<P>(p));
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construction(da, std::forward<AK>(ak)...);
 				}
 				static void construction(char* da)
 				{
-					new (da + calculate_start_size<last, sizeof(T)>::size) T();
-					aligned_storage_element_handle<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construction(da);
+					new (da + shader_storage_start_size<last, sizeof(T)>::size) T();
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construction(da);
 				}
 
 				static void destruction(char* da)
 				{
-					reinterpret_cast<T*>(da + calculate_start_size<last, sizeof(T)>::size)->~T();
-					aligned_storage_element_handle<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::destruction(da);
+					reinterpret_cast<T*>(da + shader_storage_start_size<last, sizeof(T)>::size)->~T();
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::destruction(da);
+				}
+
+				static void construct_sample_type(char* da, const char* src) {
+					new(da + shader_storage_start_size<last, sizeof(T)>::size) T(*reinterpret_cast<const T*>(src + shader_storage_start_size<last, sizeof(T)>::size));
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construct_sample_type(da, src);
+				}
+
+				static void construct_sample_type(char* da, char*&& src) {
+					new(da + shader_storage_start_size<last, sizeof(T)>::size) T(std::move(*reinterpret_cast<T*>(src + shader_storage_start_size<last, sizeof(T)>::size)));
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::construct_sample_type(da, std::move(src));
 				}
 
 				static void equal(char* da, const char* src) {
-					*reinterpret_cast<T*>(da + calculate_start_size<last, sizeof(T)>::size)=(*reinterpret_cast<const T*>(src + calculate_start_size<last, sizeof(T)>::size));
-					aligned_storage_element_handle<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::equal(da, src); 
+					*reinterpret_cast<T*>(da + shader_storage_start_size<last, sizeof(T)>::size) = (*reinterpret_cast<const T*>(src + shader_storage_start_size<last, sizeof(T)>::size));
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::equal(da, src);
 				}
 				static void equal(char* da, char*&& src) {
-					*reinterpret_cast<T*>(da + calculate_start_size<last, sizeof(T)>::size)=(std::move(*reinterpret_cast<T*>(src + calculate_start_size<last, sizeof(T)>::size)));
-					aligned_storage_element_handle<calculate_start_size<last, sizeof(T)>::size + sizeof(T), K...>::equal(da, std::move(src));
+					*reinterpret_cast<T*>(da + shader_storage_start_size<last, sizeof(T)>::size) = (std::move(*reinterpret_cast<T*>(src + shader_storage_start_size<last, sizeof(T)>::size)));
+					shader_storage_element_handle<shader_storage_start_size<last, sizeof(T)>::size + sizeof(T), K...>::equal(da, std::move(src));
 				}
 			};
 
-			template<size_t index, size_t last, typename K, typename ...T> struct aligned_storage_get
+			template<size_t index, size_t last, typename K, typename ...T> struct shader_storage_get
 			{
-				static constexpr size_t size = aligned_storage_get<index - 1, calculate_start_size<last, sizeof(K)>::size + sizeof(K), T...>::size;
+				static constexpr size_t size = shader_storage_get<index - 1, shader_storage_start_size<last, sizeof(K)>::size + sizeof(K), T...>::size;
 			};
 
-			template<size_t last, typename K, typename ...T> struct aligned_storage_get<0, last, K, T...>
+			template<size_t last, typename K, typename ...T> struct shader_storage_get<0, last, K, T...>
 			{
-				static constexpr size_t size = calculate_start_size<last, sizeof(K)>::size;
+				static constexpr size_t size = shader_storage_start_size<last, sizeof(K)>::size;
 			};
 		}
 
-		template<typename ...T> class aligned_storage
+		template<typename ...T> class alignas(16) shader_storage
 		{
-			alignas(16) char data[Implement::aligned_storage_count_size<0, T...>::size];
-
+			alignas(16) char data[Implement::shader_storage_count_size<0, T...>::size];
 			template<size_t i> using selet_type_t = std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > ;
-
+			template<size_t i> friend struct shader_storage_get;
 		public:
-			template<typename ...AK> aligned_storage(AK&& ... ak) { Implement::aligned_storage_element_handle<0, T...>::construction(data, std::forward<AK>(ak)...); }
+			template<typename ...AK> shader_storage(AK&& ... ak) { Implement::shader_storage_element_handle<0, T...>::construction(data, std::forward<AK>(ak)...); }
+			shader_storage(const shader_storage& ss) {
+				Implement::shader_storage_element_handle<0, T...>::construct_sample_type(data, ss.data);
+			}
+			shader_storage(shader_storage&& ss) {
+				Implement::shader_storage_element_handle<0, T...>::construct_sample_type(data, std::move(ss.data));
+			}
+
+			/*
 			template<size_t i> auto get() -> selet_type_t<i>&  {
 				//using final_t = TmpCall::call<TmpCall::append<T...>, TmpCall::select_index<std::integral_constant<size_t, i>>, TmpCall::self>;
 				return *reinterpret_cast<selet_type_t<i>*>(data + Implement::aligned_storage_get<i, 0, T...>::size);
 				//return final_t{};
-			}
-			aligned_storage& operator=(const aligned_storage& as) {
-				Implement::aligned_storage_element_handle<0, T...>::equal(data, as.data);
+			}*/
+			shader_storage& operator=(const shader_storage& as) {
+				Implement::shader_storage_element_handle<0, T...>::equal(data, as.data);
 				return *this;
 			}
-			aligned_storage& operator=(aligned_storage&& as) {
-				Implement::aligned_storage_element_handle<0, T...>::equal(data, std::move(as.data));
+			shader_storage& operator=(shader_storage&& as) {
+				Implement::shader_storage_element_handle<0, T...>::equal(data, std::move(as.data));
 				return *this;
 			}
-			~aligned_storage() {
-				Implement::aligned_storage_element_handle<0, T...>::destruction(data);
+			~shader_storage() {
+				Implement::shader_storage_element_handle<0, T...>::destruction(data);
 			}
 		};
 
-
-
+		template<size_t i> struct shader_storage_get
+		{
+			template<typename ...T>
+			auto operator()(shader_storage<T...>& p) const->std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > &
+			{
+				return *reinterpret_cast<std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > * > (p.data + Implement::shader_storage_get<i, 0, T...>::size);
+			}
+			template<typename ...T>
+			auto operator()(const shader_storage<T...>& p) const-> const std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > &
+			{
+				return *reinterpret_cast<const std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > * > (p.data + Implement::shader_storage_get<i, 0, T...>::size);
+			}
+		};
 	}
+}
 
+namespace std
+{
+	template<size_t i, typename ...T> decltype(auto) get(PO::Dx::shader_storage<T...>& ss) { return PO::Dx::shader_storage_get<i>{}(ss); }
+	template<size_t i, typename ...T> decltype(auto) get(const PO::Dx::shader_storage<T...>& ss) { return PO::Dx::shader_storage_get<i>{}(ss); }
+}
+
+namespace PO
+{
 	namespace DXGI
 	{
 		template<typename T>
@@ -293,6 +334,10 @@ inline PO::Dx::float2 operator+(PO::Dx::float2 i, PO::Dx::float2 o) {
 
 inline PO::Dx::float3 operator+(PO::Dx::float3 i, PO::Dx::float3 o) {
 	return PO::Dx::float3(i.x + o.x, i.y + o.y, i.z + o.z);
+}
+
+inline PO::Dx::float3 operator-(PO::Dx::float3 i, PO::Dx::float3 o) {
+	return PO::Dx::float3(i.x - o.x, i.y - o.y, i.z - o.z);
 }
 
 inline PO::Dx::float3 operator*(PO::Dx::float3 i, float o) {

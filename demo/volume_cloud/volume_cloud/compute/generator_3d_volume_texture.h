@@ -6,7 +6,7 @@ class generator_3d_volume_texture;
 
 namespace SelfProperty
 {
-	class generator_3d_volume_texture_property : public PO::Dx11::property_interface
+	class generator_3d_volume_texture_property : public PO::Dx11::property_constructor
 	{
 		std::array<PO::Dx::float3, 200> wise_nosie_point;
 		std::array<PO::Dx::float3, 4> perlin_noise_factor;
@@ -40,7 +40,7 @@ public:
 
 	generator_3d_volume_texture();
 
-	virtual bool update(PO::Dx11::property_interface&, PO::Dx11::pipeline&) override;
+	virtual bool update(PO::Dx11::property_constructor&, PO::Dx11::pipeline&) override;
 	virtual const std::set<std::type_index>& acceptance() const override;
 
 	virtual bool draw(PO::Dx11::pipeline& c) override;

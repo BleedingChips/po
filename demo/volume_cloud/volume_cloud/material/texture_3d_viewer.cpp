@@ -17,7 +17,7 @@ void texture_3d_viewer::init(PO::Dx11::creator& c)
 	if (!load_ps(u"texture_3d_viewer_ps.cso", c)) throw 1;
 }
 
-bool texture_3d_viewer::update(PO::Dx11::property_interface& pi, PO::Dx11::pipeline& p)
+bool texture_3d_viewer::update(PO::Dx11::property_constructor& pi, PO::Dx11::pipeline& p)
 {
 	if (pi.is<input_property>())
 	{
@@ -68,6 +68,6 @@ void texture_3d_viewer::input_property::update(PO::Dx11::pipeline& p)
 		
 }
 
-texture_3d_viewer::input_property::input_property() : property_interface(typeid(input_property)), layer_change(false), layer(0.0f), filter(float4{ 1.0f, 1.0f, 1.0f, 1.0f }) {}
+texture_3d_viewer::input_property::input_property() : property_constructor(typeid(input_property)), layer_change(false), layer(0.0f), filter(float4{ 1.0f, 1.0f, 1.0f, 1.0f }) {}
 
 */

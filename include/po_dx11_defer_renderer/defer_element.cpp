@@ -5,20 +5,30 @@ namespace PO
 	namespace Dx11
 	{
 		
+		blend_state::description one_to_zero = blend_state::description{
+			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
+		};
+		blend_state::description s_alpha_to_inv_s_alpha = blend_state::description{
+			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
+		};
+
 		defer_material_interface::defer_material_interface(std::type_index ti, render_order ro) : material_interface(ti), order_(ro) {}
 
 		namespace Implement
 		{
-			defer_element_implement& defer_element_implement::operator=(std::shared_ptr<defer_material_interface> di)
-			{
-				order_ = di ? di->order() : render_order::NotSet;
-				element_implement::operator=(std::static_pointer_cast<material_interface>(std::move(di)));
-				return *this;
-			}
 			void defer_element_implement::clear_all()
 			{
 				order_ = render_order::NotSet;
 				element_implement::clear_all();
+			}
+
+			void defer_element_implement::set(std::shared_ptr<defer_material_interface> p)
+			{
+				if (p)
+					order_ = p->order();
+				else
+					order_ = render_order::NotSet;
+				material_ptr = std::move(p);
 			}
 		}
 
@@ -28,9 +38,87 @@ namespace PO
 				element_ptr->clear_all();
 		}
 
+		bool defer_element::check(const property_mapping& pm) const 
+		{ 
+			if (element_ptr) 
+				return element_ptr->check(pm); 
+			return true; 
+		}
+
+		Implement::stage_interface::acceptance_t defer_element::lack_acceptance() const
+		{
+			if (element_ptr)
+				return element_ptr->lack_acceptance();
+			return {};
+		}
+		Implement::stage_interface::acceptance_t defer_element::lack_acceptance(const property_mapping& pm) const
+		{
+			if (element_ptr)
+				return element_ptr->lack_acceptance(pm);
+			return {};
+		}
+
 		void defer_element::check_ptr()
 		{
 			if (!element_ptr) element_ptr = std::make_shared<Implement::defer_element_implement>();
+		}
+
+		template<typename M, typename F> auto find_and_create(creator& c, const std::type_index& ti, M& mapping, const F& f)
+		{
+			auto ite = mapping.find(ti);
+			if (ite == mapping.end() || ite->second.expired())
+			{
+				auto ptr = f();
+				ptr->init(c);
+				mapping[ptr->id()] = ptr;
+				return ptr;
+			}
+			else
+				return ite->second.lock();
+		}
+
+		void interface_storage::make_geometry_placement(creator& c, defer_element& d,
+			const std::type_index& ti1, const std::function<std::shared_ptr<geometry_interface>()>& f1,
+			const std::type_index& ti2, const std::function<std::shared_ptr<placement_interface>()>& f2
+		)
+		{
+			d.check_ptr();
+			bool update = false;
+			auto& p1 = (d.element_ptr)->geometry_ptr;
+			if (!p1 || p1->id() != ti1)
+			{
+				update = true;
+				p1 = find_and_create(c, ti1, geometry_ptr, f1);
+			}
+
+
+			auto& p2 = (d.element_ptr)->placemenet_ptr;
+			if (!p2 || p2->id() != ti1)
+			{
+				update = true;
+				p2 = find_and_create(c, ti2, placement_ptr, f2);
+			}
+
+			if (update)
+				(d.element_ptr)->layout = c.create_layout(p1->ia(), p2->vs());
+		}
+
+		void interface_storage::make_material(creator& c, defer_element& d, const std::type_index& ti1, const std::function<std::shared_ptr<defer_material_interface>()>& f1)
+		{
+			d.check_ptr();
+			auto& p1 = (d.element_ptr)->material_ptr;
+			if (!p1 || p1->id() != ti1)
+			{
+				auto p = find_and_create(c, ti1, material_ptr, f1);
+				(d.element_ptr)->set(p);
+			}
+		}
+		std::shared_ptr<compute_interface> interface_storage::make_compute(creator& c, defer_element& d, const std::type_index& t, const std::function<std::shared_ptr<compute_interface>()>& f)
+		{
+			d.check_ptr();
+			auto ptr = find_and_create(c, t, compute_ptr, f);
+			(d.element_ptr)->compute_vector.push_back(ptr);
+			return ptr;
 		}
 
 		void defer_element_implement_storage::draw(render_order or , pipeline& p)
@@ -43,7 +131,7 @@ namespace PO
 			if (de.element_ptr)
 				(de.element_ptr)->draw(p, mapping);
 		}
-		bool defer_element_implement_storage::insert(defer_element& de)
+		bool defer_element_implement_storage::insert(const defer_element& de)
 		{
 			if (de.element_ptr)
 			{
@@ -52,12 +140,22 @@ namespace PO
 			}
 			return false;
 		}
+		void defer_element_implement_storage::clear()
+		{
+			element_ptr.clear();
+		}
+		Implement::stage_interface::acceptance_t defer_element_implement_storage::check_acceptance(const defer_element& p) const
+		{
+			if (p.element_ptr)
+				return (p.element_ptr)->lack_acceptance(mapping);
+			return {};
+		}
 
 		/*
-		void property_interface::push(creator& c) {}
-		void property_interface::update(pipeline& p) {}
-		property_interface::property_interface(std::type_index ti) : id_info(std::move(ti)), vision_for_update(0), is_need_to_push(true) {}
-		bool property_interface::update_vision(pipeline& p, uint64_t v)
+		void property_constructor::push(creator& c) {}
+		void property_constructor::update(pipeline& p) {}
+		property_constructor::property_constructor(std::type_index ti) : id_info(std::move(ti)), vision_for_update(0), is_need_to_push(true) {}
+		bool property_constructor::update_vision(pipeline& p, uint64_t v)
 		{
 			if (vision_for_update == v)
 				return false;
@@ -65,8 +163,8 @@ namespace PO
 			update(p);
 			return true;
 		}
-		property_interface::~property_interface() {}
-		bool property_interface::push_implmenet(creator& c)
+		property_constructor::~property_constructor() {}
+		bool property_constructor::push_implmenet(creator& c)
 		{
 			if (is_need_to_push)
 			{
@@ -78,13 +176,13 @@ namespace PO
 			void force_update();
 		}
 
-		void property_interface::force_update(pipeline& p) { update(p); }
+		void property_constructor::force_update(pipeline& p) { update(p); }
 
 
 
 		placement_interface::~placement_interface() {}
 		placement_interface::placement_interface(std::type_index ti) : id_info(ti) {}
-		bool placement_interface::update(property_interface&, pipeline&) { return false; }
+		bool placement_interface::update(property_constructor&, pipeline&) { return false; }
 		const std::set<std::type_index>& placement_interface::acceptance() const { return default_acceptance_set; }
 		void placement_interface::apply(pipeline& p) { p << vs; }
 		bool placement_interface::load_vs(const std::u16string& path, creator& c)
@@ -98,17 +196,17 @@ namespace PO
 
 		geometry_interface::geometry_interface(std::type_index ti) : id_info(ti) {}
 		geometry_interface::~geometry_interface() {}
-		void geometry_interface::pre_push(property_interface&) {}
-		bool geometry_interface::update(property_interface&, pipeline&) { return false; }
+		void geometry_interface::pre_push(property_constructor&) {}
+		bool geometry_interface::update(property_constructor&, pipeline&) { return false; }
 		const std::set<std::type_index>& geometry_interface::acceptance() const { return default_acceptance_set; }
 		void geometry_interface::update_layout(creator& c) {
 			if (placement_ptr)
 				c.update_layout(ia, placement_ptr->vs);
 		}
-		void geometry_interface::pre_undate(property_interface&, pipeline&) {}
+		void geometry_interface::pre_undate(property_constructor&, pipeline&) {}
 
 		material_interface::~material_interface() {}
-		bool material_interface::update(property_interface&, pipeline&) { return false; }
+		bool material_interface::update(property_constructor&, pipeline&) { return false; }
 		void material_interface::apply(pipeline& c) { c << ps << bs; }
 		material_interface::material_interface(std::type_index ti, render_order o) : id_info(ti), order(o) {}
 		const std::set<std::type_index>& material_interface::acceptance() const { return default_acceptance_set; }
@@ -125,7 +223,7 @@ namespace PO
 		compute_interface::compute_interface(std::type_index ti) : id_info(ti) {}
 		compute_interface::~compute_interface() {}
 		const std::set<std::type_index>& compute_interface::acceptance() const { return default_acceptance_set; }
-		bool compute_interface::update(property_interface&, pipeline&) { return false; }
+		bool compute_interface::update(property_constructor&, pipeline&) { return false; }
 		bool compute_interface::load_cs(const std::u16string& path, creator& c)
 		{
 			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
@@ -137,27 +235,27 @@ namespace PO
 
 		namespace Implement
 		{
-			bool property_storage::have(std::type_index ti) const
+			bool property_interface::have(std::type_index ti) const
 			{
 				return mapping.find(ti) != mapping.end();
 			}
-			void property_storage::clear() { mapping.clear(); }
-			property_storage::~property_storage() {}
+			void property_interface::clear() { mapping.clear(); }
+			property_interface::~property_interface() {}
 			
-			void property_storage::update(pipeline& p, uint64_t u)
+			void property_interface::update(pipeline& p, uint64_t u)
 			{
 				for (auto& ite : mapping)
 					if(ite.second->update_vision(u))
 						ite.second->update(p);
 			}
 			
-			void property_storage::push(creator& c)
+			void property_interface::push(creator& c)
 			{
 				for (auto& ite : mapping)
 					ite.second->push_implmenet(c);
 			}
 
-			void property_storage::insert(std::shared_ptr<property_interface> p)
+			void property_interface::insert(std::shared_ptr<property_constructor> p)
 			{
 				if (p)
 				{
@@ -166,7 +264,7 @@ namespace PO
 				}
 			}
 
-			void property_storage::pre_push(geometry_interface& gi)
+			void property_interface::pre_push(geometry_interface& gi)
 			{
 				auto& sett = gi.acceptance_placement();
 				for (auto& ite : sett)
@@ -177,19 +275,19 @@ namespace PO
 				}
 			}
 
-			void element_implement::dispatch_imp(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			void element_implement::dispatch_imp(pipeline& p, property_interface& out_mapping, uint64_t vision)
 			{
 				if (!dispatch(p, out_mapping, vision))
 					state = render_state::Fail;
 			}
 
-			void element_implement::draw_imp(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			void element_implement::draw_imp(pipeline& p, property_interface& out_mapping, uint64_t vision)
 			{
 				if (state == render_state::AtList)
 					state = draw(p, out_mapping, vision) ? render_state::Success : render_state::Fail;
 			}
 
-			std::set<std::type_index> element_implement::ckeck(const property_storage& p) const
+			std::set<std::type_index> element_implement::ckeck(const property_interface& p) const
 			{
 				std::set<std::type_index> result;
 				for (auto& i : compute)
@@ -238,7 +336,7 @@ namespace PO
 			element_implement& element_implement::operator=(std::shared_ptr<compute_interface> s) { compute.push_back(std::move(s)); return *this; }
 			void element_implement::clear_compute() { compute.clear(); }
 
-			bool element_implement::dispatch(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			bool element_implement::dispatch(pipeline& p, property_interface& out_mapping, uint64_t vision)
 			{
 				for (auto& com : compute)
 				{
@@ -267,7 +365,7 @@ namespace PO
 				return true;
 			}
 
-			bool element_implement::draw(pipeline& p, property_storage& out_mapping, uint64_t vision)
+			bool element_implement::draw(pipeline& p, property_interface& out_mapping, uint64_t vision)
 			{
 				if (geometry && *geometry && material)
 				{

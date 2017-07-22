@@ -10,7 +10,7 @@ using namespace PO::Dx11;
 namespace SelfProperty
 {
 	generator_3d_volume_texture_property::generator_3d_volume_texture_property()
-		: PO::Dx11::property_interface(typeid(generator_3d_volume_texture_property)){}
+		: PO::Dx11::property_constructor(typeid(generator_3d_volume_texture_property)){}
 
 	void generator_3d_volume_texture_property::set_texture(PO::Dx11::tex3 t)
 	{
@@ -70,7 +70,7 @@ namespace SelfProperty
 
 generator_3d_volume_texture::generator_3d_volume_texture() : compute_interface(typeid(generator_3d_volume_texture)) {}
 
-bool generator_3d_volume_texture::update(property_interface& pi, pipeline& p)
+bool generator_3d_volume_texture::update(property_constructor& pi, pipeline& p)
 {
 	if (pi.is<input_property>())
 	{

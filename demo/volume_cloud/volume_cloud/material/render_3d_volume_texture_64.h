@@ -1,5 +1,5 @@
 #pragma once
-#include "po_dx11_defer_renderer\element\interface.h"
+//#include "po_dx11_defer_renderer\element\interface.h"
 /*
 using namespace PO;
 using namespace PO::Dx;
@@ -9,7 +9,7 @@ struct render_3d_volume_texture_64;
 
 namespace Implement
 {
-	class render_3d_volume_texture_64_property : public property_interface
+	class render_3d_volume_texture_64_property : public property_constructor
 	{
 		tex3 texture;
 		
@@ -42,7 +42,7 @@ struct render_3d_volume_texture_64 : material_interface
 {
 	using property = ::Implement::render_3d_volume_texture_64_property;
 
-	virtual bool update(property_interface&, pipeline&) override;
+	virtual bool update(property_constructor&, pipeline&) override;
 	virtual const std::set<std::type_index>& acceptance() const override;
 	virtual void init(creator&) override;
 

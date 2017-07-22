@@ -66,6 +66,12 @@
     <ClCompile Include="compute\generator_2d_worley_noise_texture.cpp">
       <Filter>compute</Filter>
     </ClCompile>
+    <ClCompile Include="compute\volume_cloud_compute.cpp">
+      <Filter>compute</Filter>
+    </ClCompile>
+    <ClCompile Include="material\volume_cloud_material.cpp">
+      <Filter>material</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="compute\generator_3d_volume_texture.h">
@@ -89,27 +95,30 @@
     <ClInclude Include="compute\generator_2d_worley_noise_texture.h">
       <Filter>compute</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="compute\shader\compute_generator_3d_volume_texture_cs.hlsl">
-      <Filter>compute\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="material\shader\texture_3d_viewer_ps.hlsl">
-      <Filter>material\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="placement\shader\square_2d_vs.hlsl">
-      <Filter>placement\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="material\shader\render_3d_volume_texture_64_ps.hlsl">
-      <Filter>material\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="compute\shader\generator_2d_worley_noise_texture_cs.hlsl">
-      <Filter>compute\shader</Filter>
-    </FxCompile>
+    <ClInclude Include="compute\volume_cloud_compute.h">
+      <Filter>compute</Filter>
+    </ClInclude>
+    <ClInclude Include="material\volume_cloud_material.h">
+      <Filter>material</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shader_include\ray_function.hlsli">
       <Filter>shader_include</Filter>
     </None>
+    <None Include="compute\shader\volume_cloud_compute_property.hlsli">
+      <Filter>compute\shader</Filter>
+    </None>
+    <None Include="material\shader\volume_cloud_material_property.hlsli">
+      <Filter>material\shader</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="compute\shader\volume_cloud_compute_worley_noise_tex2_3d_cs.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\volume_cloud_material_transparent_render_2d_for_3d_64_ps.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

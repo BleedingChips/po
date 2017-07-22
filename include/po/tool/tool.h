@@ -794,6 +794,49 @@ namespace PO
 			return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(data) + alignof(T)-1) & ~(alignof(T)-1)));
 		}
 
+		template<typename T> class aligned_class
+		{
+			char storage[sizeof(T) + alignof(T) - 1];
+			void* get_pointer() const {
+				size_t space = sizeof(T) + alignof(T)-1;
+				void* ptr = storage;
+				std::align(alignof(T), sizeof(T), ptr, space);
+				return ptr;
+			}
+
+		public:
+
+			operator T& () { return *static_cast<T*>(get_pointer());  }
+			operator const T& () const { return *static_cast<const T*>(get_pointer()); }
+
+			T* operator->() { return static_cast<T*>(get_pointer()); }
+			const T* operator->() const { return static_cast<const T*>(get_pointer()); }
+
+			template<typename ...AT> aligned_class(AT&& ...at) {
+				new (get_pointer()) T(std::forward<AT>(at)...);
+			}
+
+			~aligned_class()
+			{
+				static_cast<T*>(get_pointer())->~T();
+			}
+		};
+
+		namespace Implement
+		{
+			template<size_t s, typename ...T> struct max_align_implement
+			{
+				static constexpr size_t value = s;
+			};
+
+			template<size_t s, typename K, typename ...T> struct max_align_implement<s, K, T...>
+			{
+				static constexpr size_t value = max_align_implement<(s > alignof(K) ? s : alignof(K)), T...>::value;
+			};
+		}
+
+		template<typename ...T> struct max_align : public  Implement::max_align_implement<0, T...> {};
+
 		/*
 		template<typename T> class any_interface
 		{

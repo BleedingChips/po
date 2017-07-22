@@ -1,11 +1,11 @@
-#include "generator_2d_worley_noise_texture.h"
+//#include "generator_2d_worley_noise_texture.h"
 #include <random>
-using namespace PO::Dx;
-using namespace PO::Dx11;
+//using namespace PO::Dx;
+//using namespace PO::Dx11;
 /*
 namespace Property_t
 {
-	generator_2d_worley_noise_texture_property::generator_2d_worley_noise_texture_property() : property_interface(typeid(generator_2d_worley_noise_texture_property)) {}
+	generator_2d_worley_noise_texture_property::generator_2d_worley_noise_texture_property() : property_constructor(typeid(generator_2d_worley_noise_texture_property)) {}
 	void generator_2d_worley_noise_texture_property::set_texture(PO::Dx11::tex2 t)
 	{
 		texture = std::move(t);
@@ -54,7 +54,7 @@ void generator_2d_worley_noise_texture::init(PO::Dx11::creator& c)
 		throw 1;
 }
 
-bool generator_2d_worley_noise_texture::update(PO::Dx11::property_interface& pi, PO::Dx11::pipeline& p)
+bool generator_2d_worley_noise_texture::update(PO::Dx11::property_constructor& pi, PO::Dx11::pipeline& p)
 {
 	return pi.cast([this](property& p) {
 		draw_call = p.texture_size;

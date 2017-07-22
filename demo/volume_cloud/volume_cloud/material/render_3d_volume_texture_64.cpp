@@ -3,7 +3,7 @@
 /*
 namespace Implement
 {
-	render_3d_volume_texture_64_property::render_3d_volume_texture_64_property() : property_interface(typeid(render_3d_volume_texture_64_property)) {}
+	render_3d_volume_texture_64_property::render_3d_volume_texture_64_property() : property_constructor(typeid(render_3d_volume_texture_64_property)) {}
 
 	void render_3d_volume_texture_64_property::set_light(float3 t)
 	{
@@ -65,7 +65,7 @@ const std::set<std::type_index>& render_3d_volume_texture_64::acceptance() const
 	return acc;
 }
 
-bool render_3d_volume_texture_64::update(property_interface& pi, pipeline& p)
+bool render_3d_volume_texture_64::update(property_constructor& pi, pipeline& p)
 {
 	return pi.cast([this](property& po) {
 		ps << po.srv[0] << po.ss[0] << po.cb[2];

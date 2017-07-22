@@ -26,13 +26,13 @@ namespace PO
 			std::map<KeyValue, State> key_mapping;
 		public:
 			void set_roll_spped(float3 s) { roll_speed = s; }
-			void set_translation_spped(float s) { translation_speed = s; }
+			void set_translation_speed(float s) { translation_speed = s; }
 			void binding(KeyValue, State);
 			void binding(std::initializer_list<std::pair<KeyValue, State>>);
 			void remove_binding(KeyValue);
 			Respond respond(event& e);
 			void lose_focus();
-			void apply(duration da, transfer3D& t3);
+			bool apply(duration da, transfer3D& t3);
 		};
 	}
 }
