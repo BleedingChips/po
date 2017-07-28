@@ -37,10 +37,10 @@ struct standard_ps_output_post
     float4 color : SV_Target;
 };
 
-float2 cast_position_screen_xy_to_uv_screen(float2 ps)
+float2 cast_sv_position_xy_to_uv_screen(float4 ps)
 {
-    float2 in_ps = ((ps + 1.0) / 2.0);
-    in_ps.y = 1.0 - in_ps.y;
+    float2 in_ps = ps.xy;/*(ps.xy / ps.w + 1.0) / 2.0;
+    in_ps.y = 1.0 - in_ps.y;*/
     return in_ps;
 }
 

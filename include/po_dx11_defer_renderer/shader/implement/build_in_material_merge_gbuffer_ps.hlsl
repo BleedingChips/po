@@ -8,5 +8,5 @@ void main(in standard_ps_input o, out standard_ps_output_post output)
 {
     output.color =
     //float4(0.5, 0.5, 0.5, 1.0);
-    inputTexture.Sample(SS, o.uv);
+    float4(inputTexture.Sample(SS, o.uv).xyz, 1.0);
 }

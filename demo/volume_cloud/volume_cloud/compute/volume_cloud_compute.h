@@ -35,3 +35,23 @@ public:
 	virtual void init(creator&) override;
 	virtual bool update(property_interface&, pipeline&) override;
 };
+
+class property_perline_worley_noise_3d_point : public property_interface
+{
+	constant_buffer m_cb;
+public:
+	void set_seed(creator& c, uint32_t3 s);
+	const constant_buffer& cb() const { return m_cb; }
+	property_perline_worley_noise_3d_point();
+};
+
+class compute_perlin_worley_noise_tex2_3d : public compute_interface
+{
+	uint32_t2 size;
+public:
+	compute_perlin_worley_noise_tex2_3d();
+	virtual void dispath(pipeline& p) override;
+	virtual auto acceptance() const -> const acceptance_t& override;
+	virtual void init(creator&) override;
+	virtual bool update(property_interface&, pipeline&) override;
+};

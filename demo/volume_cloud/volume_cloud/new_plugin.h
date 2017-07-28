@@ -12,6 +12,7 @@ struct new_plugin
 	defer_element compute;
 	defer_element output_volume_cube;
 	defer_element back_ground;
+	//defer_element viewer;
 	transfer3D ts1;
 	transfer3D ts2;
 	showcase s;

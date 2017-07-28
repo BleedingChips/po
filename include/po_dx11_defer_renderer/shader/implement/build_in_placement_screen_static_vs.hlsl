@@ -20,6 +20,6 @@ void main(in standard_ia_input input, out standard_ps_input output)
     output.position_world = wp;
     output.position_view = wp;
     output.position_sv = wp;
-    output.uv_screen = cast_position_screen_xy_to_uv_screen(wp.xy);
+    output.uv_screen = cast_sv_position_xy_to_uv_screen(wp);
     output.uv = input.uv;
 }

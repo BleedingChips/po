@@ -42,3 +42,30 @@ bool material_transparent_render_2d_for_3d_64::update(property_interface& pi, pi
 		stage_ps << pp.cb()[2];
 	});
 }
+
+
+
+material_transparent_2d_for_3d_64_without_perlin::material_transparent_2d_for_3d_64_without_perlin() : defer_material_interface(typeid(material_transparent_2d_for_3d_64_without_perlin), render_order::Transparent) {}
+auto material_transparent_2d_for_3d_64_without_perlin::acceptance() const -> const acceptance_t&
+{
+	return make_acceptance<property_render_2d_for_3d, property_transfer, property_gbuffer, property_screen>{};
+}
+
+void material_transparent_2d_for_3d_64_without_perlin::init(creator& c)
+{
+	if (!load_ps(u"volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.cso", c)) throw 1;
+	stage_bs = c.create_blend_state(s_alpha_to_inv_s_alpha);
+}
+
+bool material_transparent_2d_for_3d_64_without_perlin::update(property_interface& pi, pipeline& p)
+{
+	return pi.cast([this](property_render_2d_for_3d& pp) {
+		stage_ps << pp.srv()[0] << pp.cb()[0];
+	}) || pi.cast([this](property_transfer& pp) {
+		stage_ps << pp.cb()[1];
+	}) || pi.cast([this](property_gbuffer& pp) {
+		stage_ps << pp.linearization_z()[1] << pp.ss()[0];
+	}) || pi.cast([this](property_screen& pp) {
+		stage_ps << pp.cb()[2];
+	});
+}

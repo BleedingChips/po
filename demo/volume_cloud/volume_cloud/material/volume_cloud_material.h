@@ -22,3 +22,12 @@ public:
 	virtual void init(creator&) override;
 	virtual bool update(property_interface&, pipeline&) override;
 };
+
+class material_transparent_2d_for_3d_64_without_perlin : public defer_material_interface
+{
+public:
+	material_transparent_2d_for_3d_64_without_perlin();
+	virtual auto acceptance() const -> const acceptance_t& override;
+	virtual void init(creator&) override;
+	virtual bool update(property_interface&, pipeline&) override;
+};

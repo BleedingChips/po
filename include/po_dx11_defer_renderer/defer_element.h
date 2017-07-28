@@ -132,5 +132,6 @@ namespace PO
 
 		extern blend_state::description one_to_zero;
 		extern blend_state::description s_alpha_to_inv_s_alpha;
+		extern blend_state::description one_to_one;
 	}
 }

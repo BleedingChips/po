@@ -72,6 +72,9 @@
     <ClCompile Include="material\volume_cloud_material.cpp">
       <Filter>material</Filter>
     </ClCompile>
+    <ClCompile Include="translate_ue4_custion_node.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="compute\generator_3d_volume_texture.h">
@@ -101,6 +104,9 @@
     <ClInclude Include="material\volume_cloud_material.h">
       <Filter>material</Filter>
     </ClInclude>
+    <ClInclude Include="translate_ue4_custion_node.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shader_include\ray_function.hlsli">
@@ -118,6 +124,12 @@
       <Filter>compute\shader</Filter>
     </FxCompile>
     <FxCompile Include="material\shader\volume_cloud_material_transparent_render_2d_for_3d_64_ps.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_perlin_worley_noise_tex2_3d_cs.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
   </ItemGroup>

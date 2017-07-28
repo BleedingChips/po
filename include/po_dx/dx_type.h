@@ -17,6 +17,10 @@ namespace PO
 		using uint32_t2 = DirectX::XMUINT2;
 		using uint32_t3 = DirectX::XMUINT3;
 		using uint32_t4 = DirectX::XMUINT4;
+		using uint = uint32_t;
+		using uint2 = uint32_t2;
+		using uint3 = uint32_t3;
+		using uint4 = uint32_t4;
 		using matrix = DirectX::XMMATRIX;
 		using matrix_ref = DirectX::CXMMATRIX;
 		using vector = DirectX::XMVECTOR;

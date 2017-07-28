@@ -12,4 +12,14 @@ struct property_output_tex2
     uint2 texture_size;
     float step;
 };
+struct property_perline_worley_noise_3d_point
+{
+    float3 seed1;
+    float3 seed2;
+    float3 seed3;
+    float3 seed4;
+    float3 poi1[100];
+    float3 poi2[200];
+    float3 poi3[400];
+};
 #endif

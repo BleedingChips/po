@@ -26,13 +26,10 @@ float3 count_position(uint4 sim, uint2 input)
     float3 tem = float3(
     input.x % sim.x,
     input.y % sim.y,
-    input.x / sim.x + sim.y / sim.y * sim.z
+    input.x / sim.x + input.y / sim.y * sim.z
 );
     return tem / float3(sim.x - 1, sim.y - 1, sim.z * sim.w - 1);
 }
-
-
-
 
 void compress(inout float i, inout float i2)
 {

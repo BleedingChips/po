@@ -5,9 +5,10 @@
 #include "po_dx11_defer_renderer\build_in_element.h"
 using namespace std;
 using namespace PO::Dx;
+
 adapter_map new_plugin::mapping(self& sel)
 {
-	max_denstiy = 1.0f;
+	max_denstiy = 2.0f;
 	s.binding({
 		{ KeyValue::K_D, showcase::State::Y_CW },
 		{ KeyValue::K_A, showcase::State::Y_ACW },
@@ -64,31 +65,34 @@ Respond new_plugin::respond(event& e)
 void new_plugin::init(defer_renderer& dr)
 {
 	ts1.poi = float3(0.0, 0.0, 4.0);
-	ts1.sca = float3(1.0, 0.5, 1.0);
-	worley = dr.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 128 * 16, 128 * 8);
-	dr.make_compute(compute, [](compute_worley_noise_tex2_3d&) {});
+	//ts1.sca = float3(1.0, 0.5, 1.0);
+	worley = dr.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 256 * 16, 256 * 16);
+	dr.make_compute(compute, [](compute_perlin_worley_noise_tex2_3d&) {});
 	compute.make_interface([&](property_output_tex2& pot) {
-		pot.set_texture(dr, worley, 2.0, { 128, 128, 16, 8 });
+		pot.set_texture(dr, worley, 2.0, { 256, 256, 16, 16 });
 	});
-	compute.make_interface([&](property_worley_noise_3d_point& pot) {
+	compute.make_interface([&](property_perline_worley_noise_3d_point& pot) {
 		pot.set_seed(dr, { 123, 456, 789 });
 	});
 	dr << compute;
 
 	dr.make_geometry_and_placement(output_volume_cube, [](geometry_cube_static&, placement_view_static&) {});
-	dr.make_material(output_volume_cube, [](material_transparent_render_2d_for_3d_64&) {});
+	dr.make_material(output_volume_cube, [](material_transparent_2d_for_3d_64_without_perlin&) {});
 	output_volume_cube.make_interface([&, this](property_render_2d_for_3d& pt) {
 		pt.set_texture(dr, worley);
-		pt.set_option(dr, float3{ -1.0, -1.0, -1.0 }, float3{ 1.0, 1.0, 1.0 }, float3{ 0.0, -1.0, 0.0 }, 2.0);
+		pt.set_option(dr, float3{ -1.0, -1.0, -1.0 }, float3{ 1.0, 1.0, 1.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
 	});
 	output_volume_cube.make_interface([&, this](property_transfer& pt) {
 		pt.set_transfer(dr, ts1, ts1.inverse_float4x4());
 	});
 	ts2.poi = float3(0.0, 0.0, 5.0f);
 	dr.make_geometry_and_placement(back_ground, [](geometry_cube_static&, placement_view_static&) {});
-	dr.make_material(back_ground, [](material_defer_render_texcoord&) {});
+	dr.make_material(back_ground, [](material_defer_render_texcoord& mdt) {});
 	back_ground.make_interface([&](property_transfer& pt) {
 		pt.set_transfer(dr, ts2, ts2.inverse_float4x4());
+	});
+	back_ground.make_interface([&](property_tex2& pt) {
+		pt.set_tex2(dr, worley);
 	});
 
 	auto ss2 = dr.lack_acceptance(compute);
@@ -111,8 +115,23 @@ void new_plugin::init(defer_renderer& dr)
 	}
 }
 
+static int count__ = 0;
+
 void new_plugin::tick(defer_renderer& dr, duration da)
 {
+	/*
+	count__++;
+	if (count__ == 6)
+	{
+		CoInitialize(nullptr);
+		DirectX::ScratchImage SI;
+		DirectX::CaptureTexture(dr.get_creator().dev, dr.pipeline::ptr, worley.ptr, SI);
+		if (!
+			SUCCEEDED(DirectX::SaveToWICFile(*SI.GetImages(), DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_JPEG), L"NEW_IMAGE.JPEG"))
+			) __debugbreak();
+	}*/
+
+
 	if (swith_state == 0)
 	{
 		if (s.apply(da, ts1))
@@ -131,6 +150,10 @@ void new_plugin::tick(defer_renderer& dr, duration da)
 			});
 		}
 	}
+
+	output_volume_cube.make_interface([&, this](property_render_2d_for_3d& pt) {
+		pt.set_option(dr, float3{ -1.0, -1.0, -1.0 }, float3{ 1.0, 1.0, 1.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
+	});
 	
 	dr << back_ground;
 	dr << output_volume_cube;

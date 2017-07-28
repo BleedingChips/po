@@ -11,6 +11,9 @@ namespace PO
 		blend_state::description s_alpha_to_inv_s_alpha = blend_state::description{
 			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
 		};
+		blend_state::description one_to_one = blend_state::description{
+			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_ONE, D3D11_BLEND_ONE, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
+		};
 
 		defer_material_interface::defer_material_interface(std::type_index ti, render_order ro) : material_interface(ti), order_(ro) {}
 

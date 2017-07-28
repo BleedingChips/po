@@ -15,6 +15,7 @@ using namespace std;
 //#include "po_dx11_defer_renderer\element\property.h"
 #include "po_dx\controller.h"
 #include "new_plugin.h"
+#include "translate_ue4_custion_node.h"
 
 using namespace std;
 using namespace PO;
@@ -33,12 +34,15 @@ struct alignas(1) P2
 	char io;
 };
 
-
 int main()
 {
+
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
+	translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "iop");
 
+	system("pause");
+	return 0;
 	cout << PO::Tool::max_align<float4x4, float4x4, float, float>::value << endl;
 
 	cout << PO::Tool::max_align<float4x4>::value << endl;

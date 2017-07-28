@@ -71,3 +71,7 @@ Temporary Items
 *.jpg
 *.tga
 *.png
+*.JPEG
+
+#Test File
+*.temporary_output.txt
