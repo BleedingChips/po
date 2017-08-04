@@ -1,6 +1,42 @@
 #pragma once
-#include "frame/adapter.h"
+#include <map>
+#include <exception>
+#include <typeindex>
+#include "frame\define.h"
+#include "frame\viewer.h"
+#include "tool\auto_adapter.h"
 namespace PO {
+
+	struct value_table
+	{
+
+		struct value_not_exist : std::exception
+		{
+			const char* what() const override;
+		};
+
+		std::map<std::type_index, void*> mapping;
+		value_table(std::initializer_list<typename decltype(mapping)::value_type> il) : mapping(std::move(il)) {}
+
+		template<typename type> bool find() const {
+			return mapping.find(typeid(type)) != mapping.end();
+		}
+
+		template<typename type> std::remove_reference_t<type>& get() {
+			auto po = mapping.find(typeid(type));
+			if (po != mapping.end()) return { *static_cast<std::remove_reference_t<type>*>(po->second) };
+			throw value_table::value_not_exist{};
+		}
+	};
+
+	template<typename type, typename input_type>
+	std::pair<std::type_index, void*> make_value_table(input_type& t) {
+		return {
+			typeid(type),
+			static_cast<std::remove_reference_t<type>*>(&t)
+		};
+	}
+
 	class form_constraint
 	{
 		std::atomic_bool virtual_function_ready;

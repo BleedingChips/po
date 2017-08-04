@@ -66,6 +66,7 @@ void new_plugin::init(defer_renderer& dr)
 {
 	ts1.poi = float3(0.0, 0.0, 4.0);
 	//ts1.sca = float3(1.0, 0.5, 1.0);
+
 	worley = dr.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 256 * 16, 256 * 16);
 	dr.make_compute(compute, [](compute_perlin_worley_noise_tex2_3d&) {});
 	compute.make_interface([&](property_output_tex2& pot) {
@@ -74,6 +75,7 @@ void new_plugin::init(defer_renderer& dr)
 	compute.make_interface([&](property_perline_worley_noise_3d_point& pot) {
 		pot.set_seed(dr, { 123, 456, 789 });
 	});
+
 	dr << compute;
 
 	dr.make_geometry_and_placement(output_volume_cube, [](geometry_cube_static&, placement_view_static&) {});
@@ -86,13 +88,25 @@ void new_plugin::init(defer_renderer& dr)
 		pt.set_transfer(dr, ts1, ts1.inverse_float4x4());
 	});
 	ts2.poi = float3(0.0, 0.0, 5.0f);
+
+
+	std::array<float, 8 * 8 * 8> data;
+	for (size_t o = 0; o < 8 * 8; ++o)
+		data[o] = o / float(8 * 8);
+	UINT d = 8;
+	void* dat = data.data();
+
+	tex3 sudyuiasd = dr.create_tex3(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, 8, {}, D3D11_USAGE_DYNAMIC, data.data(), 8, 8);
+	tex2 sudyuiasd2 = dr.create_tex2(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, {}, {}, D3D11_USAGE_DYNAMIC, &dat, &d);
+
 	dr.make_geometry_and_placement(back_ground, [](geometry_cube_static&, placement_view_static&) {});
 	dr.make_material(back_ground, [](material_defer_render_texcoord& mdt) {});
 	back_ground.make_interface([&](property_transfer& pt) {
 		pt.set_transfer(dr, ts2, ts2.inverse_float4x4());
 	});
+
 	back_ground.make_interface([&](property_tex2& pt) {
-		pt.set_tex2(dr, worley);
+		pt.set_tex2(dr, sudyuiasd2);
 	});
 
 	auto ss2 = dr.lack_acceptance(compute);

@@ -15,7 +15,7 @@ namespace PO
 			float xy_rate;
 			float view_angel;
 
-			defer_renderer();
+			defer_renderer(value_table& vt);
 
 			tex2 depth_stencial;
 			tex2 color_bufer;
@@ -37,7 +37,7 @@ namespace PO
 
 			float time;
 
-			proxy mapping(std::type_index, adapter_interface& ai);
+			//proxy mapping(std::type_index, adapter_interface& ai);
 
 			void init(value_table&);
 

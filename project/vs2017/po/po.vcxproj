@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\include\po\frame\adapter.cpp" />
     <ClCompile Include="..\..\..\include\po\frame\define.cpp" />
     <ClCompile Include="..\..\..\include\po\plugin.cpp" />
     <ClCompile Include="..\..\..\include\po\po.cpp" />

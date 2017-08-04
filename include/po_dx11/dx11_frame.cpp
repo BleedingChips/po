@@ -1048,6 +1048,7 @@ namespace PO
 				cp->IASetVertexBuffers(0, vb_count, input_assember_context_nullptr_array.data(), input_assember_context_zero_array.data(), input_assember_context_zero_array.data());
 				cp->IASetIndexBuffer(nullptr, DXGI_FORMAT::DXGI_FORMAT_R16_UINT, 0);
 				cp->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				vb_count = 0;
 			}
 
 			void input_assember_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
@@ -1186,6 +1187,7 @@ namespace PO
 			void output_merge_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const output_merge_stage& od)
 			{
 				max_render_target = od.render_array.size();
+				cp->OMSetRenderTargets(static_cast<UINT>(od.render_array.size()), od.render_array.data(), od.depth.ptr);
 				cp->OMSetRenderTargets(static_cast<UINT>(od.render_array.size()), od.render_array.data(), od.depth.ptr);
 			}
 
@@ -1356,35 +1358,21 @@ namespace PO
 
 		}
 
-		/*****  pipe   ******************************************************************************************/
+		/*****  pipeline_implement   ******************************************************************************************/
 
-		pipeline::pipeline(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {
-			if (ptr)
-			{
-				Win32::com_ptr<ID3D11Device> tem;
-				ptr->GetDevice(tem.adress());
-				c.init(tem);
-			}
+		pipeline_implement::pipeline_implement(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {
+			assert(ptr);
+			Win32::com_ptr<ID3D11Device> tem;
+			ptr->GetDevice(tem.adress());
 		}
 
-		void pipeline::init(Win32::com_ptr<ID3D11DeviceContext> d)
-		{
-			ptr = std::move(d);
-			if (ptr)
-			{
-				Win32::com_ptr<ID3D11Device> tem;
-				ptr->GetDevice(tem.adress());
-				c.init(tem);
-			}
-		}
-
-		void pipeline::unbind() {
+		void pipeline_implement::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
 			last_mode = DrawMode::NONE;
 		}
 
-		void pipeline::dispatch(UINT x, UINT y, UINT z) {
+		void pipeline_implement::dispatch(UINT x, UINT y, UINT z) {
 			if (last_mode == DrawMode::PIPELINE) {
 				IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 				PS.unbind(ptr); OM.unbind(ptr);
@@ -1393,7 +1381,7 @@ namespace PO
 			ptr->Dispatch(x, y, z);
 		}
 
-		void pipeline::draw_vertex(UINT count, UINT start) {
+		void pipeline_implement::draw_vertex(UINT count, UINT start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1401,7 +1389,7 @@ namespace PO
 			ptr->Draw(count, start);
 		}
 
-		void pipeline::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
+		void pipeline_implement::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1409,7 +1397,7 @@ namespace PO
 			ptr->DrawIndexed(index_count, index_start, vertex_start);
 		}
 
-		void pipeline::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
+		void pipeline_implement::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1417,7 +1405,7 @@ namespace PO
 			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
 		}
 
-		void pipeline::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
+		void pipeline_implement::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1425,12 +1413,9 @@ namespace PO
 			ptr->DrawIndexedInstanced(index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 		}
 
-		void pipeline::clear() {
-			if (ptr)
-			{
-				CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
-				PS.clear(ptr); OM.clear(ptr);
-			}
+		void pipeline_implement::clear() {
+			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
+			PS.clear(ptr); OM.clear(ptr);
 		}
 	}
 }

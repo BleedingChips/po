@@ -8,15 +8,16 @@ namespace PO
 		value_table Dx11_form::mapping() {
 			return {
 				make_value_table<Win32::com_ptr<ID3D11Device>>(dev),
-				make_value_table<Win32::com_ptr<ID3D11DeviceContext>>(dc),
-				make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
+				make_value_table<tex2>(back_buffer),
+				make_value_table<std::shared_ptr<pipeline_implement>>(imp),
+				//make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
 			};
 		}
 
 		Dx11_form::Dx11_form(const Dx11_initial& di) : Win32::win32_form()
 		{
-			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_0 };
-			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_0;
+			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_1 };
+			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_1;
 			PO::Platform::Dxgi::swap_chain_desc swc(raw_handle);
 			HRESULT re = D3D11CreateDeviceAndSwapChain(
 				nullptr,
@@ -33,6 +34,9 @@ namespace PO
 				dc.adress()
 			);
 			Win32::Error::fail_throw(re);
+			re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
+			if (!SUCCEEDED(re)) throw re;
+			imp = std::make_shared<pipeline_implement>(dc);
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),

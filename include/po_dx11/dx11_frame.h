@@ -1,5 +1,5 @@
 #pragma once
-#include <d3d11.h>
+#include <d3d11_3.h>
 #include "../po_win32/win32_define.h"
 #include <tuple>
 #include "../po/tool/auto_adapter.h"
@@ -401,12 +401,8 @@ namespace PO
 		struct creator
 		{
 			Win32::com_ptr<ID3D11Device> dev;
-			creator(Win32::com_ptr<ID3D11Device> d) : dev(std::move(d)) {}
-			creator() {}
+			creator(Win32::com_ptr<ID3D11Device> d) : dev(std::move(d)) { assert(dev); }
 			creator(const creator&) = default;
-			creator(creator&&) = default;
-			void init(Win32::com_ptr<ID3D11Device> d) { dev = std::move(d); }
-			operator bool() const { return dev; }
 
 			static DXGI_FORMAT DST_format_to_dstex_format(DST_format dsf);
 			static DXGI_FORMAT dstex_format_to_dsview_format(DXGI_FORMAT);
@@ -701,10 +697,9 @@ namespace PO
 			};
 		}
 
-		struct pipeline
+		struct pipeline_implement
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
-			creator c;
 			Implement::input_assember_context_t IA;
 			Implement::vertex_shader_context_t VS;
 			Implement::raterizer_context_t RA;
@@ -713,14 +708,10 @@ namespace PO
 
 			Implement::compute_shader_context_t CS;
 
-			pipeline(Win32::com_ptr<ID3D11DeviceContext> cp);
-			pipeline() {}
-			void init(Win32::com_ptr<ID3D11DeviceContext> d);
+			pipeline_implement(Win32::com_ptr<ID3D11DeviceContext> cp);
 			operator bool() const { return ptr; }
-			~pipeline() { clear(); }
+			~pipeline_implement() { clear(); }
 			void clear();
-
-			creator& get_creator() { return c; };
 
 			enum DrawMode
 			{
@@ -740,30 +731,28 @@ namespace PO
 
 			void unbind();
 
-			pipeline& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
-			pipeline& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
-			pipeline& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
-			pipeline& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
-			pipeline& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
-			pipeline& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
-			pipeline& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
-			pipeline& bind(const pixel_shader& d) { PS.bind(ptr, d); return *this; }
-			pipeline& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
-			pipeline& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
-			pipeline& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline& bind(const compute_shader& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline& bind(const viewports& vp) { RA.bind(ptr, vp); return *this; }
-			pipeline& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
-			pipeline& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
+			pipeline_implement& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const pixel_shader& d) { PS.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
+			pipeline_implement& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
+			pipeline_implement& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
+			pipeline_implement& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
+			pipeline_implement& bind(const compute_shader& cd) { CS.bind(ptr, cd); return *this; }
+			pipeline_implement& bind(const viewports& vp) { RA.bind(ptr, vp); return *this; }
+			pipeline_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
+			pipeline_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
 
-			template<typename T> pipeline& operator<<(const T& t) { return bind(t); }
-
-			pipeline& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
-			pipeline& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
-			pipeline& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
-			pipeline& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
-			pipeline& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
+			pipeline_implement& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
+			pipeline_implement& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
+			pipeline_implement& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
+			pipeline_implement& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
+			pipeline_implement& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
 			{
@@ -802,5 +791,33 @@ namespace PO
 				return false;
 			}
 		};
+
+		
+		struct pipeline : creator 
+		{
+			std::shared_ptr<pipeline_implement> imp;
+			operator bool() const { return static_cast<bool>(imp); }
+			pipeline(std::shared_ptr<pipeline_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
+			template<typename T> pipeline& operator<<(const T& t) { imp->bind(t); return *this; }
+			void unbind() { imp->unbind(); }
+			pipeline& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
+			pipeline& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
+			pipeline& clear_depth(output_merge_stage& omd, float depth) { imp->clear_depth(omd, depth); return *this; }
+			pipeline& clear_stencil(output_merge_stage& omd, uint8_t ref) { imp->clear_stencil(omd, ref); return *this; }
+			pipeline& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { imp->clear_depth_stencil(omd, depth, ref); return *this; }
+
+			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t) { return imp->write_constant_buffer(b, std::forward<T>(t)); }
+			template<typename T> bool write_structured_buffer(structured_buffer& b, T&& t) { return imp->write_structured_buffer(b, std::forward<T>(t)); }
+			template<typename T> bool write_constant_buffer(shader_resource& b, size_t o, T&& t) { return imp->write_constant_buffer(b, o, std::forward<T>(t)); }
+
+			void draw_vertex(UINT count, UINT start) { imp->draw_vertex(count, start); }
+			void draw_index(UINT index_count, UINT index_start, UINT vertex_start) { imp->draw_index(index_count, index_start, vertex_start); }
+			void draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) { imp->draw_vertex_instance (vertex_pre_instance, instance_count, vertex_start, instance_start); }
+			void draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
+				imp->draw_index_instance (index_pre_instance, instance_count, index_start, base_vertex, instance_start);
+			}
+			void dispatch(UINT x, UINT y, UINT z) { imp->dispatch(x, y, z); }
+		};
+
 	}
 }

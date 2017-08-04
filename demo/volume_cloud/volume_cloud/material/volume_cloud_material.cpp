@@ -60,11 +60,11 @@ void material_transparent_2d_for_3d_64_without_perlin::init(creator& c)
 bool material_transparent_2d_for_3d_64_without_perlin::update(property_interface& pi, pipeline& p)
 {
 	return pi.cast([this](property_render_2d_for_3d& pp) {
-		stage_ps << pp.srv()[0] << pp.cb()[0];
+		stage_ps << pp.srv()[0] << pp.cb()[0] << pp.ss()[0];
 	}) || pi.cast([this](property_transfer& pp) {
 		stage_ps << pp.cb()[1];
 	}) || pi.cast([this](property_gbuffer& pp) {
-		stage_ps << pp.linearization_z()[1] << pp.ss()[0];
+		stage_ps << pp.linearization_z()[1] << pp.ss()[1];
 	}) || pi.cast([this](property_screen& pp) {
 		stage_ps << pp.cb()[2];
 	});

@@ -33,6 +33,9 @@
     <ClCompile Include="..\..\..\include\po\renderer.cpp">
       <Filter>po</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\adapter.cpp">
+      <Filter>po\frame</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po\frame\viewer.h">

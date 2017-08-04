@@ -22,10 +22,9 @@ namespace PO
 			Win32::com_ptr<ID3D11Device> dev;
 			Win32::com_ptr<ID3D11DeviceContext> dc;
 			Win32::com_ptr<IDXGISwapChain> swap;
+			std::shared_ptr<pipeline_implement> imp;
+			tex2 back_buffer;
 		public:
-			decltype(auto) get_Dx11_device() { return dev; }
-			decltype(auto) get_Dx11_context() { return dc; }
-			decltype(auto) get_swap_chain() { return swap; }
 			value_table mapping();
 			Dx11_form(const Dx11_initial& = Dx11_initial{});
 			~Dx11_form() { std::cout << "exit" << std::endl; };

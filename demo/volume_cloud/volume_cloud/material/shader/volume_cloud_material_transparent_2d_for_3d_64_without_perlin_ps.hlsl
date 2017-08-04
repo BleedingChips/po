@@ -18,9 +18,10 @@ cbuffer b2 : register(b2)
 }
 
 Texture2D ten : register(t0);
+SamplerState ss2 : register(s0);
 
 Texture2D linearize_z : register(t1);
-SamplerState ss;
+SamplerState ss : register(s1);
 
 /*
     ray_start_point_local：体表面的像素的局部坐标在进行归一化到[0,1]之间后的坐标。
@@ -32,6 +33,7 @@ SamplerState ss;
 */
 float4 implement(
 Texture2D Noise_T,
+SamplerState Noise_TSampler,
 float3 LocalPoint_F3,
 float3 LocalRay_F3,
 float3 MinWidth_F3,
@@ -40,7 +42,8 @@ float MaxDensity_F,
 float ScreenDepth_F,
 float Time_F,
 float3 LocalLight_F,
-float3 Move_F3
+float3 Move_F3,
+float3 Scale_F3
 );
 
 void main(in standard_ps_input input, out standard_ps_output_transparent output)
@@ -64,6 +67,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     //float4(input.uv_screen, 0.0, 1.0);
     implement(
     ten,
+    ss,
     input.position_local.xyz / input.position_local.w, 
     eye_ray_NOR.xyz, 
     min_w, 
@@ -71,7 +75,8 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     pp.density, 
     depth_length, 
     ps.time * 0.0001, 
-    float3(0.2, -1.0, 0.0), float3(1.0, 0.0, 0.0));
+    float3(0.2, -1.0, 0.0), float3(1.0, 0.0, 0.0), 
+    float3(0.5, 0.5, 0.5));
 }
 
 
@@ -96,30 +101,30 @@ void ASMACRO COORDINATE_I3_TO_U2(out uint2 WorleyCoordinate_Out_U2, in int3 Worl
 void ASMACRO LINEAR_SAMPLE(out float4 Sample_Result_F4, in float3 Coordinate_F3, in Texture2D Sample_Texture_T, in uint4 Worley_Size_U4)
 {
     float3 Coord = Coordinate_F3;
-    uint4 NoiseSize = Worley_Size_U4;
-    Coord = Coord * float3(NoiseSize.x - 1, NoiseSize.y - 1, NoiseSize.z * NoiseSize.w - 1);
+    uint4 NoiseSize_INSIDE = Worley_Size_U4;
+    Coord = Coord * float3(NoiseSize_INSIDE.x - 1, NoiseSize_INSIDE.y - 1, NoiseSize_INSIDE.z * NoiseSize_INSIDE.w - 1);
     int3 Coord_floor = floor(Coord);
     float3 Rate = Coord - Coord_floor;
     uint2 TextureCoord;
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor, NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor, NoiseSize_INSIDE);
     float4 tem = Sample_Texture_T[TextureCoord];
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 0, 0), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 0, 0), NoiseSize_INSIDE);
     float4 tem2 = Sample_Texture_T[TextureCoord];
     tem = lerp(tem, tem2, Rate.x);
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 1, 0), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 1, 0), NoiseSize_INSIDE);
     tem2 = Sample_Texture_T[TextureCoord];
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 1, 0), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 1, 0), NoiseSize_INSIDE);
     float4 tem3 = Sample_Texture_T[TextureCoord];
     tem2 = lerp(tem2, tem3, Rate.x);
     tem = lerp(tem, tem2, Rate.y);
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 0, 1), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 0, 1), NoiseSize_INSIDE);
     tem2 = Sample_Texture_T[TextureCoord];
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 0, 1), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 0, 1), NoiseSize_INSIDE);
     tem3 = Sample_Texture_T[TextureCoord];
     tem2 = lerp(tem2, tem3, Rate.x);
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 1, 1), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(0, 1, 1), NoiseSize_INSIDE);
     tem3 = Sample_Texture_T[TextureCoord];
-    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 1, 1), NoiseSize);
+    COORDINATE_I3_TO_U2(TextureCoord, Coord_floor + int3(1, 1, 1), NoiseSize_INSIDE);
     float4 tem4 = Sample_Texture_T[TextureCoord];
     tem3 = lerp(tem3, tem4, Rate.x);
     tem2 = lerp(tem2, tem3, Rate.y);
@@ -127,11 +132,12 @@ void ASMACRO LINEAR_SAMPLE(out float4 Sample_Result_F4, in float3 Coordinate_F3,
     Sample_Result_F4 = tem;
 }
 
-void ASMACRO CALCULATE_NOISE(out float OutPut_F, in float3 Coordinate_F3, in Texture2D Sample_Texture_T, in uint4 Worley_Size_U4, in float3 Move_F3, in float Time_T)
+void ASMACRO CALCULATE_NOISE(out float OutPut_F, in float3 Coordinate_F3, in Texture2D Sample_Texture_T, in uint4 Worley_Size_U4, in float3 Move_F3, in float Time_T, in float3 Scale_F3)
 {
+    float3 Scale = Scale_F3;
     float4 SampleValue;
-    LINEAR_SAMPLE(SampleValue, Coordinate_F3 / 2.0 + Move_F3 * Time_T, Sample_Texture_T, Worley_Size_U4);
-    OutPut_F = SampleValue.x * (SampleValue.y / 2.0 + SampleValue.z / 4.0 + SampleValue.w / 4.0);
+    LINEAR_SAMPLE(SampleValue, Coordinate_F3 * Scale + Move_F3 * Time_T, Sample_Texture_T, Worley_Size_U4);
+    OutPut_F = SampleValue.x * max(SampleValue.y, max(SampleValue.z, SampleValue.w));
 }
 
 void ASMACRO HG(out float Output_F, in float3 Light_F3, in float3 Ray_F3, in float G_F)
@@ -143,9 +149,36 @@ void ASMACRO HG(out float Output_F, in float3 Light_F3, in float3 Ray_F3, in flo
     Output_F = 0.5 * (1.0 - g2) / pow(1.0 + g2 - 2.0 * g * dot(il, rl), 1.5);
 }
 
+/*
+float4 Sample(Texture2D tex, SamplerState ss, float3 local)
+{
+    float4 size = float4(256, 256, 16, 16);
+    float3 size_3 = float3(size.x, size.y, size.z * size.w);
+
+    float2 final_uv = local 
+
+
+    float3 tem = fmod(abs(local), 2.0);
+    tem = min(tem, 2.0 - tem);
+    
+    float3 size_3 = float3(size.x, size.y, size.z * size.w);
+    float3 tem2 = tem * size_3 - 2.0;
+    float3 tem3 = float3(tem2.x, tem2.y, floor(tem2.z));
+    float3 tem4 = float3(tem3.x, tem3.y, tem3.z + 1.0);
+    float2 tem3_2 = tem3.x 
+}
+*/
+
+SamplerState BuildInSampleState
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = MIRROR;
+    AddressV = MIRROR;
+};
 
 float4 implement(
 Texture2D Noise_T,
+SamplerState Noise_TSampler,
 float3 LocalPoint_F3,
 float3 LocalRay_F3,
 float3 MinWidth_F3,
@@ -154,7 +187,8 @@ float MaxDensity_F,
 float ScreenDepth_F,
 float Time_F,
 float3 LocalLight_F,
-float3 Move_F3
+float3 Move_F3,
+float3 Scale_F3
 )
 {
     uint4 NoiseSize = uint4(256, 256, 16, 16);
@@ -178,8 +212,6 @@ float3 Move_F3
     //世界坐标系下的距离
     float target_depth = min(ray_cross_length_world, ScreenDepth_F);
 
-    //return float4(target_depth / sqrt(12), 0.0, 0.0, 1.0);
-
     //局部坐标系下的距离
     float loacal_target_depth = target_depth * ray_local_length;
 
@@ -189,8 +221,8 @@ float3 Move_F3
     float ray_length = target_depth / 31.0;
 
     float Noise;
-    CALCULATE_NOISE(Noise, LocalPoint_F3, Noise_T, NoiseSize, Move, Time_F);
-
+    CALCULATE_NOISE(Noise, LocalPoint_F3, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
+    //return float4(Noise, Noise, Noise,1.0);
     float last_density = Noise * MaxDensity_F;
     float decay = 0.0;
     float color = 0.0;
@@ -203,7 +235,7 @@ float3 Move_F3
     {
         float3 poi = LocalPoint_F3 + ray * count;
         float Noise;
-        CALCULATE_NOISE(Noise, poi, Noise_T, NoiseSize, Move, Time_F);
+        CALCULATE_NOISE(Noise, poi, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
         float now_density = Noise * MaxDensity_F;
         float current_decay = (now_density + last_density) / 2.0 * ray_length;
         color = color + (1.0 - exp(-current_decay * 100.0)) * (exp(-decay)) * HG_V;
@@ -218,3 +250,10 @@ float3 Move_F3
     float c = clamp((1.0 + exp(-decay)) * HG_V, 0.0, 1.0);
     return float4(1.0, 1.0, 1.0, inv_decay);
 }
+
+
+
+
+
+
+

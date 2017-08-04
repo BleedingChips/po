@@ -1,55 +1,35 @@
 #pragma once
-#include "frame/adapter.h"
+#include "form.h"
+
 namespace PO
 {
+	class plugins; //store all plugin and renderer
+	class self; //message
+	
 
-	struct proxy {
-		std::function<void(self&, plugins&, viewer&)> init;
-		std::function<void(self&, plugins&, viewer&, duration)> tick;
-	};
+	namespace Implement {
 
-	template<typename renderer_t, typename input_type> static proxy make_proxy(adapter_interface& ai, input_type& f) {
-		Implement::adapter_store_t<renderer_t>& adt = static_cast<Implement::adapter_store_t<renderer_t>&>(ai);
-		std::reference_wrapper<renderer_t> ref(f);
-		return {
-			adt.init ? ([init = adt.init, ref](self& s, plugins& p, viewer& v) {init(s, p, v, ref); }) : (std::function<void(self&, plugins&, viewer&)>{}),
-			adt.tick ? ([tick = adt.tick, ref](self& s, plugins& p, viewer& v, duration da) {tick(s, p, v, ref, da); }) : (std::function<void(self&, plugins&, viewer&, duration)>{})
+		struct renderer_interface;
+
+		struct adapter_store_t {
+			using init_t = std::function<void(self&, plugins&, viewer&, renderer_interface&)>;
+			using tick_t = std::function<void(self&, plugins&, viewer&, renderer_interface&, duration)>;
+			init_t init;
+			tick_t tick;
 		};
 	}
+
+	using adapter_map = std::map<std::type_index, Implement::adapter_store_t>;
 
 	namespace Implement {
 
 		struct tick_proxy {
-			std::shared_ptr<self> self_ptr;
-			std::function<void(self&, plugins&, viewer&, duration)> ptr;
-		};
-
-		struct init_proxy {
-			std::shared_ptr<self> self_ptr;
-			std::function<void(self&, plugins&, viewer&)> ptr;
-		};
-
-		template<typename renderer_t> struct have_make_proxy
-		{
-			template<typename P> static std::true_type func(std::enable_if_t<std::is_same<
-				decltype(Tmp::itself<renderer_t>{}().mapping(Tmp::itself<std::type_index>{}(), Tmp::itself<adapter_interface&>{}()))
-				, proxy>::value>*);
-			template<typename P> static std::false_type func(...);
-			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
-		};
-
-		template<typename renderer_t> struct have_init
-		{
-			template<typename P> static std::true_type func(decltype(Tmp::itself<renderer_t>{}().init(Tmp::itself<value_table&>{}()))*);
-			template<typename P> static std::false_type func(...);
-			void operator()(renderer_t& ren, value_table& vt) {
-				Tool::statement_if<decltype(func<renderer_t>(nullptr))::value>(
-					[&vt](auto& r) { r.init(vt); },
-					[](auto& r) {},
-					ren
-					);
-			}
-			static constexpr bool value = decltype(func<renderer_t>(nullptr))::value;
+			std::weak_ptr<self> self_ptr;
+			adapter_store_t::tick_t tick;
+			bool operator()(plugins& p, viewer& v, renderer_interface& r, duration d);
+			tick_proxy(std::weak_ptr<self>&& w, adapter_store_t::tick_t&& t) : self_ptr(std::move(w)), tick(std::move(t)) {}
+			tick_proxy(tick_proxy&&) = default;
+			tick_proxy& operator=(tick_proxy&&) = default;
 		};
 
 		template<typename renderer_t> struct have_pre_tick {
@@ -79,15 +59,15 @@ namespace PO
 		struct renderer_interface {
 			std::type_index ti;
 			std::vector<tick_proxy> tick_proxy_list;
-			std::vector<init_proxy> init_proxy_list;
-
 			renderer_interface(std::type_index t) : ti(t) {}
-			virtual void plugin_register(std::shared_ptr<self> self, adapter_map& am) = 0;
+
+			const std::type_index& id() const { return ti; }
+
+			bool insert(const std::type_index& ti, std::weak_ptr<self> ptr, adapter_store_t::init_t& it, adapter_store_t::tick_t tf, plugins&, viewer& v);
 			void tick(plugins&, viewer&, duration da);
 			virtual void pre_tick(duration da) = 0;
 			virtual void pos_tick(duration da) = 0;
-			virtual void init(value_table& om) = 0;
-			virtual ~renderer_interface() = default;
+			virtual ~renderer_interface();
 		};
 
 		template<typename renderer_t> class renderer_expand_t : public renderer_interface, public renderer_t
@@ -103,35 +83,35 @@ namespace PO
 
 			template<typename ...AK>
 			renderer_expand_t(value_table& v, AK&& ...ak) :
-				renderer_expand_t(std::integral_constant<bool, std::is_constructible<renderer_t, value_table&, AK...>::value>{}, v, std::forward<AK>(ak)...) {}
-
-
-			void plugin_register(std::shared_ptr<self> self, adapter_map& am) {
-				if (!self) return;
-				for (auto& po : am) {
-					proxy return_proxy = renderer_t::mapping(po->index(), *po);
-					if (return_proxy.init)
-						init_proxy_list.push_back(init_proxy{ self, std::move(return_proxy.init) });
-					if (return_proxy.tick)
-						tick_proxy_list.push_back(tick_proxy{ std::move(self), std::move(return_proxy.tick) });
-				}
-			}
+				renderer_expand_t(std::integral_constant<bool, std::is_constructible<renderer_t, value_table&, AK...>::value || true>{}, v, std::forward<AK>(ak)...) {}
 			void pre_tick(duration da) {
 				have_pre_tick<renderer_t>{}(*this, da);
 			}
 			void pos_tick(duration da) {
 				have_pos_tick<renderer_t>{}(*this, da);
 			}
-			virtual void init(value_table& om) {
-				have_init<renderer_t>{}(*this, om);
-			}
 		};
 		template<typename renderer_t> using renderer_expand = renderer_expand_t<std::decay_t<renderer_t>>;
 	}
 
 	template<typename renderer_t> struct renderer {
-		static_assert(Implement::have_make_proxy<renderer_t>::value, "renderer need have a memeber function \'proxy mapping(std::type_index, adapter_interface&)\'");
+		//static_assert(Implement::have_make_proxy<renderer_t>::value, "renderer need have a memeber function \'proxy mapping(std::type_index, adapter_interface&)\'");
 		//static_assert(Implement::have_init<renderer_t>::value, "renderer need have a memeber function \'void init(value_table&)\'");
 	};
+
+	template<typename renderer_t, typename ptr, typename init_t, typename tick_t> std::pair<std::type_index, Implement::adapter_store_t> make_member_adapter(ptr* p, init_t&& i, tick_t&& t) {
+		return
+			std::pair<std::type_index, Implement::adapter_store_t>{
+			typeid(renderer_t),
+			Implement::adapter_store_t{
+				[p, i](self& s, plugins& pl, viewer& v, Implement::renderer_interface& ri) {
+				Tool::auto_adapter<Tool::unorder_adapt>(i, p, s, pl, v, static_cast<renderer_t&>(static_cast<Implement::renderer_expand_t<renderer_t>&>(ri)));
+			},
+				[p, t](self& s, plugins& pl, viewer& v, Implement::renderer_interface& ri, duration da) {
+				Tool::auto_adapter<Tool::unorder_adapt>(t, p, s, pl, v, static_cast<renderer_t&>(static_cast<Implement::renderer_expand_t<renderer_t>&>(ri)), da);
+			}
+			}
+		};
+	}
 	
 }

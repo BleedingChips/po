@@ -25,19 +25,8 @@ namespace PO
 	namespace Dx11
 	{
 
-		defer_renderer::defer_renderer() : near_plane(0.01f), far_plane(1000.0f), xy_rate(1024.0f / 768.0f), view_angel(3.1415926f / 4.0f), time(0.0f) {}
-
-		proxy defer_renderer::mapping(std::type_index ti, adapter_interface& ai)
+		defer_renderer::defer_renderer(value_table& vt) : simple_renderer(vt), near_plane(0.01f), far_plane(1000.0f), xy_rate(1024.0f / 768.0f), view_angel(3.1415926f / 4.0f), time(0.0f) 
 		{
-			if (ti == typeid(defer_renderer))
-				return make_proxy<defer_renderer>(ai, *this);
-			return simple_renderer::mapping(ti, ai);
-		}
-
-		void defer_renderer::init(value_table& vt)
-		{
-			simple_renderer::init(vt);
-
 			depth_stencial = create_tex2_depth_stencil(DST_format::D24_UI8, simple_renderer::back_buffer);
 			color_bufer = create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, simple_renderer::back_buffer);
 			liner_z = create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, simple_renderer::back_buffer);
@@ -50,9 +39,9 @@ namespace PO
 
 			XMStoreFloat4x4(&projection, XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, xy_rate, near_plane, far_plane));
 
-			dss_defer = c.create_depth_stencil_state(::dss_defer_des);
-			dss_transparent = c.create_depth_stencil_state(::dss_transparent_des);
-			dss_post = c.create_depth_stencil_state(::dss_post_des);
+			dss_defer = create_depth_stencil_state(::dss_defer_des);
+			dss_transparent = create_depth_stencil_state(::dss_transparent_des);
+			dss_post = create_depth_stencil_state(::dss_post_des);
 
 			XMMATRIX view_ = XMLoadFloat4x4(&view);
 			XMMATRIX mat = XMMatrixMultiply(view_, XMMatrixPerspectiveFovLH(3.1415926f / 4.0f, 1024.0f / 768.0f, 0.01f, 1000.0f));
@@ -71,7 +60,7 @@ namespace PO
 				sp.set(*this, view, p, p_inv, time);
 			});
 			all_element.mapping.make_interface([&, this](property_screen_static& sp) {
-				sp.set(*this, projection, near_plane, far_plane, xy_rate, float2{ 0.0, 0.0 }, float2{ 1024, 768 }, float2{0.0, 1.0});
+				sp.set(*this, projection, near_plane, far_plane, xy_rate, float2{ 0.0, 0.0 }, float2{ 1024, 768 }, float2{ 0.0, 1.0 });
 			});
 
 			all_interface.make_geometry_and_placement(*this, merga, [](geometry_square_static&, placement_direct& pss) {});
@@ -84,8 +73,6 @@ namespace PO
 			linearize_z.make_interface([this](property_linearize_z& plz) {
 				plz.set_depth_stencil_texture(*this, depth_stencial, liner_z);
 			});
-
-			
 		}
 
 		void defer_renderer::pre_tick(duration da)
@@ -125,7 +112,6 @@ namespace PO
 			pipeline::clear_render_target(om, { 0.0, 0.0, 0.0, 1.0 });
 			*this << om << dss_post;
 			all_element.draw(merga, *this);
-			//merga.draw(*this);
 			all_element.draw(render_order::Post, *this);
 			unbind();
 			all_element.clear();

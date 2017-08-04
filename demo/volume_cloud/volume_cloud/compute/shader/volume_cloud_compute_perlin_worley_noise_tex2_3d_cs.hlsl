@@ -10,7 +10,7 @@ cbuffer b1 : register(b1)
     property_output_tex2 pp2;
 };
 
-RWTexture2D<float4> output : register(u0);
+RWTexture2D<half4> output : register(u0);
 
 
 float3 count_position(uint4 sim, uint2 input)
@@ -59,5 +59,5 @@ void main( uint3 DTid : SV_DispatchThreadID )
         dis3 = max(dis3, calculte_distance(pos, pp.poi3[count], 0.025));
     }
 
-    output[DTid.xy] = float4(perlin_noise_v, dis1, dis2, dis3);
+    output[DTid.xy] = half4(clamp(float4(perlin_noise_v, dis1, dis2, dis3), 0.0, 1.0));
 }

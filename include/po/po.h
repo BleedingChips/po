@@ -1,7 +1,5 @@
 #pragma once
 #include "plugin.h"
-#include "renderer.h"
-#include "form.h"
 #include <future>
 namespace PO
 {

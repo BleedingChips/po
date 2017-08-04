@@ -23,29 +23,11 @@ using namespace PO::Dx;
 using namespace PO::Dx11;
 
 
-struct alignas(128) P
-{
-	float4x4 data;
-};
-
-struct alignas(1) P2
-{
-	char poi;
-	char io;
-};
-
 int main()
 {
 
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
-	translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "iop");
-
-	system("pause");
-	return 0;
-	cout << PO::Tool::max_align<float4x4, float4x4, float, float>::value << endl;
-
-	cout << PO::Tool::max_align<float4x4>::value << endl;
 
 	PO::context con;
 
@@ -57,7 +39,7 @@ int main()
 			ui.create(plugin<new_plugin>{});
 		});
 	}
-
+	//translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "implement");
 	con.wait_all_form_close();
 	return 0;
 }
