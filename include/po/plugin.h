@@ -122,8 +122,8 @@ namespace PO
 
 		template<typename renderer_t, typename ...AP>
 		void create(renderer<renderer_t>, AP&& ...ap) {
-			depute_renderer_f_tank.lock([=, this](renderer_depute_tank_t& tabk) {
-				tabk.push_back([&](value_table& vt) -> std::unique_ptr<Implement::renderer_interface> {  
+			depute_renderer_f_tank.lock([=](renderer_depute_tank_t& tabk) {
+				tabk.push_back([&ap...](value_table& vt) -> std::unique_ptr<Implement::renderer_interface> {  
 					return std::make_unique<Implement::renderer_expand_t<renderer_t>>(vt, std::forward<AP>(ap)...);
 				});
 			});

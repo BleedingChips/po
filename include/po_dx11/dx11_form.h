@@ -12,129 +12,38 @@ namespace PO
 	namespace Dx11
 	{
 
-		struct Dx11_initial
+		class initializer_form_default
 		{
-
+			Win32::win32_initial initial_win32;
+		public:
+			operator const Win32::win32_initial& () const { return initial_win32; }
 		};
 
-		class Dx11_form : public Win32::win32_form
+		namespace Implement
 		{
-			Win32::com_ptr<ID3D11Device> dev;
-			Win32::com_ptr<ID3D11DeviceContext> dc;
-			Win32::com_ptr<IDXGISwapChain> swap;
-			std::shared_ptr<pipeline_implement> imp;
+			class form_pre_construction : public Win32::win32_form
+			{
+			protected:
+				Win32::com_ptr<ID3D11Device> dev;
+				Win32::com_ptr<ID3D11DeviceContext> dc;
+				Win32::com_ptr<IDXGISwapChain> swap;
+				form_pre_construction(const initializer_form_default& = initializer_form_default{});
+			};
+		}
+
+		class form_default : public Implement::form_pre_construction
+		{
+			stage_context pipe;
+			creator creat;
 			tex2 back_buffer;
 		public:
 			value_table mapping();
-			Dx11_form(const Dx11_initial& = Dx11_initial{});
-			~Dx11_form() { std::cout << "exit" << std::endl; };
+			form_default(const initializer_form_default& = initializer_form_default{});
+			~form_default() { std::cout << "exit" << std::endl; };
 			void pre_tick(duration da) {
 				Win32::win32_form::pre_tick(da);
 				swap->Present(0, 0);
 			}
 		};
-
-		struct Dx11_viewer
-		{
-			Dx11_viewer(Dx11_form&) {}
-		};
-
-		/*
-		struct Dx11_ticker
-		{
-			Win32::com_ptr<IDXGISwapChain> swap;
-			creator res;
-			pipeline pipe;
-			tex2 back_buffer;
-			viewports vp;
-			//Dx11_ticker(renderer_control& rc, Dx11_form& Df);
-			void update_screen() { swap->Present(0, 0); }
-			operator const tex2& () const { return back_buffer; }
-			operator const viewports& () const { return vp; }
-			Dx11_ticker(Dx11_form&);
-			
-			void tick(renderer_control& rc) {
-				update_screen();
-			}
-		};*/
-
-		/*
-		class shader_loader
-		{
-			struct shader_loader_execute : thread_task
-			{
-				static std::map<std::u16string, binary::weak_ref> all_shader;
-				std::u16string path;
-				binary info;
-				shader_loader_execute(Tool::completeness_ref cr, std::u16string p) :thread_task(std::move(cr)), path(std::move(p)) {}
-				virtual bool operator()() override;
-			};
-			std::shared_ptr<Tool::completeness<shader_loader_execute>> request;
-		public:
-			operator bool() const { return request && request->is_finish(); }
-			void load(form_self& fs, std::u16string p) 
-			{
-				if (!request)
-					request = std::make_shared<Tool::completeness<shader_loader_execute>>(std::move(p));
-				else
-					request->path = std::move(p);
-				fs.push_task(request);
-			}
-			Tool::optional<binary> get()
-			{
-				if (*this)
-					return{ std::move(request->info) };
-				else
-					return{};
-			}
-			Tool::optional<binary> wait_get()
-			{
-				if (request)
-				{
-					request->wait_finish();
-					if (!request->is_bad() && request->info)
-						return{ std::move(request->info) };
-				}
-				return{};
-			}
-		};*/
-
-
 	}
-
-
-
-
-
-
-
-	/*
-	namespace Interface
-	{
-		struct dx11_initial_implement
-		{
-
-		};
-
-		struct dx11_form_implement
-		{
-			
-		};
-
-		struct dx11_renderer_implement
-		{
-			CComPtr<ID3D11Device> dev;
-			CComPtr<ID3D11DeviceContext> dc;
-			CComPtr<IDXGISwapChain> swap;
-			CComPtr<ID3D11RenderTargetView> pView;
-		};
-
-		struct dx11_scene_implement
-		{
-
-		};
-		
-
-	}
-	*/
 }

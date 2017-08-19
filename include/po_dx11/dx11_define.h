@@ -118,9 +118,9 @@ namespace PO
 		void viewport_fill_texture(D3D11_VIEWPORT& DV, ID3D11Texture2D* t, float min_depth, float max_depth);
 		void viewport_capture_texture(D3D11_VIEWPORT& DV, ID3D11Texture2D* t, float top_left_x_rate, float top_left_y_rate, float button_right_x_rate, float button_right_y_rate, float min_dapth, float max_depth);
 
-		template<typename T, typename K = std::allocator<T>> struct dx11_res_array
+		template<typename T> struct dx11_res_array
 		{
-			std::vector<T*, K> ptr;
+			std::vector<T*> ptr;
 			UINT size() const { return static_cast<UINT>(ptr.size()); }
 			T*const* data() const { return ptr.data(); }
 			T** data() { return ptr.data(); }

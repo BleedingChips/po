@@ -71,9 +71,9 @@ namespace PO
 			operator T**() { clear(); return data; }
 		};
 
-		template<typename T, typename K = std::allocator<T>> struct com_vector
+		template<typename T> struct com_vector
 		{
-			std::vector<T*, K> ptr;
+			std::vector<T*> ptr;
 			void resize(size_t i) { ptr.resize(i); }
 			UINT size() const { return static_cast<UINT>(ptr.size()); }
 			T*const* data() const { return ptr.data(); }

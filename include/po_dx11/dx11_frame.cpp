@@ -87,6 +87,7 @@ namespace PO
 		};
 
 		//*************************************************************************  viewports
+		/*
 		viewports& viewports::set(const D3D11_VIEWPORT& port, size_t solt)
 		{
 			if (views.size() <= solt)
@@ -108,6 +109,7 @@ namespace PO
 			t.ptr->GetDesc(&DTD);
 			return set(D3D11_VIEWPORT{ DTD.Width * top_left_x_rate, DTD.Height * button_right_x_rate, DTD.Width * button_right_x_rate, DTD.Height * button_right_y_rate, min_depth, max_depth }, solt);
 		}
+		*/
 
 		//*************************************************************************  raterizer_state
 		raterizer_state::description raterizer_state::default_description = raterizer_state::description{
@@ -1100,7 +1102,11 @@ namespace PO
 			}
 
 			/*****  raterizer_context_t   ******************************************************************************************/
-
+			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewport& rs)
+			{
+				cp->RSSetViewports(1, &(rs.view));
+			}
+			/*
 			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs)
 			{
 				//cp->RSSetState(rs.ptr);
@@ -1109,6 +1115,7 @@ namespace PO
 				cp->RSSetViewports(static_cast<UINT>(rs.views.size()), rs.views.data());
 				//cp->PSS
 			}
+			*/
 
 
 			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const raterizer_state& rs)
@@ -1360,19 +1367,19 @@ namespace PO
 
 		/*****  pipeline_implement   ******************************************************************************************/
 
-		pipeline_implement::pipeline_implement(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {
+		stage_context_implement::stage_context_implement(Win32::com_ptr<ID3D11DeviceContext> cp) :ptr(std::move(cp)) {
 			assert(ptr);
-			Win32::com_ptr<ID3D11Device> tem;
-			ptr->GetDevice(tem.adress());
+			//Win32::com_ptr<ID3D11Device> tem;
+			//ptr->GetDevice(tem.adress());
 		}
 
-		void pipeline_implement::unbind() {
+		void stage_context_implement::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
 			last_mode = DrawMode::NONE;
 		}
 
-		void pipeline_implement::dispatch(UINT x, UINT y, UINT z) {
+		void stage_context_implement::dispatch(UINT x, UINT y, UINT z) {
 			if (last_mode == DrawMode::PIPELINE) {
 				IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 				PS.unbind(ptr); OM.unbind(ptr);
@@ -1381,7 +1388,7 @@ namespace PO
 			ptr->Dispatch(x, y, z);
 		}
 
-		void pipeline_implement::draw_vertex(UINT count, UINT start) {
+		void stage_context_implement::draw_vertex(UINT count, UINT start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1389,7 +1396,7 @@ namespace PO
 			ptr->Draw(count, start);
 		}
 
-		void pipeline_implement::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
+		void stage_context_implement::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1397,7 +1404,7 @@ namespace PO
 			ptr->DrawIndexed(index_count, index_start, vertex_start);
 		}
 
-		void pipeline_implement::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
+		void stage_context_implement::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1405,7 +1412,7 @@ namespace PO
 			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
 		}
 
-		void pipeline_implement::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
+		void stage_context_implement::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
 			if (last_mode == DrawMode::PIPELINE) {
 				CS.unbind(ptr);
 			}
@@ -1413,7 +1420,7 @@ namespace PO
 			ptr->DrawIndexedInstanced(index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 		}
 
-		void pipeline_implement::clear() {
+		void stage_context_implement::clear() {
 			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
 			PS.clear(ptr); OM.clear(ptr);
 		}

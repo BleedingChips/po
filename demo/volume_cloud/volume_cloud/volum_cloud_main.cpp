@@ -1,5 +1,4 @@
 #include <iostream>
-using namespace std;
 #include <limits>
 #include <random>
 #include "po/po.h"
@@ -17,14 +16,18 @@ using namespace std;
 #include "new_plugin.h"
 #include "translate_ue4_custion_node.h"
 
-using namespace std;
 using namespace PO;
 using namespace PO::Dx;
 using namespace PO::Dx11;
 
 
+std::tuple<int, double> get() { return { 1, 2.0f }; }
+
 int main()
 {
+
+	auto[a, b] = get();
+	std::cout << a << b << std::endl;
 
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
@@ -39,7 +42,8 @@ int main()
 			ui.create(plugin<new_plugin>{});
 		});
 	}
-	//translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "implement");
+	
 	con.wait_all_form_close();
+	//translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "implement");
 	return 0;
 }

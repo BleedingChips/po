@@ -107,6 +107,9 @@
     <ClInclude Include="..\..\..\include\po_dx11\dx11_element.h">
       <Filter>po_dx11</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\po_dx\view_property.h">
+      <Filter>po_dx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\include\po_dx11\shader\include\noise.hlsli">

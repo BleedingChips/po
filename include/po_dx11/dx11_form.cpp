@@ -5,38 +5,49 @@ namespace PO
 	namespace Dx11
 	{
 
-		value_table Dx11_form::mapping() {
+		namespace Implement
+		{
+			form_pre_construction::form_pre_construction(const initializer_form_default& Di) : Win32::win32_form(Di)
+			{
+				D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_1 };
+				D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_1;
+				PO::Platform::Dxgi::swap_chain_desc swc(raw_handle);
+				HRESULT re = D3D11CreateDeviceAndSwapChain(
+					nullptr,
+					D3D_DRIVER_TYPE_HARDWARE,
+					nullptr,
+					D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT | D3D11_CREATE_DEVICE_DEBUG,
+					lel,
+					1,
+					D3D11_SDK_VERSION,
+					&swc,
+					swap.adress(),
+					dev.adress(),
+					&lel2,
+					dc.adress()
+				);
+				Win32::Error::fail_throw(re);
+				//re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
+				//if (!SUCCEEDED(re)) throw re;
+				//imp = std::make_shared<pipeline_implement>(dc);
+			}
+		}
+
+		value_table form_default::mapping() {
 			return {
-				make_value_table<Win32::com_ptr<ID3D11Device>>(dev),
+				make_value_table<stage_context>(pipe),
 				make_value_table<tex2>(back_buffer),
-				make_value_table<std::shared_ptr<pipeline_implement>>(imp),
+				make_value_table<creator>(creat)
 				//make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
 			};
 		}
 
-		Dx11_form::Dx11_form(const Dx11_initial& di) : Win32::win32_form()
+		form_default::form_default(const initializer_form_default& di) : Implement::form_pre_construction(di),
+			pipe(std::make_shared<stage_context_implement>(Implement::form_pre_construction::dc), Implement::form_pre_construction::dev),
+			creat(Implement::form_pre_construction::dev)
 		{
-			D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_1 };
-			D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_1;
-			PO::Platform::Dxgi::swap_chain_desc swc(raw_handle);
-			HRESULT re = D3D11CreateDeviceAndSwapChain(
-				nullptr,
-				D3D_DRIVER_TYPE_HARDWARE,
-				nullptr,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT | D3D11_CREATE_DEVICE_DEBUG,
-				lel,
-				1,
-				D3D11_SDK_VERSION,
-				&swc,
-				swap.adress(),
-				dev.adress(),
-				&lel2,
-				dc.adress()
-			);
-			Win32::Error::fail_throw(re);
-			re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
+			HRESULT re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
 			if (!SUCCEEDED(re)) throw re;
-			imp = std::make_shared<pipeline_implement>(dc);
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),

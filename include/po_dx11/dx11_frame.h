@@ -8,7 +8,7 @@ namespace PO
 {
 	namespace Dx11
 	{
-
+		using namespace Dx;
 		struct UINT2 { UINT x, y; };
 
 		struct structured_buffer {
@@ -94,6 +94,7 @@ namespace PO
 			Win32::com_ptr<ID3D11Texture2D> ptr; 
 			operator bool() const { return ptr; }
 			PO::Dx::uint32_t2 size() const;
+			PO::Dx::float2 size_f() const { auto s = size(); return float2{s.x, s.y}; }
 		};
 		struct tex3 { 
 			Win32::com_ptr<ID3D11Texture3D> ptr; 
@@ -145,6 +146,23 @@ namespace PO
 			std::tuple<const sample_state&, size_t> operator[](size_t i) const& { return std::tuple<const sample_state&, size_t>{std::move(*this), i}; }
 		};
 
+		struct viewport
+		{
+			D3D11_VIEWPORT view;
+			viewport(float2 width_height, float2 top_left = float2(0.0, 0.0), float2 min_max_depth = { 0.0, 1.0 }) : view{ top_left.x, top_left.y, width_height.x, width_height.y, min_max_depth.x, min_max_depth.y } {}
+			viewport(const viewport&) = default;
+			viewport& operator=(const viewport&) = default;
+		};
+
+		struct scissor
+		{
+			D3D11_RECT rect;
+			scissor(uint32_t2 left_top, uint32_t2 right_buttom) : rect{ left_top.x, left_top.y, right_buttom.x, right_buttom.y } {}
+			scissor(const scissor&) = default;
+			scissor& operator=(const scissor&) = default;
+		};
+
+		/*
 		struct viewports {
 			std::vector<D3D11_VIEWPORT> views;
 			std::vector<D3D11_RECT> scissor;
@@ -154,6 +172,7 @@ namespace PO
 			std::tuple<viewports, size_t> operator[](size_t i) && {return std::tuple<viewports, size_t>{std::move(*this), i}; }
 			std::tuple<const viewports&, size_t> operator[](size_t i) const& { return std::tuple<const viewports&, size_t>{std::move(*this), i}; }
 		};
+		*/
 
 		struct raterizer_state {
 			using description = D3D11_RASTERIZER_DESC;
@@ -640,10 +659,11 @@ namespace PO
 				//binding_count view_count;
 
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const raterizer_state& rs);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs);
+				//void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewports& rs);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewport& rs);
 
 				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, raterizer_state& rs);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, viewports& rs);
+				//void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, viewports& rs);
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
@@ -697,7 +717,7 @@ namespace PO
 			};
 		}
 
-		struct pipeline_implement
+		struct stage_context_implement
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
 			Implement::input_assember_context_t IA;
@@ -708,9 +728,9 @@ namespace PO
 
 			Implement::compute_shader_context_t CS;
 
-			pipeline_implement(Win32::com_ptr<ID3D11DeviceContext> cp);
+			stage_context_implement(Win32::com_ptr<ID3D11DeviceContext> cp);
 			operator bool() const { return ptr; }
-			~pipeline_implement() { clear(); }
+			~stage_context_implement() { clear(); }
 			void clear();
 
 			enum DrawMode
@@ -731,28 +751,28 @@ namespace PO
 
 			void unbind();
 
-			pipeline_implement& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const pixel_shader& d) { PS.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
-			pipeline_implement& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
-			pipeline_implement& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline_implement& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline_implement& bind(const compute_shader& cd) { CS.bind(ptr, cd); return *this; }
-			pipeline_implement& bind(const viewports& vp) { RA.bind(ptr, vp); return *this; }
-			pipeline_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
-			pipeline_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
+			stage_context_implement& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const pixel_shader& d) { PS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
+			stage_context_implement& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
+			stage_context_implement& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
+			stage_context_implement& bind(const compute_shader& cd) { CS.bind(ptr, cd); return *this; }
+			stage_context_implement& bind(const viewport& vp) { RA.bind(ptr, vp); return *this; }
+			stage_context_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
+			stage_context_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
 
-			pipeline_implement& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
-			pipeline_implement& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
-			pipeline_implement& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
-			pipeline_implement& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
-			pipeline_implement& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
+			stage_context_implement& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
+			stage_context_implement& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
+			stage_context_implement& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
+			stage_context_implement& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
+			stage_context_implement& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
 			{
@@ -793,18 +813,19 @@ namespace PO
 		};
 
 		
-		struct pipeline : creator 
+		struct stage_context : creator 
 		{
-			std::shared_ptr<pipeline_implement> imp;
+			std::shared_ptr<stage_context_implement> imp;
 			operator bool() const { return static_cast<bool>(imp); }
-			pipeline(std::shared_ptr<pipeline_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
-			template<typename T> pipeline& operator<<(const T& t) { imp->bind(t); return *this; }
+			stage_context(std::shared_ptr<stage_context_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
+			stage_context(const stage_context& pl) : imp(pl.imp), creator(pl) { assert(imp); }
+			template<typename T> context& operator<<(const T& t) { imp->bind(t); return *this; }
 			void unbind() { imp->unbind(); }
-			pipeline& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
-			pipeline& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
-			pipeline& clear_depth(output_merge_stage& omd, float depth) { imp->clear_depth(omd, depth); return *this; }
-			pipeline& clear_stencil(output_merge_stage& omd, uint8_t ref) { imp->clear_stencil(omd, ref); return *this; }
-			pipeline& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { imp->clear_depth_stencil(omd, depth, ref); return *this; }
+			stage_context& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
+			stage_context& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
+			stage_context& clear_depth(output_merge_stage& omd, float depth) { imp->clear_depth(omd, depth); return *this; }
+			stage_context& clear_stencil(output_merge_stage& omd, uint8_t ref) { imp->clear_stencil(omd, ref); return *this; }
+			stage_context& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { imp->clear_depth_stencil(omd, depth, ref); return *this; }
 
 			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t) { return imp->write_constant_buffer(b, std::forward<T>(t)); }
 			template<typename T> bool write_structured_buffer(structured_buffer& b, T&& t) { return imp->write_structured_buffer(b, std::forward<T>(t)); }
