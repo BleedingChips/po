@@ -67,16 +67,51 @@ namespace PO
 				return acce;
 			}
 
-			bool stage_interface::update_acceptance_implement(stage_context& p, const std::type_index& ti, property_mapping& pm)
+			bool stage_interface::check_implmenet(const std::type_index& ti, property_mapping_list_const* pm)
+			{
+				return ((pm->front != nullptr) ? check_implmenet(ti, pm->front) : false) || pm->pm.have(ti);
+			}
+
+			bool stage_interface::update_acceptance_implement(stage_context& p, const std::type_index& ti, property_mapping_list* pm)
 			{
 				bool result;
-				return pm.find(ti, [&](property_interface& pi) {
+				return ((pm->front != nullptr) ? update_acceptance_implement(p, ti, pm->front) : false) || pm->pm.find(ti, [&](property_interface& pi) {
 					result = update(pi, p);
 				}) && result;
 			}
 
+			bool stage_interface::update_implement(stage_context& pi, property_mapping_list* pml)
+			{
+				property_mapping_list fin{default_mapping, pml};
+				for (const auto& ite : acceptance())
+					if (!update_acceptance_implement(pi, ite, &fin))
+						return false;
+				return true;
+			}
+
+			bool stage_interface::check_acceptance(property_mapping_list_const* pml)
+			{
+				property_mapping_list_const fin{ default_mapping, pml };
+				for (const auto& ite : acceptance())
+					if (!check_implmenet(ite, &fin))
+						return false;
+			}
+
+			stage_interface::acceptance_t stage_interface::lack_acceptance(property_mapping_list_const* pml)
+			{
+				property_mapping_list_const fin{ default_mapping, pml };
+				acceptance_t temporary;
+				for (const auto& ite : acceptance())
+					if (!check_implmenet(ite, &fin))
+						temporary.insert(ite);
+				return temporary;
+			}
+
 			pipeline_interface::pipeline_interface(const std::type_index& ti) : type_info(ti) {}
 			pipeline_interface::~pipeline_interface() {}
+			void pipeline_interface::execute(stage_context&, property_mapping_list* pml) {}
+			bool pipeline_interface::check_acceptance(const stage_interface& si, property_mapping_list_const* pml) { return si.check_acceptance(pml); }
+			stage_interface::acceptance_t pipeline_interface::lack_acceptance(const stage_interface& si, property_mapping_list_const* pml) { return si.lack_acceptance(pml); }
 		}
 
 		bool placement_interface::load_vs(std::u16string p, creator& c)
@@ -133,6 +168,8 @@ namespace PO
 		namespace Implement
 		{
 
+			
+
 			void element_compute_implement::clear_unused_property()
 			{
 				if (compute_ptr)
@@ -144,6 +181,38 @@ namespace PO
 				}
 				else
 					mapping.clear();
+			}
+
+			bool element_compute_implement::dispatch(stage_context& p, property_mapping_list* pml = nullptr)
+			{
+				if (compute_ptr)
+				{
+					property_mapping_list temporary(mapping, pml);
+					if (compute_ptr->update_implement(p, &temporary))
+						return (compute_ptr->apply(p), compute_ptr->dispath(p), true);
+				}
+				return false;
+			}
+
+			bool element_implement::draw(stage_context& p, property_mapping_list* pml)
+			{
+				if (placemenet_ptr && geometry_ptr && material_ptr)
+				{
+					property_mapping_list temporary{ mapping, pml };
+					if (
+						placemenet_ptr->update_implement(p, &temporary)
+						&& geometry_ptr->update_implement(p, &temporary)
+						&& material_ptr->update_implement(p, &temporary)
+						)
+					{
+						placemenet_ptr->apply(p);
+						geometry_ptr->apply(p);
+						material_ptr->apply(p);
+						geometry_ptr->draw(p);
+						return true;
+					}
+				}
+				return false;
 			}
 
 			void element_implement::clear_unused_property()
@@ -171,11 +240,34 @@ namespace PO
 				});
 			}
 
+			bool element_implement::check_acceptance() const 
+			{ 
+				return (placemenet_ptr ? placemenet_ptr->check_acceptance(mapping) : true)
+					&& (geometry_ptr ? geometry_ptr->check_acceptance(mapping) : true)
+					&& (material_ptr ? material_ptr->check_acceptance(mapping) : true);
+			}
+
+			stage_interface::acceptance_t element_implement::lack_acceptance() const
+			{
+				stage_interface::acceptance_t tem = placemenet_ptr ? placemenet_ptr->lack_acceptance(mapping) : stage_interface::acceptance_t{};
+				if (geometry_ptr)
+				{
+					auto tem2 = geometry_ptr->lack_acceptance(mapping);
+					tem.insert(tem2.begin(), tem2.end());
+				}
+				if (material_ptr)
+				{
+					auto tem2 = material_ptr->lack_acceptance(mapping);
+					tem.insert(tem2.begin(), tem2.end());
+				}
+			}
+
 			void element_implement::update_layout(creator& c)
 			{
 				if (placemenet_ptr && geometry_ptr)
 					layout = c.create_layout(geometry_ptr->ia(), placemenet_ptr->vs());
 			}
+
 
 
 		}

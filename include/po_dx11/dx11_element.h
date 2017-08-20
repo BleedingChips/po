@@ -149,9 +149,53 @@ namespace PO
 
 		struct property_mapping_list
 		{
+			property_mapping_list* front;
 			property_mapping& pm;
-
+			property_mapping_list(property_mapping& p) : front(nullptr), pm(p) {}
+			property_mapping_list(property_mapping& p, property_mapping_list* f) : front(f), pm(p) {}
 		};
+
+		struct property_mapping_list_const
+		{
+			property_mapping_list_const* front;
+			const property_mapping& pm;
+			property_mapping_list_const(const property_mapping& p) : front(nullptr), pm(p) {}
+			property_mapping_list_const(const property_mapping& p, property_mapping_list_const* f) : front(f), pm(p) {}
+		};
+
+		template<typename F, typename ...PropertyMapping> decltype(auto) make_property_mapping_list(F&& f, property_mapping_list* pml, property_mapping& pm, PropertyMapping&... PM)
+		{
+			property_mapping_list temporary{ pm,  pml};
+			return make_property_mapping_list(std::forward<F>(f), &temporary, PM...);
+		}
+
+		template<typename F> decltype(auto) make_property_mapping_list(F&& f, property_mapping_list* pml = nullptr)
+		{
+			return f(pml);
+		}
+
+		template<typename F, typename ...PropertyMapping> decltype(auto) make_property_mapping_list(F&& f, property_mapping& pm, PropertyMapping&... PM)
+		{
+			property_mapping_list temporary{ pm };
+			return make_property_mapping_list(f, &temporary, PM...);
+		}
+
+		template<typename F, typename ...PropertyMapping> decltype(auto) make_property_mapping_list_const(F&& f, property_mapping_list_const* pml, const property_mapping& pm, PropertyMapping&... PM)
+		{
+			property_mapping_list_const temporary{ pm,  pml };
+			return make_property_mapping_list(std::forward<F>(f), &temporary, PM...);
+		}
+
+		template<typename F> decltype(auto) make_property_mapping_list_const(F&& f, property_mapping_list_const* pml = nullptr)
+		{
+			return f(pml);
+		}
+
+		template<typename F, typename ...PropertyMapping> decltype(auto) make_property_mapping_list_const(F&& f, const property_mapping& pm, PropertyMapping&... PM)
+		{
+			property_mapping_list_const temporary{ pm };
+			return make_property_mapping_list(f, &temporary, PM...);
+		}
 
 		namespace Implement
 		{
@@ -172,44 +216,39 @@ namespace PO
 					}
 				};
 
-				static bool check_implmenet(const std::type_index& ti, const property_mapping& pm) { return pm.have(ti); }
-				template<typename T, typename ...AT> static bool check_implmenets(const std::type_index& ti, const T& t, const AT& ...at) { return check_implmenet(ti, t) && check_implmenets(ti, at...); }
-				static bool check_implmenets(const std::type_index& ti) { return true; }
-
-				bool update_acceptance_implement(stage_context& p, const std::type_index&, property_mapping& pm);
-				template<typename T, typename ...AT> bool update_acceptance_implements(pipeline& p, const std::type_index& ti, T& t, AT&... pm)
-				{
-					return update_acceptance_implement(p, ti, t) && update_acceptance_implements(p, to, pm...);
-				}
-				bool update_acceptance_implements(stage_context& p, const std::type_index& ti) { return true; }
+			private:
+				static bool check_implmenet(const std::type_index& ti, property_mapping_list_const* pm);
+				bool update_acceptance_implement(stage_context& p, const std::type_index& ti, property_mapping_list* pm);
 
 			public:
 
-				template<typename ...AT> bool update_implement(pipeline& pi, AT& ...pm)
-				{
-					for (const auto& ite : acceptance())
-					{
-						update_acceptance_implements(pi, ite, pm..., default_mapping);
-					}
-				}
-
 				operator const property_mapping& () const { return default_mapping; }
 
-				template<typename ...AT> bool check_acceptance(const AT& ...at)
+				bool update_implement(stage_context& pi, property_mapping_list* pl = nullptr);
+
+				template<typename ...PropertyMapping> bool update_implement(stage_context& pi, PropertyMapping& ...pl)
 				{
-					for (const auto& ite : acceptance())
-						if (!check_implmenets(ite, at..., default_mapping))
-							return false;
-					return true;
+					return make_property_mapping_list([&, this](property_mapping_list* pml) {
+						update_implement(pi, pml);
+					}, pl...);
 				}
 
-				template<typename ...AT> acceptance_t lack_acceptance(const AT&& ...at)
+				bool check_acceptance(property_mapping_list_const* pml = nullptr);
+
+				template<typename ...PropertyMapping> bool check_acceptance(const PropertyMapping&... PM)
 				{
-					acceptance_t temporary;
-					for (const auto& ite : acceptance())
-						if (!check_implmenets(ite, at..., default_mapping))
-							temporary.insert(ite);
-					return temporary;
+					return make_property_mapping_list_const([&, this](property_mapping_list_const* pml) {
+						return check_acceptance(pml);
+					});
+				}
+
+				acceptance_t lack_acceptance(property_mapping_list_const* pml = nullptr);
+
+				template<typename ...PropertyMapping> acceptance_t lack_acceptance(const property_mapping& pm, const PropertyMapping&... PM)
+				{
+					return make_property_mapping_list_const([&, this](property_mapping_list_const* pml) {
+						return lack_acceptance(pml);
+					});
 				}
 
 				virtual auto acceptance() const -> const acceptance_t&;
@@ -223,6 +262,9 @@ namespace PO
 				pipeline_interface(const std::type_index& ti);
 				const std::type_index& pipeline_id() const { return type_info; }
 				virtual ~pipeline_interface();
+				virtual void execute(stage_context&, property_mapping_list* pml);
+				virtual bool check_acceptance(const stage_interface&, property_mapping_list_const* pml = nullptr);
+				virtual stage_interface::acceptance_t lack_acceptance(const stage_interface&, property_mapping_list_const* pml = nullptr);
 			};
 
 		}
@@ -290,23 +332,18 @@ namespace PO
 				void clear_property() { mapping.clear(); }
 				void clear() { mapping.clear(); compute_ptr.reset(); }
 
-				template<typename ...PropertyMapping> bool dispatch(pipeline& p, PropertyMapping&... property_mapping)
+				bool dispatch(stage_context& p, property_mapping_list* pml = nullptr);
+
+				template<typename ...PropertyMapping> bool dispatch(stage_context& p, PropertyMapping&... property_mapping)
 				{
 					if (compute_ptr)
-						if (compute_ptr->update_implement(p, property_mapping))
-							return (compute_ptr->dispath(p), true);
+						if (compute_ptr->update_implement(p, property_mapping..., mapping))
+							return (compute_ptr->apply(p), compute_ptr->dispath(p), true);
 					return false;
 				}
 
-				element_compute_implement& operator= (std::shared_ptr<compute_interface> sp) { compute_ptr = std::move(sp); }
-				template<typename ...AT> bool check_acceptance(const AT& ... at) const
-				{
-					return compute_ptr ? compute_ptr->check_acceptance(at..., mapping) : true;
-				}
-				template<typename ...AT> stage_interface::acceptance_t lack_acceptance(const AT&... at) const
-				{
-					return compute_ptr ? compute_ptr->lack_acceptance(at...) : stage_interface::acceptance_t{};
-				}
+				bool check_acceptance() const { return compute_ptr ? compute_ptr->check_acceptance(mapping) : true; }
+				stage_interface::acceptance_t lack_acceptance() const { return compute_ptr ? compute_ptr->lack_acceptance(mapping) : stage_interface::acceptance_t{}; }
 
 				element_compute_implement& operator= (std::shared_ptr<compute_interface> gp) { compute_ptr = std::move(gp); return *this; }
 			};
@@ -332,49 +369,17 @@ namespace PO
 
 				const std::type_index& pipeline_id() const { material_ptr ? material_ptr->pipeline_id() : typeid(void); }
 
-				template<typename ...AT> bool check_acceptance(const AT& ... at) const
+				bool draw(stage_context& p, property_mapping_list* pml);
+
+				template<typename ...PropertyMapping> bool draw(stage_context& p,  PropertyMapping&& ...property_mapping)
 				{
-					return (placemenet_ptr ? placemenet_ptr->check_acceptance(at..., mapping) : true) &&
-						(geometry_ptr ? geometry_ptr->check_acceptance(at..., mapping) : true) &&
-						(material_ptr ? material_ptr->check_acceptance(at..., mapping) : true);
+					return make_property_mapping_list([&, this](property_mapping_list* pml) {
+						draw(p, pml);
+					}, property_mapping...);
 				}
 
-				template<typename ...AT> stage_interface::acceptance_t lack_acceptance(const AT&... at) const
-				{
-					stage_interface::acceptance_t temporary = placemenet_ptr ? placemenet_ptr->lack_acceptance(at...) : stage_interface::acceptance_t{ };
-					if (geometry_ptr)
-					{
-						auto tem = geometry_ptr->lack_acceptance(at...);
-						temporary.insert(tem.begin(), tem.end());
-					}
-					if (material_ptr)
-					{
-						auto tem = material_ptr->lack_acceptance(at...);
-						temporary.insert(tem.begin(), tem.end());
-					}
-					return temporary;
-				}
-
-				template<typename ...PropertyMapping> bool draw(pipeline& p, PropertyMapping&& ...property_mapping)
-				{
-					if (placemenet_ptr && geometry_ptr && material_ptr)
-					{
-						if (
-							placemenet_ptr->update_implement(p, property_mapping...)
-							&& geometry_ptr->update_implement(p, property_mapping...)
-							&& material_ptr->update_implement(p, property_mapping...)
-							)
-						{
-							placemenet_ptr->apply(p);
-							geometry_ptr->apply(p);
-							material_ptr->apply(p);
-							geometry_ptr->draw(p);
-							return true;
-						}
-					}
-					return false;
-				}
-
+				bool check_acceptance() const;
+				stage_interface::acceptance_t lack_acceptance() const;
 			};
 		}
 
@@ -388,7 +393,7 @@ namespace PO
 		public:
 			template<typename ...PropertyMapping> bool draw(pipeline& p, PropertyMapping&& ...property_mapping) const { return element_ptr && element_ptr->draw(p, property_mapping...); }
 
-			template<typename ...PropertyMapping> bool check_acceptance(const PropertyMapping& ... property_mapping) const { return element_ptr ? element_ptr->check_acceptance(property_mapping) : true; }
+			bool check_acceptance() const { return element_ptr ? element_ptr->check_acceptance() : true; }
 			template<typename ...PropertyMapping> Implement::stage_interface::acceptance lack_acceptance(const PropertyMapping& ... property_mapping) const { return element_ptr ? element_ptr->lack_acceptance(property_mapping) : Implement::stage_interface::acceptance{}; }
 
 			template<typename T> element& operator= (std::shared_ptr<T> sp) { check_ptr(); *element_ptr = std::move(sp); return *this; }
