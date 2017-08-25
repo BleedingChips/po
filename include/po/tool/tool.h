@@ -837,6 +837,30 @@ namespace PO
 
 		template<typename ...T> struct max_align : public  Implement::max_align_implement<0, T...> {};
 
+		template<typename value_type> struct stack_list
+		{
+			value_type& type_ref;
+			stack_list* front;
+			stack_list(value_type& ref, stack_list* f = nullptr) : type_ref(ref), front(f) {}
+		};
+
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, stack_list<value_type>* sl = nullptr)
+		{
+			return ca(sl);
+		}
+
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, stack_list<value_type>* sl, value_type& ref, other_type&& ...ot)
+		{
+			stack_list<value_type> temporary{ ref, sl };
+			return make_stack_list<value_type>(std::forward<callable_function>(ca), &temporary, std::forward<other_type>(ot)...);
+		}
+
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, value_type& ref, other_type&& ...ot)
+		{
+			stack_list<value_type> temporary{ ref };
+			return make_stack_list<value_type>(std::forward<callable_function>(ca), &temporary, std::forward<other_type>(ot)...);
+		}
+			
 		/*
 		template<typename T> class any_interface
 		{

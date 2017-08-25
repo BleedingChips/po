@@ -21,7 +21,7 @@ namespace PO
 					1,
 					D3D11_SDK_VERSION,
 					&swc,
-					swap.adress(),
+					swap.ptr.adress(),
 					dev.adress(),
 					&lel2,
 					dc.adress()
@@ -46,7 +46,7 @@ namespace PO
 			pipe(std::make_shared<stage_context_implement>(Implement::form_pre_construction::dc), Implement::form_pre_construction::dev),
 			creat(Implement::form_pre_construction::dev)
 		{
-			HRESULT re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
+			HRESULT re = (swap.ptr)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
 			if (!SUCCEEDED(re)) throw re;
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,

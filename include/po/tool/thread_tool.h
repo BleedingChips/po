@@ -222,44 +222,49 @@ namespace PO
 			}
 		};
 		
-		template<typename T, typename mutex = std::mutex> struct scope_lock
+		namespace Implement
 		{
-			T data;
-			mutable mutex lock_mutex;
-		public:
+			template<typename mutex_t> struct scope_lock_mutex { mutable mutex_t mutex; };
+		}
+
+
+		template<typename T, typename mutex_t = std::mutex> struct scope_lock : public Implement::scope_lock_mutex<mutex_t>, private inherit_t<T>
+		{
 			using type = T;
-			using mutex_type = mutex;
+			using mutex_type = mutex_t;
+
+			using true_type = inherit_t<T>;
+			using true_type::true_type;
 
 			template<typename fun> decltype(auto) lock(fun&& f)
 			{
-				std::lock_guard<mutex> lg(lock_mutex);
-				return f(data);
+				std::lock_guard<mutex_t> lg(mutex);
+				return f(static_cast<T&>(*this));
 			}
 			template<typename fun> decltype(auto) lock(fun&& f) const
 			{
-				std::lock_guard<mutex> lg(lock_mutex);
-				return f(data);
+				std::lock_guard<mutex_t> lg(mutex);
+				return f(static_cast<const T&>(*this));
 			}
 
 			template<typename fun> auto try_lock(fun&& f) -> Tool::optional_t<decltype(f())>
 			{
-				if (lock_mutex.try_lock())
+				if (mutex.try_lock())
 				{
-					Tool::at_scope_exit ase({ &}() { lock_mutex.unlock(); })
-					return{ return_optional_t(f) };
+					Tool::at_scope_exit ase({ &}() { mutex.unlock(); });
+					return{ return_optional_t(f, static_cast<T&>(*this)) };
 				}
 				return{};
 			}
 			template<typename fun> auto try_lock(fun&& f) const -> Tool::optional_t<decltype(f())>
 			{
-				if (lock_mutex.try_lock())
+				if (mutex.try_lock())
 				{
-					Tool::at_scope_exit ase({ &}() { lock_mutex.unlock(); })
-						return{ return_optional_t(f) };
+					Tool::at_scope_exit ase({ &}() { mutex.unlock(); });
+					return{ return_optional_t(f, static_cast<const T&>(*this)) };
 				}
 				return{};
 			}
-			template<typename ...AT> scope_lock(AT&&... at) :data(std::forward<AT>(at)...) {}
 		};
 
 		template<typename T, typename K, typename F>
@@ -317,6 +322,7 @@ namespace PO
 				}
 			};
 		}
+
 		struct receiption
 		{
 			std::shared_ptr<scope_lock<Implement::mail_control>> cont;

@@ -940,7 +940,7 @@ namespace PO
 			static std::array<ID3D11SamplerState*, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> nullptr_sampler_state;
 
 			template<typename T, typename K, typename L>
-			void binding_implement(ID3D11DeviceContext& con, UINT& count, const T& input, const K& null, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			void binding_implement(ID3D11DeviceContext& con, UINT& count, const T& input, const K& null, void (__stdcall ID3D11DeviceContext::* f)(UINT, UINT, L))
 			{
 				UINT input_size = static_cast<UINT>(input.size());
 				if (count > input_size)
@@ -951,7 +951,7 @@ namespace PO
 			}
 
 			template<typename K, typename L>
-			void unbinding_implement(ID3D11DeviceContext& con, UINT& count, const K& null, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			void unbinding_implement(ID3D11DeviceContext& con, UINT& count, const K& null, void (__stdcall ID3D11DeviceContext::* f)(UINT, UINT, L))
 			{
 				if (count != 0)
 				{
@@ -961,16 +961,16 @@ namespace PO
 			}
 
 			template<typename K, typename L>
-			void extract_implement(ID3D11DeviceContext& con, UINT count, K& out, void (ID3D11DeviceContext::* f)(UINT, UINT, L))
+			void extract_implement(ID3D11DeviceContext& con, UINT count, K& out, void (__stdcall ID3D11DeviceContext::* f)(UINT, UINT, L))
 			{
 				out.resize(count);
 				(con.*f)(0, count, out.data());
 			}
 
 			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource& id,
-				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+				void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+				void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+				void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
 			)
 			{
 				binding_implement(*cp, cb_count, id.cbuffer_array, nullptr_cbuffer, cb_f);
@@ -979,9 +979,9 @@ namespace PO
 			}
 
 			void shader_context_t::unbind(Win32::com_ptr<ID3D11DeviceContext>& cp,
-				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+				void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+				void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+				void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
 			)
 			{
 				unbinding_implement(*cp, cb_count, nullptr_cbuffer, cb_f);
@@ -990,9 +990,9 @@ namespace PO
 			}
 
 			void shader_context_t::extract(Win32::com_ptr<ID3D11DeviceContext>& cp, shader_resource& id,
-				void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
-				void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
-				void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
+				void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
+				void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
+				void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
 			)
 			{
 				shader_resource tem;
@@ -1373,54 +1373,84 @@ namespace PO
 			//ptr->GetDevice(tem.adress());
 		}
 
+		void stage_context_implement::call()
+		{
+			if (call_require.able_cast<dispatch_call>())
+			{
+				auto& call_command = call_require.cast<dispatch_call>();
+				ptr->Dispatch(call_command.x, call_command.y, call_command.z);
+			}
+			else if (call_require.able_cast<vertex_call>())
+			{
+				auto& call_command = call_require.cast<vertex_call>();
+				ptr->Draw(call_command.count, call_command.start);
+			}
+			else if (call_require.able_cast<index_call>())
+			{
+				auto& call_command = call_require.cast<index_call>();
+				ptr->DrawIndexed(call_command.index_count, call_command.index_start, call_command.vertex_start);
+			}
+			else if (call_require.able_cast<vertex_instance_call>())
+			{
+				auto& call_command = call_require.cast<vertex_instance_call>();
+				ptr->DrawInstanced(call_command.vertex_pre_instance, call_command.instance_count, call_command.vertex_start, call_command.instance_start);
+			}
+			else if (call_require.able_cast<index_instance_call>())
+			{
+				auto& call_command = call_require.cast<index_instance_call>();
+				ptr->DrawIndexedInstanced(call_command.index_pre_instance, call_command.instance_count, call_command.index_start, call_command.base_vertex, call_command.instance_start);
+			}
+		}
+
 		void stage_context_implement::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
-			last_mode = DrawMode::NONE;
+			call_require = {};
 		}
 
 		void stage_context_implement::dispatch(UINT x, UINT y, UINT z) {
-			if (last_mode == DrawMode::PIPELINE) {
+			if (call_require && !call_require.able_cast<dispatch_call>()) {
 				IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 				PS.unbind(ptr); OM.unbind(ptr);
 			}
-			last_mode = DrawMode::COMPLUTE;
-			ptr->Dispatch(x, y, z);
+			call_require = dispatch_call{ x, y, z };
+			call();
 		}
 
 		void stage_context_implement::draw_vertex(UINT count, UINT start) {
-			if (last_mode == DrawMode::PIPELINE) {
+			if (call_require && call_require.able_cast<dispatch_call>()) {
 				CS.unbind(ptr);
 			}
-			last_mode = DrawMode::PIPELINE;
-			ptr->Draw(count, start);
+			call_require = vertex_call{ count, start };
+			call();
 		}
 
 		void stage_context_implement::draw_index(UINT index_count, UINT index_start, UINT vertex_start) {
-			if (last_mode == DrawMode::PIPELINE) {
+			if (call_require && call_require.able_cast<dispatch_call>()) {
 				CS.unbind(ptr);
 			}
-			last_mode = DrawMode::PIPELINE;
-			ptr->DrawIndexed(index_count, index_start, vertex_start);
+			call_require = index_call{ index_count, index_start,vertex_start };
+			call();
 		}
 
 		void stage_context_implement::draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) {
-			if (last_mode == DrawMode::PIPELINE) {
+			if (call_require && call_require.able_cast<dispatch_call>()) {
 				CS.unbind(ptr);
 			}
-			last_mode = DrawMode::PIPELINE;
-			ptr->DrawInstanced(vertex_pre_instance, instance_count, vertex_start, instance_start);
+			call_require = vertex_instance_call{ vertex_pre_instance, instance_count, vertex_start, instance_start };
+			call();
 		}
 
 		void stage_context_implement::draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
-			if (last_mode == DrawMode::PIPELINE) {
+			if (call_require && call_require.able_cast<dispatch_call>()) {
 				CS.unbind(ptr);
 			}
-			last_mode = DrawMode::PIPELINE;
-			ptr->DrawIndexedInstanced(index_pre_instance, instance_count, index_start, base_vertex, instance_start);
+			call_require = index_instance_call{ index_pre_instance, instance_count, index_start, base_vertex, instance_start };
+			call();
 		}
 
 		void stage_context_implement::clear() {
+			call_require = {};
 			CS.clear(ptr); IA.clear(ptr); VS.clear(ptr); RA.clear(ptr);
 			PS.clear(ptr); OM.clear(ptr);
 		}

@@ -17,8 +17,6 @@
 #include "translate_ue4_custion_node.h"
 
 using namespace PO;
-using namespace PO::Dx;
-using namespace PO::Dx11;
 
 
 std::tuple<int, double> get() { return { 1, 2.0f }; }

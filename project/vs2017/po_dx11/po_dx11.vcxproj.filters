@@ -60,6 +60,9 @@
     <ClCompile Include="..\..\..\include\po_dx11\dx11_element.cpp">
       <Filter>po_dx11</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po_dx11\dx11_buildin_element.cpp">
+      <Filter>po_dx11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po_dxgi\dxgi_define.h">
@@ -107,8 +110,8 @@
     <ClInclude Include="..\..\..\include\po_dx11\dx11_element.h">
       <Filter>po_dx11</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\po_dx\view_property.h">
-      <Filter>po_dx</Filter>
+    <ClInclude Include="..\..\..\include\po_dx11\dx11_buildin_element.h">
+      <Filter>po_dx11</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

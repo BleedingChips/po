@@ -94,7 +94,7 @@ namespace PO
 			Win32::com_ptr<ID3D11Texture2D> ptr; 
 			operator bool() const { return ptr; }
 			PO::Dx::uint32_t2 size() const;
-			PO::Dx::float2 size_f() const { auto s = size(); return float2{s.x, s.y}; }
+			PO::Dx::float2 size_f() const { auto s = size(); return float2{static_cast<float>(s.x), static_cast<float>(s.y)}; }
 		};
 		struct tex3 { 
 			Win32::com_ptr<ID3D11Texture3D> ptr; 
@@ -149,7 +149,7 @@ namespace PO
 		struct viewport
 		{
 			D3D11_VIEWPORT view;
-			viewport(float2 width_height, float2 top_left = float2(0.0, 0.0), float2 min_max_depth = { 0.0, 1.0 }) : view{ top_left.x, top_left.y, width_height.x, width_height.y, min_max_depth.x, min_max_depth.y } {}
+			viewport(float2 width_height = float2(0.0, 0.0), float2 top_left = float2(0.0, 0.0), float2 min_max_depth = { 0.0, 1.0 }) : view{ top_left.x, top_left.y, width_height.x, width_height.y, min_max_depth.x, min_max_depth.y } {}
 			viewport(const viewport&) = default;
 			viewport& operator=(const viewport&) = default;
 		};
@@ -157,7 +157,7 @@ namespace PO
 		struct scissor
 		{
 			D3D11_RECT rect;
-			scissor(uint32_t2 left_top, uint32_t2 right_buttom) : rect{ left_top.x, left_top.y, right_buttom.x, right_buttom.y } {}
+			scissor(uint32_t2 left_top, uint32_t2 right_buttom) : rect{ static_cast<LONG>(left_top.x), static_cast<LONG>(left_top.y), static_cast<LONG>(right_buttom.x), static_cast<LONG>(right_buttom.y) } {}
 			scissor(const scissor&) = default;
 			scissor& operator=(const scissor&) = default;
 		};
@@ -609,21 +609,21 @@ namespace PO
 
 
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource& id, 
-					void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-					void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-					void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
 				);
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp,
-					void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-					void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-					void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
+					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
+					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
 				);
 
 				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, shader_resource& id,
-					void (ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
-					void (ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
-					void (ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
+					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
+					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
+					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
 				);
 			};
 
@@ -717,6 +717,15 @@ namespace PO
 			};
 		}
 
+		struct dispatch_call { 
+			UINT x, y, z; 
+		};
+
+		struct vertex_call { UINT count, start; };
+		struct index_call { UINT index_count, index_start, vertex_start; };
+		struct vertex_instance_call { UINT vertex_pre_instance, instance_count, vertex_start, instance_start; };
+		struct index_instance_call { UINT index_pre_instance, instance_count, index_start, base_vertex, instance_start; };
+
 		struct stage_context_implement
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
@@ -727,6 +736,8 @@ namespace PO
 			Implement::output_merge_context_t OM;
 
 			Implement::compute_shader_context_t CS;
+
+			Tool::variant<dispatch_call, vertex_call, index_call, vertex_instance_call, index_instance_call> call_require;
 
 			stage_context_implement(Win32::com_ptr<ID3D11DeviceContext> cp);
 			operator bool() const { return ptr; }
@@ -767,6 +778,13 @@ namespace PO
 			stage_context_implement& bind(const viewport& vp) { RA.bind(ptr, vp); return *this; }
 			stage_context_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
 			stage_context_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
+
+			stage_context_implement& bind(const vertex_call& d) { call_require = d; return *this; }
+			stage_context_implement& bind(const index_call& d) { call_require = d; return *this; }
+			stage_context_implement& bind(const vertex_instance_call& d) { call_require = d; return *this; }
+			stage_context_implement& bind(const index_instance_call& d) { call_require = d; return *this; }
+
+			void call();
 
 			stage_context_implement& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
 			stage_context_implement& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
@@ -819,7 +837,7 @@ namespace PO
 			operator bool() const { return static_cast<bool>(imp); }
 			stage_context(std::shared_ptr<stage_context_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
 			stage_context(const stage_context& pl) : imp(pl.imp), creator(pl) { assert(imp); }
-			template<typename T> context& operator<<(const T& t) { imp->bind(t); return *this; }
+			template<typename T> stage_context& operator<<(const T& t) { imp->bind(t); return *this; }
 			void unbind() { imp->unbind(); }
 			stage_context& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
 			stage_context& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
@@ -838,6 +856,7 @@ namespace PO
 				imp->draw_index_instance (index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 			}
 			void dispatch(UINT x, UINT y, UINT z) { imp->dispatch(x, y, z); }
+			void call() { imp->call(); }
 		};
 
 	}
