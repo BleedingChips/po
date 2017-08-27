@@ -1,11 +1,98 @@
 #pragma once
 #include "dx11_element.h"
+#include <string>
 namespace PO
 {
 	namespace Dx11
 	{
 		using namespace PO::Dx;
+		
+		class geometry_screen
+		{
+			input_assember_stage ia;
+			raterizer_state rs;
+		public:
+			geometry_screen(creator& c);
+			void geometry_apply(stage_context& sc);
+			bool geometry_update(stage_context& sc, property_interface& pi);
+			const std::set<std::type_index>& geometry_requirement() const;
+			const input_assember_stage& geometry_input() { return ia; }
+		};
 
+		class placement_direct
+		{
+		public:
+			const std::u16string& placement_shader_patch_vs();
+			placement_direct(creator& c) {}
+			void placement_apply(stage_context&);
+			bool placement_update(stage_context& sc, property_interface& pi);
+			const std::set<std::type_index>& placement_requirement() const;
+		};
+
+		class material_testing
+		{
+		public:
+			const std::u16string& material_shader_patch_ps();
+			material_testing(creator& c) {}
+			void material_apply(stage_context&);
+			bool material_update(stage_context& sc, property_interface& pi);
+			const std::set<std::type_index>& material_requirement() const;
+		};
+
+		class property_local_transfer
+		{
+			float4x4 local_to_world;
+			float4x4 world_to_local;
+			bool need_update = false;
+		public:
+			struct renderer_data
+			{
+				constant_buffer transfer;
+			};
+			void update(renderer_data& rd, stage_context& sc);
+			void push(property_local_transfer& pt, creator& c);
+		};
+
+		class property_viewport_transfer
+		{
+			float4x4 eye;
+			float4x4 world_to_screen;
+			float4x4 screen_to_world;
+			float3 eye_location;
+			float time;
+			bool need_update = false;
+		public:
+			struct renderer_data
+			{
+				constant_buffer viewport;
+			};
+			void update(renderer_data& rd, stage_context& sc);
+			void push(property_viewport_transfer& pt, creator& c);
+		};
+
+		class geometry_cube
+		{
+			input_assember_stage ia;
+		public:
+			geometry_cube(creator& c);
+			void geometry_apply(stage_context& sc);
+			bool geometry_update(stage_context& sc, property_interface& pi);
+			const std::set<std::type_index>& geometry_requirement() const;
+			const input_assember_stage& geometry_input() { return ia; }
+		};
+
+		class placement_static_viewport_static
+		{
+		public:
+			placement_static_viewport_static(creator& c) {}
+
+			const std::u16string& placement_shader_patch_vs();
+			void placement_apply(stage_context&);
+			bool placement_update(stage_context& sc, property_interface& pi);
+			const std::set<std::type_index>& placement_requirement() const;
+		};
+
+		/*
 		class property_transfer : public property_interface
 		{
 			constant_buffer m_cb;
@@ -170,6 +257,7 @@ namespace PO
 			virtual auto acceptance() const -> const acceptance_t& override;
 			virtual void init(creator&) override;
 		};
+		*/
 
 	}
 }

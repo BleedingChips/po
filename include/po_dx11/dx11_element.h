@@ -13,8 +13,10 @@ namespace PO
 
 		template<typename ...T> struct make_property_info_set
 		{
-			static constexpr std::set<std::type_index> info{ typeid(T)... };
-			operator const std::set<std::type_index>& () { return info; }
+			operator const std::set<std::type_index>& () { 
+				static std::set<std::type_index> info{ typeid(T)... };
+				return info; 
+			}
 		};
 
 		class property_proxy_map;
@@ -58,13 +60,17 @@ namespace PO
 
 
 			template<typename T> class property_implement;
+		}
 
-			class property_interface : public base_interface<property_implement>
-			{
-			public:
-				using base_interface<property_implement>::base_interface;
-				virtual ~property_interface();
-			};
+		class property_interface : public Implement::base_interface<Implement::property_implement>
+		{
+		public:
+			using Implement::base_interface<Implement::property_implement>::base_interface;
+			virtual ~property_interface();
+		};
+
+		namespace Implement
+		{
 
 			template<typename T> class property_implement : public property_interface, public T 
 			{ 
@@ -194,7 +200,7 @@ namespace PO
 			{
 				bool update(stage_context& sc, const std::type_index& ti, Tool::stack_list<property_map>* sl = nullptr);
 				virtual bool update_implement(stage_context&, property_interface& pi) = 0;
-				friend class element_draw_request;
+				friend struct element_draw_request;
 			public:
 				virtual const std::set<std::type_index>& requirement() const = 0;
 				virtual void apply(stage_context&) = 0;
@@ -210,7 +216,7 @@ namespace PO
 
 			class compute_interface : public base_interface<compute_implement>, public stage_interface
 			{
-				friend class element_draw_request;
+				friend struct element_draw_request;
 			public:
 				using base_interface<compute_implement>::base_interface;
 			};
@@ -232,10 +238,11 @@ namespace PO
 
 			class placement_interface : public base_interface<placement_implement>,  public stage_interface
 			{
-				virtual const vertex_shader& shader() const = 0;
-				friend class element_draw_request;
+				
+				friend struct element_draw_request;
 			public:
 				using base_interface<placement_implement>::base_interface;
+				virtual const vertex_shader& shader() const = 0;
 			};
 
 			template<typename placement_t>
@@ -243,11 +250,11 @@ namespace PO
 			{
 				vertex_shader vsshader;
 			public:
-				virtual const std::set<std::type_index>& requirement() const { return compute_t::compute_requirement(); }
+				virtual const std::set<std::type_index>& requirement() const { return placement_t::placement_requirement(); }
 				virtual const vertex_shader& shader() const { return vsshader; }
 				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return placement_t::placement_update(sc, pi); }
 				virtual void apply(stage_context& sc) override { sc << vsshader; placement_t::placement_apply(sc); }
-				placement_implement(creator& c) : compute_interface(typeid(placement_t), decltype(*this)), placement_t(c) { shader = stage_load_vs(placement_t::placement_shader_patch_vs(), c); }
+				placement_implement(creator& c) : placement_interface(typeid(placement_t), typeid(decltype(*this))), placement_t(c) { vsshader = stage_load_vs(placement_t::placement_shader_patch_vs(), c); }
 			};
 
 			template<typename T> using placement_implement_t = placement_implement<std::decay_t<T>>;
@@ -256,9 +263,10 @@ namespace PO
 
 			class geometry_interface : public base_interface<geometry_implement>,  public stage_interface
 			{
-				std::map<std::type_index, input_layout> layout_map;
+				
 				virtual void apply(stage_context& sc) override final{}
 			public:
+				std::map<std::type_index, input_layout> layout_map;
 				virtual void apply_implement(stage_context& sc, const std::type_index& ti) = 0;
 				using stage_interface::stage_interface;
 				virtual void update_layout(placement_interface&, creator& c) = 0;
@@ -273,24 +281,24 @@ namespace PO
 				virtual const std::set<std::type_index>& requirement() const { return geometry_t::geometry_requirement(); }
 				virtual void update_layout(placement_interface& pi, creator& c) override
 				{
-					auto ite = layout_map.find(pi.original_id());
+					auto ite = layout_map.find(pi.id());
 					if (ite == layout_map.end())
 					{
 						input_layout tem = c.create_layout(geometry_t::geometry_input(), pi.shader());
-						layout_map.insert({ pi.original_id(), tem });
+						layout_map.insert({ pi.id(), tem });
 					}
 				}
 
 				virtual void apply_implement(stage_context& sc, const std::type_index& ti) override
 				{
-					auto ite = layout_map.find(pi.original_id());
+					auto ite = layout_map.find(ti);
 					if (ite != layout_map.end())
 						sc << ite->second;
 					geometry_t::geometry_apply(sc);
 				}
 
 				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return geometry_t::geometry_update(sc, pi); }
-				geometry_implement(creator& c) : geometry_interface(typeid(geometry_t), decltype(*this)), geometry_t(c) {}
+				geometry_implement(creator& c) : geometry_interface(typeid(geometry_t), typeid(decltype(*this))), geometry_t(c) {}
 			};
 
 			template<typename material_t> class material_implement;
@@ -311,7 +319,7 @@ namespace PO
 				virtual const std::set<std::type_index>& requirement() const { return material_t::material_requirement(); }
 				virtual void apply(stage_context& sc) override { sc << shader; material_t::material_apply(sc); }
 				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return material_t::material_update(sc, pi); }
-				material_implement(creator& c) : material_interface(typeid(material_t), decltype(*this)), material_t(c){ shader = stage_load_ps(placement_t::material_shader_patch_ps(), c); }
+				material_implement(creator& c) : material_interface(typeid(material_t), typeid(decltype(*this))), material_t(c){ shader = stage_load_ps(material_t::material_shader_patch_ps(), c); }
 			};
 			template<typename T> using placement_implement_t = placement_implement<std::decay_t<T>>;
 		}
@@ -348,15 +356,15 @@ namespace PO
 			{
 				return create_implement<T, Implement::compute_implement>(compute_map);
 			}
-			template<typename T>  decltype(auto) placement_compute()
+			template<typename T>  decltype(auto) create_placement()
 			{
 				return create_implement<T, Implement::placement_implement>(placement_map);
 			}
-			template<typename T>  decltype(auto) geometry_compute()
+			template<typename T>  decltype(auto) create_geometry()
 			{
 				return create_implement<T, Implement::geometry_implement>(geometry_map);
 			}
-			template<typename T>  decltype(auto) material_compute()
+			template<typename T>  decltype(auto) create_material()
 			{
 				return create_implement<T, Implement::material_implement>(material_map);
 			}
@@ -437,7 +445,7 @@ namespace PO
 			std::mutex swap_mutex;
 			std::vector<std::shared_ptr<Implement::element_implement>> element_store;
 
-			element_logic_storage& operator<< (const element& ele) { if(ele.ptr) element_store.push_back(ele.ptr); }
+			element_logic_storage& operator<< (const element& ele) { if (ele.ptr) element_store.push_back(ele.ptr); return *this; }
 			void push (element_swap_block& esb, creator& c);
 		};
 
@@ -448,47 +456,6 @@ namespace PO
 			std::unordered_map<std::type_index, std::vector<Implement::element_draw_request>> draw_request;
 			void get(element_swap_block& esb, stage_context& sc);
 		};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 		/*
 

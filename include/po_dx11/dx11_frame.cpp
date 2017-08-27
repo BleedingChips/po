@@ -1001,6 +1001,42 @@ namespace PO
 				extract_implement(*cp, sample_count, tem.sample_array, sample_f);
 			}
 
+			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, size_t solt,
+				void(__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *)
+			)
+			{
+				if (cb_count <= solt)
+				{
+					cb_count = static_cast<UINT>(solt + 1);
+				}
+				ID3D11Buffer* const buffer[1] = { id.ptr };
+				(cp->*cb_f)(static_cast<UINT>(solt), 1, buffer);
+			}
+
+			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& id, size_t solt,
+				void(__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *)
+			)
+			{
+				if (srv_count <= solt)
+				{
+					srv_count = static_cast<UINT>(solt + 1);
+				}
+				ID3D11ShaderResourceView * const buffer[1] = { id.ptr };
+				(cp->*srv_f)(static_cast<UINT>(solt), 1, buffer);
+			}
+
+			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& id, size_t solt,
+				void(__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11SamplerState* const *)
+			)
+			{
+				if (sample_count <= solt)
+				{
+					sample_count = static_cast<UINT>(solt + 1);
+				}
+				ID3D11SamplerState * const buffer[1] = { id.ptr };
+				(cp->*srv_f)(static_cast<UINT>(solt), 1, buffer);
+			}
+
 			static std::array<ID3D11Buffer*, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> input_assember_context_nullptr_array = {};
 			static std::array<UINT, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> input_assember_context_zero_array = {};
 
@@ -1101,6 +1137,21 @@ namespace PO
 				unbind(cp);
 			}
 
+			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetConstantBuffers);
+			}
+
+			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetShaderResources);
+			}
+
+			void vertex_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetSamplers);
+			}
+
 			/*****  raterizer_context_t   ******************************************************************************************/
 			void raterizer_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const viewport& rs)
 			{
@@ -1187,6 +1238,21 @@ namespace PO
 			void pixel_shader_context_t::clear(Win32::com_ptr<ID3D11DeviceContext>& cp)
 			{
 				unbind(cp);
+			}
+
+			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers);
+			}
+
+			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetShaderResources);
+			}
+
+			void pixel_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetSamplers);
 			}
 			
 			static std::array<ID3D11RenderTargetView*, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> nullptr_render_target;
@@ -1361,6 +1427,21 @@ namespace PO
 				compute_shader cs;
 				cp->CSGetShader(cs.ptr.adress(), nullptr, nullptr);
 				ps = std::move(cs);
+			}
+
+			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers);
+			}
+
+			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetShaderResources);
+			}
+
+			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt)
+			{
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetSamplers);
 			}
 
 		}

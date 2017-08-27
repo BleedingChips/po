@@ -14,8 +14,9 @@ namespace PO
 
 
 		renderer_default::renderer_default(value_table& vt) :
-			stage_context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
-			/*instance(*this),*/ main_view(vt.get<tex2>().size_f())
+			creator(vt.get<creator>()), 
+			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
+			/*instance(*this),*/ main_view(vt.get<tex2>().size_f()), ins(*this)
 		{
 			om << cast_render_target_view(back_buffer)[0];
 			view = viewport{ back_buffer.size_f() };
@@ -23,7 +24,7 @@ namespace PO
 
 		void renderer_default::pre_tick(duration da)
 		{
-			context() << view << om;
+			context << view << om;
 		}
 		void renderer_default::pos_tick(duration da)
 		{

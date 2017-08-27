@@ -21,10 +21,10 @@ namespace PO
 				return t.add_path(ti, path);
 			});
 		}
-
+		property_interface::~property_interface() {}
 		namespace Implement
 		{
-			property_interface::~property_interface() {}
+			
 			property_proxy_interface::property_proxy_interface(const std::type_index& original, const std::type_index& real, const std::type_index& asso)
 				: base_interface<property_proxy_implement>(original, real), associate_info(asso){}
 			property_proxy_interface::~property_proxy_interface() {}

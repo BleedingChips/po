@@ -625,6 +625,18 @@ namespace PO
 					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
 					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
 				);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, size_t solt,
+					void(__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *)
+				);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& id, size_t solt, 
+					void(__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *)
+				);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& id, size_t solt,
+					void(__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+				);
 			};
 
 			struct input_assember_context_t
@@ -652,6 +664,11 @@ namespace PO
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
+				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
 			};
 
 			struct raterizer_context_t
@@ -681,6 +698,12 @@ namespace PO
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
+				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
+
 			};
 
 			struct output_merge_context_t
@@ -714,6 +737,13 @@ namespace PO
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
+				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
+
+
 			};
 		}
 
@@ -837,6 +867,12 @@ namespace PO
 			operator bool() const { return static_cast<bool>(imp); }
 			stage_context(std::shared_ptr<stage_context_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
 			stage_context(const stage_context& pl) : imp(pl.imp), creator(pl) { assert(imp); }
+
+			Implement::input_assember_context_t& IA() { return imp->IA; }
+			Implement::vertex_shader_context_t& VS() { return imp->VS; }
+			Implement::pixel_shader_context_t& PS() { return imp->PS; }
+			Implement::compute_shader_context_t& CS() { return imp->CS; }
+
 			template<typename T> stage_context& operator<<(const T& t) { imp->bind(t); return *this; }
 			void unbind() { imp->unbind(); }
 			stage_context& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }

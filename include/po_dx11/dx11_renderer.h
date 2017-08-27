@@ -55,25 +55,26 @@ namespace PO
 
 
 		using namespace PO::Dx;
-		struct renderer_default : stage_context
+		struct renderer_default : creator
 		{
 			tex2 back_buffer;
 			output_merge_stage om;
-
+			stage_context context;
 			sub_viewport_parallel main_view;
 			viewport view;
 
 			element_logic_storage els;
 			element_swap_block esb;
 			element_renderer_storage ers;
+			stage_instance ins;
 
-			stage_context& context() { return *this; }
+			operator stage_context& () { return context; }
 
 			//element_instance instance;
 
-			template<typename T, typename ...AT> decltype(auto) create_if_no_exist(AT&& ...at) { return instance.create_if_no_exist<T>(std::forward<AT>(at)...); }
+			template<typename T, typename ...AT> decltype(auto) create_if_no_exist(AT&& ...at) { return context.create_if_no_exist<T>(std::forward<AT>(at)...); }
 
-			void clear_back_buffer(const std::array<float, 4>& bc) { stage_context::clear_render_target(om, bc); }
+			void clear_back_buffer(const std::array<float, 4>& bc) { context.clear_render_target(om, bc); }
 			renderer_default(value_table& vt);
 
 			void pre_tick(duration da);

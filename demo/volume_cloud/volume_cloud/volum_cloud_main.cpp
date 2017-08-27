@@ -29,7 +29,6 @@ int main()
 
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
-
 	PO::context con;
 
 	if (true)

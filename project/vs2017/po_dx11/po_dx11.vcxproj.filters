@@ -19,6 +19,9 @@
     <Filter Include="po_dx11\shader\include">
       <UniqueIdentifier>{b74d515a-2613-4bff-8e5d-af3a5977f4d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="po_dx11\shader\implement">
+      <UniqueIdentifier>{e91c9baa-65c3-4e49-aa4a-6f32f4eb4f93}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\include\po_dxgi\dxgi_define.cpp">
@@ -118,5 +121,37 @@
     <None Include="..\..\..\include\po_dx11\shader\include\noise.hlsli">
       <Filter>po_dx11\shader\include</Filter>
     </None>
+    <None Include="..\..\..\include\po_dx11\shader\include\build_in_standard_input_type.hlsli">
+      <Filter>po_dx11\shader\include</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_direct_vs.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\material_test_ps.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_compute_linearize_z_cs.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_defer_render_texcoord_ps.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_defer_tex2_ps.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_merge_gbuffer_ps.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_screen_static_vs.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_view_static_vs.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\buildin_vertext_shader.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
