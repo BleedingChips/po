@@ -345,7 +345,7 @@ inline PO::Dx::float3 operator-(PO::Dx::float3 i, PO::Dx::float3 o) {
 }
 
 inline PO::Dx::float3 operator*(PO::Dx::float3 i, float o) {
-	return PO::Dx::float3(i.x * o, i.y * o, i.z + o);
+	return PO::Dx::float3(i.x * o, i.y * o, i.z * o);
 }
 
 inline PO::Dx::float3 operator-(PO::Dx::float3 i, float o) {

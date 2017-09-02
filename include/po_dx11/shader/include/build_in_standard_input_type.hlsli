@@ -39,9 +39,17 @@ struct standard_ps_output_post
 
 float2 cast_sv_position_xy_to_uv_screen(float4 ps)
 {
-    float2 in_ps = ps.xy;/*(ps.xy / ps.w + 1.0) / 2.0;
+    float2 in_ps = ps.xy;
+    /*(ps.xy / ps.w + 1.0) / 2.0;
     in_ps.y = 1.0 - in_ps.y;*/
     return in_ps;
 }
+
+float2 get_uv_screen(float2 uv_screen, float4 sv_position)
+{
+    return (uv_screen * float2(1.0, -1.0) / sv_position.w + 1.0) / 2.0;
+}
+
+
 
 #endif

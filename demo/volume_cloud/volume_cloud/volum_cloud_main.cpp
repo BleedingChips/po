@@ -8,7 +8,6 @@
 #include "DirectXTex.h"
 #include <sstream>
 #include "po_dx11/dx11_renderer.h"
-#include "po_dx11_defer_renderer\defer_renderer.h"
 //#include "po_dx11_defer_renderer\element\material.h"
 //#include "po_dx11_defer_renderer\element\geometry.h"
 //#include "po_dx11_defer_renderer\element\property.h"
@@ -27,15 +26,22 @@ int main()
 	auto[a, b] = get();
 	std::cout << a << b << std::endl;
 
-	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"shader_lib");
-	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11_defer_renderer\\lib\\Debug\\x64\\shader_lib");
+#ifdef DEBUG
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
+#else
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Release");
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Release");
+	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Release");
+#endif // DEBUG
 	PO::context con;
 
 	if (true)
 	{
-		auto fo = con.create(form<Dx11_form>{});
+		auto fo = con.create(form<form_default>{});
 		fo.lock([](decltype(fo)::type& ui) {
-			ui.create(renderer<defer_renderer>{});
+			ui.create(renderer<defer_renderer_default>{});
 			ui.create(plugin<new_plugin>{});
 		});
 	}

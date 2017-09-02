@@ -35,10 +35,10 @@ void main( uint3 DTid : SV_DispatchThreadID )
 {
     float3 pos = count_position(pp2.simulate_3d_form_2d, DTid.xy);
     float perlin_noise_v =
-        perlin_noise(pos * 16.0, pp.seed1) / 2.0
-    + perlin_noise(pos * 32.0, pp.seed2) / 4.0
-    + perlin_noise(pos * 64.0, pp.seed3) / 8.0
-    + perlin_noise(pos * 128.0, pp.seed4) / 8.0;
+        perlin_noise(pos * 2.0, pp.seed1) / 2.0
+    + perlin_noise(pos * 4.0, pp.seed2) / 4.0
+    + perlin_noise(pos * 8.0, pp.seed3) / 8.0
+    + perlin_noise(pos * 16.0, pp.seed4) / 8.0;
 
     uint count = 0;
     float dis1 = 0.0;

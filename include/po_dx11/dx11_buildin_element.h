@@ -7,6 +7,42 @@ namespace PO
 	{
 		using namespace PO::Dx;
 		
+		class property_local_transfer
+		{
+			float4x4 local_to_world;
+			float4x4 world_to_local;
+			bool need_update = false;
+		public:
+			struct renderer_data
+			{
+				constant_buffer transfer;
+			};
+			void set_local_to_world(const float4x4& l_w, const float4x4& w_l) { local_to_world = l_w; world_to_local = w_l; need_update = true; }
+			void update(renderer_data& rd, stage_context& sc);
+			void push(property_local_transfer& pt, creator& c);
+		};
+
+		class property_viewport_transfer
+		{
+			float4x4 world_to_eye;
+			float4x4 eye_to_world;
+			float4x4 world_to_camera;
+			float4x4 camera_to_world;
+			float near_surface, far_surface, view_near_surface, view_far_surface;
+			float time = 0.0;
+		public:
+			struct renderer_data
+			{
+				constant_buffer viewport;
+			};
+			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat; }
+			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; }
+			void set_surface(float ns, float fs, float vns, float vfs) { near_surface = ns; far_surface = fs; view_near_surface = vns; view_far_surface = vfs; }
+			void set_time(float f) { time = f; }
+			void update(renderer_data& rd, stage_context& sc);
+			void push(property_viewport_transfer& pt, creator& c);
+		};
+
 		class geometry_screen
 		{
 			input_assember_stage ia;
@@ -29,7 +65,7 @@ namespace PO
 			const std::set<std::type_index>& placement_requirement() const;
 		};
 
-		class material_testing
+		class material_testing: public material_default
 		{
 		public:
 			const std::u16string& material_shader_patch_ps();
@@ -37,37 +73,6 @@ namespace PO
 			void material_apply(stage_context&);
 			bool material_update(stage_context& sc, property_interface& pi);
 			const std::set<std::type_index>& material_requirement() const;
-		};
-
-		class property_local_transfer
-		{
-			float4x4 local_to_world;
-			float4x4 world_to_local;
-			bool need_update = false;
-		public:
-			struct renderer_data
-			{
-				constant_buffer transfer;
-			};
-			void update(renderer_data& rd, stage_context& sc);
-			void push(property_local_transfer& pt, creator& c);
-		};
-
-		class property_viewport_transfer
-		{
-			float4x4 eye;
-			float4x4 world_to_screen;
-			float4x4 screen_to_world;
-			float3 eye_location;
-			float time;
-			bool need_update = false;
-		public:
-			struct renderer_data
-			{
-				constant_buffer viewport;
-			};
-			void update(renderer_data& rd, stage_context& sc);
-			void push(property_viewport_transfer& pt, creator& c);
 		};
 
 		class geometry_cube
@@ -91,6 +96,7 @@ namespace PO
 			bool placement_update(stage_context& sc, property_interface& pi);
 			const std::set<std::type_index>& placement_requirement() const;
 		};
+
 
 		/*
 		class property_transfer : public property_interface

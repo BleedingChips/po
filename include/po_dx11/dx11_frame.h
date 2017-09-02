@@ -309,6 +309,7 @@ namespace PO
 		struct pixel_shader
 		{
 			Win32::com_ptr<ID3D11PixelShader> ptr;
+			operator bool() const { return ptr; }
 		};
 
 		struct pixel_resource : shader_resource
@@ -361,6 +362,7 @@ namespace PO
 		struct compute_shader
 		{
 			Win32::com_ptr<ID3D11ComputeShader> ptr;
+			operator bool() const { return ptr; }
 		};
 
 		struct compute_resource : shader_resource
@@ -668,7 +670,6 @@ namespace PO
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
-				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
 			};
 
 			struct raterizer_context_t
@@ -702,7 +703,6 @@ namespace PO
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
-				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
 
 			};
 
@@ -741,9 +741,7 @@ namespace PO
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
-				template<typename T> decltype(auto) operator<<(const std::tuple<T, size_t>& tp) { bind(std::get<0>(tp), std::get<1>(tp)); return *this; }
-
-
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const unordered_access_view& cb, size_t solt);
 			};
 		}
 
@@ -809,6 +807,7 @@ namespace PO
 			stage_context_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
 			stage_context_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
 
+			stage_context_implement& bind(const dispatch_call& d) { call_require = d; return *this; }
 			stage_context_implement& bind(const vertex_call& d) { call_require = d; return *this; }
 			stage_context_implement& bind(const index_call& d) { call_require = d; return *this; }
 			stage_context_implement& bind(const vertex_instance_call& d) { call_require = d; return *this; }
@@ -858,6 +857,15 @@ namespace PO
 				}
 				return false;
 			}
+
+		};
+
+		template<typename T> struct stage_reference
+		{
+			Win32::com_ptr<ID3D11DeviceContext>& ptr;
+			std::decay_t<T>& t;
+			template<typename F>
+			stage_reference operator<<(const std::tuple<F, size_t>& ts) { t.bind(ptr, std::get<0>(ts), std::get<1>(ts)); return *this; }
 		};
 
 		
@@ -868,10 +876,10 @@ namespace PO
 			stage_context(std::shared_ptr<stage_context_implement> ptr, Win32::com_ptr<ID3D11Device> p) : creator(std::move(p)), imp(std::move(ptr)) { assert(imp); }
 			stage_context(const stage_context& pl) : imp(pl.imp), creator(pl) { assert(imp); }
 
-			Implement::input_assember_context_t& IA() { return imp->IA; }
-			Implement::vertex_shader_context_t& VS() { return imp->VS; }
-			Implement::pixel_shader_context_t& PS() { return imp->PS; }
-			Implement::compute_shader_context_t& CS() { return imp->CS; }
+			stage_reference<Implement::input_assember_context_t> IA() { return stage_reference<decltype(imp->IA)> { imp->ptr, imp->IA}; }
+			stage_reference<Implement::vertex_shader_context_t> VS() { return stage_reference<decltype(imp->VS)> { imp->ptr, imp->VS}; }
+			stage_reference<Implement::pixel_shader_context_t> PS() { return stage_reference<decltype(imp->PS)> { imp->ptr, imp->PS}; }
+			stage_reference<Implement::compute_shader_context_t> CS() { return stage_reference<decltype(imp->CS)> { imp->ptr, imp->CS}; }
 
 			template<typename T> stage_context& operator<<(const T& t) { imp->bind(t); return *this; }
 			void unbind() { imp->unbind(); }

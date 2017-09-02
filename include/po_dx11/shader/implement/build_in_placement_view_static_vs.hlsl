@@ -3,19 +3,19 @@
 
 cbuffer b0 : register(b0)
 {
-    property_screen renderer;
+    property_viewport_transfer renderer;
 };
 
 cbuffer b1 : register(b1)
 {
-    transfer_type mat;
+    property_local_transfer mat;
 };
 
 void main(in standard_ia_input input, out standard_ps_input output)
 {
     float4 wp = mul(mat.local_to_world, input.poisition);
-    float4 vp = mul(renderer.view, wp);
-    float4 sv_p = mul(renderer.world_to_screen, wp);
+    float4 vp = mul(renderer.world_to_eye, wp);
+    float4 sv_p = mul(renderer.world_to_camera, wp);
     output.position_local = input.poisition;
     output.position_world = wp;
     output.position_view = vp;

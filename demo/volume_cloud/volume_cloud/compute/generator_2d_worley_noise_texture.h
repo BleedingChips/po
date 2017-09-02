@@ -1,15 +1,31 @@
 #pragma once
-#include "po_dx11_defer_renderer\defer_element.h"
+#include "po_dx11\dx11_renderer.h"
 
 using namespace PO::Dx;
 using namespace PO::Dx11;
-class worley_noise_2d_property : public property_interface
+class worley_noise_2d_property
 {
-	uint32_t3 seed;
-	constant_buffer cb;
+	uint32_t3 seed = {1, 2, 3};
+	bool update = true;
 public:
+
+	struct renderer_data
+	{
+		constant_buffer cb;
+	};
+
+	void set_seed(uint32_t3 s) { seed = s; update = true; }
+	void push(worley_noise_2d_property& wnp, creator& c)
+	{
+		if (update)
+		{
+			wnp.seed = seed;
+			wnp.update = true;
+			update = false;
+		}
+	}
+	void update(renderer_data& rd, stage_context& sc);
 	void set_seed(creator& c, uint32_t3 s);
-	worley_noise_2d_property();
 	void update(pipeline& p);
 };
 

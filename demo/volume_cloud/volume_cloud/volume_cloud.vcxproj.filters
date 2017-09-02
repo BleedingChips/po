@@ -75,6 +75,9 @@
     <ClCompile Include="translate_ue4_custion_node.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="geometry\ue4_geometry.cpp">
+      <Filter>geometry</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="compute\generator_3d_volume_texture.h">
@@ -106,6 +109,9 @@
     </ClInclude>
     <ClInclude Include="translate_ue4_custion_node.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\ue4_geometry.h">
+      <Filter>geometry</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

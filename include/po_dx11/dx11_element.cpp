@@ -31,7 +31,7 @@ namespace PO
 
 			void property_map::update(stage_context& sc)
 			{
-				if (allready_update = false)
+				if (allready_update == false)
 				{
 					associate_mapping.clear();
 					for (auto& ite : proxy_mapping)
@@ -55,6 +55,18 @@ namespace PO
 					ite.second->push(c);
 					inside_map->proxy_mapping.insert(ite);
 				}
+			}
+			inside_map->allready_update = false;
+			return inside_map;
+		}
+
+		std::shared_ptr<Implement::property_map> property_proxy_map::push(creator& c)
+		{
+			inside_map->proxy_mapping.clear();
+			for (auto& ite : mapping)
+			{
+				ite.second->push(c);
+				inside_map->proxy_mapping.insert(ite);
 			}
 			inside_map->allready_update = false;
 			return inside_map;
@@ -95,7 +107,7 @@ namespace PO
 				return temporary;
 			}
 
-			bool stage_interface::update(stage_context& sc, const std::type_index& ti, Tool::stack_list<property_map>* sl)
+			bool stage_ptr::update(stage_context& sc, const std::type_index& ti, Tool::stack_list<property_map>* sl)
 			{
 				if (sl == nullptr)
 					return false;
@@ -107,7 +119,7 @@ namespace PO
 					}) && result;
 				}
 			}
-			bool stage_interface::update(stage_context& sc, Tool::stack_list<property_map>* sl)
+			bool stage_ptr::update(stage_context& sc, Tool::stack_list<property_map>* sl)
 			{
 				for (auto& ite : requirement())
 					if (!update(sc, ite, sl))
@@ -118,22 +130,24 @@ namespace PO
 			void element_dispatch_request::dispatch(stage_context& sc, Tool::stack_list<property_map> * sl)
 			{
 				Tool::stack_list<property_map> tem{ *mapping, sl };
-				compute->update(sc, &tem);
-				compute->apply(sc);
-				sc.call();
+				if (compute->update(sc, &tem))
+				{
+					compute->apply(sc);
+					sc.call();
+				}
+				
 			}
 
 			void element_draw_request::draw(stage_context& sc, Tool::stack_list<property_map> * sl)
 			{
 				Tool::stack_list<property_map> tem{ *mapping, sl };
-				placemenet->update(sc, &tem);
-				geometry->update(sc, &tem);
-				material->update(sc, &tem);
-
-				placemenet->apply(sc);
-				geometry->apply_implement(sc, placemenet->id());
-				material->apply(sc);
-				sc.call();
+				if (placemenet->update(sc, &tem) && geometry->update(sc, &tem) && material->update(sc, &tem))
+				{
+					placemenet->apply(sc);
+					geometry->apply_implement(sc, placemenet->id());
+					material->apply(sc);
+					sc.call();
+				}
 			}
 		}
 
@@ -209,255 +223,18 @@ namespace PO
 					ite2.update(sc);
 		}
 
-		/*
-
-		void property_interface::update_implement(stage_context& p) {
-			lock_t l(this);
-			if (is_update_require)
-			{
-				update(p);
-				is_update_require = false;
-			}
+		pipeline_interface::pipeline_interface(const std::type_index& ti) : type_info(ti) {}
+		pipeline_interface::~pipeline_interface() {}
+		void pipeline_interface::push(creator& c) {
+			property_mapping.push(c);
 		}
 
-		namespace Implement
+		void pipeline_interface::execute(stage_context& sc, element_renderer_storage& esb, Tool::stack_list<Implement::property_map>* pml)
 		{
-			void property_map_implement::clear()
-			{
-				mapping.clear();
-			}
-
-			bool property_map_implement::have(std::type_index ti) const
-			{
-				auto ite = mapping.find(ti);
-				return ite != mapping.end();
-			}
-
-			bool property_map_implement::insert(std::shared_ptr<property_interface> sp)
-			{
-				if (sp)
-				{
-					auto id = sp->id();
-					mapping.insert({ id, std::move(sp) });
-					return true;
-				}
-				return false;
-			}
+			property_mapping.inside_map->update(sc);
+			Tool::stack_list<Implement::property_map> tem{ *(property_mapping.inside_map), pml };
+			execute_implement(sc, esb, &tem);
 		}
-
-		bool acceptance_t::check_acceptance(Tool::stack_list<const property_map>* sl) const
-		{
-			for (auto& ele : acceptance)
-			{
-				bool finded = false;
-				while (!finded && sl != nullptr)
-				{
-					finded = sl->type_ref.lock([&](const Implement::property_map_implement& t) {return t.have(ele.first); });
-					sl = sl->front;
-				}
-				if (!finded)
-					return false;
-			}
-			return true;
-		}
-
-		std::set<std::type_index> acceptance_t::lack_acceptance(Tool::stack_list<const property_map>* sl) const
-		{
-			std::set<std::type_index> temporary;
-			for (auto& ele : acceptance)
-			{
-				bool finded = false;
-				while (!finded && sl != nullptr)
-				{
-					finded = sl->type_ref.lock([&](const Implement::property_map_implement& t) {return t.have(ele.first); });
-					sl = sl->front;
-				}
-				if (!finded)
-					temporary.insert(ele.first);
-			}
-			return temporary;
-		}
-
-		bool acceptance_t::update_implement(stage_context& sc, typename map_t::value_type& vt, Tool::stack_list<property_map>* sl)
-		{
-			if (sl == nullptr)
-				return false;
-			else {
-				return update_implement(sc, vt, sl->front) || sl->type_ref.lock([&](auto& t) {
-					bool result = false;
-					return t.find(vt.first, [&](property_interface& pi) {
-						result = vt.second(pi, sc);
-					}) && result;
-				});
-			}
-		}
-
-		bool acceptance_t::update(stage_context& sc, Tool::stack_list<property_map>* sl)
-		{
-			for (auto& ite : acceptance)
-				if (!update_implement(sc, ite, sl))
-					return false;
-			return true;
-		}
-
-		namespace Implement
-		{
-
-			pipeline_interface::pipeline_interface(const std::type_index& ti) : type_info(ti) {}
-			pipeline_interface::~pipeline_interface() {}
-			void pipeline_interface::execute(stage_context&, Tool::stack_list<property_map>* pml) {}
-		}
-
-		bool placement_interface::load_vs(std::u16string p, creator& c)
-		{
-			path = std::move(p);
-			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
-				return s.load(path, true, [&, this](std::shared_ptr<PO::Dx::shader_binary> b) mutable {
-					stage_vs << c.create_vertex_shader(std::move(b));
-				});
-			});
-		}
-		void placement_interface::apply(stage_context& p)
-		{
-			p << stage_vs;
-		}
-
-		void geometry_interface::apply(stage_context& p)
-		{
-			p << stage_rs << stage_ia;
-		}
-
-		bool material_interface::load_ps(std::u16string p, creator& c)
-		{
-			path = std::move(p);
-			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
-				return s.load(path, true, [&, this](const PO::Dx::shader_binary& b) mutable {
-					stage_ps << c.create_pixel_shader(b);
-				});
-			});
-		}
-
-		void material_interface::apply(stage_context& p)
-		{
-			p << stage_ps << stage_bs;
-		}
-
-		bool compute_interface::load_cs(std::u16string p, creator& c)
-		{
-			path = std::move(p);
-			return get_shader_scene().lock([&, this](PO::scene& s) mutable {
-				return s.load(path, true, [&, this](const PO::Dx::shader_binary& b) mutable {
-					stage_cs << c.create_compute_shader(b);
-				});
-			});
-		}
-		void compute_interface::apply(stage_context& p)
-		{
-			p << stage_cs;
-		}
-
-		/*
-		namespace Implement
-		{
-
-			void element_entity::update_layout(creator& c)
-			{
-				if (placemenet_ptr && geometry_ptr)
-					layout = c.create_layout(geometry_ptr->ia(), placemenet_ptr->vs());
-			}
-
-			void element_compute::clear_unused_property()
-			{
-				if (compute_ptr)
-				{
-					const auto& re = compute_ptr->acceptance();
-					mapping.remove_if([&](property_interface& pi) {
-						return re.find(pi.id()) == re.end();
-					});
-				}
-				else
-					mapping.clear();
-			}
-
-			bool element_compute::dispatch(stage_context& p, property_mapping_list* pml = nullptr)
-			{
-				if (compute_ptr)
-				{
-					property_mapping_list temporary(mapping, pml);
-					if (compute_ptr->update_implement(p, &temporary))
-						return (compute_ptr->apply(p), compute_ptr->dispath(p), true);
-				}
-				return false;
-			}
-
-			bool element_implement::draw(stage_context& p, property_mapping_list* pml)
-			{
-				if (placemenet_ptr && geometry_ptr && material_ptr)
-				{
-					property_mapping_list temporary{ mapping, pml };
-					if (
-						placemenet_ptr->update_implement(p, &temporary)
-						&& geometry_ptr->update_implement(p, &temporary)
-						&& material_ptr->update_implement(p, &temporary)
-						)
-					{
-						placemenet_ptr->apply(p);
-						geometry_ptr->apply(p);
-						material_ptr->apply(p);
-						geometry_ptr->draw(p);
-						return true;
-					}
-				}
-				return false;
-			}
-
-			void element_implement::clear_unused_property()
-			{
-				mapping.remove_if([this](property_interface& ps) {
-					if (material_ptr)
-					{
-						auto& re = material_ptr->acceptance();
-						if (re.find(ps.id()) != re.end())
-							return false;
-					}
-					if (placemenet_ptr)
-					{
-						auto& ref = placemenet_ptr->acceptance();
-						if (ref.find(ps.id()) != ref.end())
-							return false;
-					}
-					if (geometry_ptr)
-					{
-						auto& re = geometry_ptr->acceptance();
-						if (re.find(ps.id()) != re.end())
-							return false;
-					}
-					return true;
-				});
-			}
-
-			bool element_implement::check_acceptance() const 
-			{ 
-				return (placemenet_ptr ? placemenet_ptr->check_acceptance(mapping) : true)
-					&& (geometry_ptr ? geometry_ptr->check_acceptance(mapping) : true)
-					&& (material_ptr ? material_ptr->check_acceptance(mapping) : true);
-			}
-
-			stage_interface::acceptance_t element_implement::lack_acceptance() const
-			{
-				stage_interface::acceptance_t tem = placemenet_ptr ? placemenet_ptr->lack_acceptance(mapping) : stage_interface::acceptance_t{};
-				if (geometry_ptr)
-				{
-					auto tem2 = geometry_ptr->lack_acceptance(mapping);
-					tem.insert(tem2.begin(), tem2.end());
-				}
-				if (material_ptr)
-				{
-					auto tem2 = material_ptr->lack_acceptance(mapping);
-					tem.insert(tem2.begin(), tem2.end());
-				}
-			}
-			*/
 
 		/******************************************************************************************************/
 	}

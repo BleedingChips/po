@@ -2,7 +2,7 @@
 #include "compute\volume_cloud_compute.h"
 #include "material\volume_cloud_material.h"
 #include "../DirectXTex/DirectXTex.h"
-#include "po_dx11_defer_renderer\build_in_element.h"
+#include "geometry\ue4_geometry.h"
 using namespace std;
 using namespace PO::Dx;
 
@@ -21,8 +21,9 @@ adapter_map new_plugin::mapping(self& sel)
 	});
 	sel.auto_bind_respond(&new_plugin::respond, this);
 	return {
-		make_member_adapter<defer_renderer>(this, &new_plugin::init, &new_plugin::tick)
+		make_member_adapter<defer_renderer_default>(this, &new_plugin::init, &new_plugin::tick)
 	};
+	s.set_translation_speed(10.0);
 }
 
 Respond new_plugin::respond(event& e)
@@ -62,32 +63,41 @@ Respond new_plugin::respond(event& e)
 	return Respond::Pass;
 }
 
-void new_plugin::init(defer_renderer& dr)
+void new_plugin::init(defer_renderer_default& dr)
 {
-	ts1.poi = float3(0.0, 0.0, 4.0);
+	s.set_translation_speed(10.0);
+	
 	//ts1.sca = float3(1.0, 0.5, 1.0);
 
 	worley = dr.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 256 * 16, 256 * 16);
-	dr.make_compute(compute, [](compute_perlin_worley_noise_tex2_3d&) {});
-	compute.make_interface([&](property_output_tex2& pot) {
+	compute << dr.ins.create_compute<compute_perlin_worley_noise_tex2_3d>()
+		<< [&](property_output_tex2& pot) {
 		pot.set_texture(dr, worley, 2.0, { 256, 256, 16, 16 });
-	});
-	compute.make_interface([&](property_perline_worley_noise_3d_point& pot) {
-		pot.set_seed(dr, { 123, 456, 789 });
-	});
+	} << [&](property_perline_worley_noise_3d_point& pot) {
+		pot.set_seed({ 123, 456, 789 });
+	};
 
 	dr << compute;
 
-	dr.make_geometry_and_placement(output_volume_cube, [](geometry_cube_static&, placement_view_static&) {});
-	dr.make_material(output_volume_cube, [](material_transparent_2d_for_3d_64_without_perlin&) {});
-	output_volume_cube.make_interface([&, this](property_render_2d_for_3d& pt) {
-		pt.set_texture(dr, worley);
-		pt.set_option(dr, float3{ -1.0, -1.0, -1.0 }, float3{ 1.0, 1.0, 1.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
-	});
-	output_volume_cube.make_interface([&, this](property_transfer& pt) {
-		pt.set_transfer(dr, ts1, ts1.inverse_float4x4());
-	});
-	ts2.poi = float3(0.0, 0.0, 5.0f);
+	ts1.poi = float3(0.0, 0.0, 5.0);
+	ts1.sca = float3(0.02, 0.02, 0.02);
+
+	output_volume_cube << dr.ins.create_geometry<UE4_cube_static>()
+		<< dr.ins.create_placement<placement_static_viewport_static>()
+		<< dr.ins.create_material<material_transparent_2d_for_3d_64_without_perlin>()
+		<< [&](property_render_2d_for_3d& prf) {
+		sample_state::description des = sample_state::default_description;
+		des.Filter = decltype(des.Filter)::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		des.AddressU = decltype(des.AddressU)::D3D11_TEXTURE_ADDRESS_MIRROR;
+		des.AddressV = decltype(des.AddressV)::D3D11_TEXTURE_ADDRESS_MIRROR;
+		prf.set_texture(dr, worley, des);
+		prf.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
+	}
+		<< [&](property_local_transfer& tlt) {
+		tlt.set_local_to_world(ts1, ts1.inverse_float4x4());
+	};
+
+	ts2.poi = float3(0.0, 0.0, 6.0f);
 
 
 	std::array<float, 8 * 8 * 8> data;
@@ -99,16 +109,15 @@ void new_plugin::init(defer_renderer& dr)
 	tex3 sudyuiasd = dr.create_tex3(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, 8, {}, D3D11_USAGE_DYNAMIC, data.data(), 8, 8);
 	tex2 sudyuiasd2 = dr.create_tex2(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, {}, {}, D3D11_USAGE_DYNAMIC, &dat, &d);
 
-	dr.make_geometry_and_placement(back_ground, [](geometry_cube_static&, placement_view_static&) {});
-	dr.make_material(back_ground, [](material_defer_render_texcoord& mdt) {});
-	back_ground.make_interface([&](property_transfer& pt) {
-		pt.set_transfer(dr, ts2, ts2.inverse_float4x4());
-	});
+	back_ground << dr.ins.create_geometry<geometry_cube>()
+		<< dr.ins.create_placement<placement_static_viewport_static>()
+		<< dr.ins.create_material<material_qpaque_texture_coord>()
+		<< [&](property_local_transfer& pt) {
+		pt.set_local_to_world(ts2, ts2.inverse_float4x4());
+	};
 
-	back_ground.make_interface([&](property_tex2& pt) {
-		pt.set_tex2(dr, sudyuiasd2);
-	});
 
+	/*
 	auto ss2 = dr.lack_acceptance(compute);
 	if (!ss2.empty())
 	{
@@ -126,48 +135,68 @@ void new_plugin::init(defer_renderer& dr)
 		for (auto& i : ss)
 			p.push_back(i.name());
 		__debugbreak();
-	}
+	}*/
 }
 
 static int count__ = 0;
 
-void new_plugin::tick(defer_renderer& dr, duration da)
+void new_plugin::tick(defer_renderer_default& dr, duration da)
 {
-	/*
+	
 	count__++;
-	if (count__ == 6)
+	if (count__ == 10)
 	{
 		CoInitialize(nullptr);
-		DirectX::ScratchImage SI;
-		DirectX::CaptureTexture(dr.get_creator().dev, dr.pipeline::ptr, worley.ptr, SI);
-		if (!
-			SUCCEEDED(DirectX::SaveToWICFile(*SI.GetImages(), DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_JPEG), L"NEW_IMAGE.JPEG"))
-			) __debugbreak();
-	}*/
+		if(false)
+		{
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(dr.dev, dr.context.imp->ptr, worley.ptr, SI);
+			if(false)
+				if (!
+					SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"NEW_IMAGE.DDS"))
+					) __debugbreak();
+			if(false)
+				if (!
+					SUCCEEDED(DirectX::SaveToWICFile(*SI.GetImages(), DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_JPEG), L"NEW_IMAGE.JPEG"))
+					) __debugbreak();
+		}
+		if(false)
+		{
+			DirectX::ScratchImage SI;
+			DirectX::CaptureTexture(dr.dev, dr.context.imp->ptr, dr.linear_z_buffer.ptr, SI);
+			;
+
+			if (!
+				SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"DEPTH.DDS"))
+				) __debugbreak();
+		}
+		std::cout << "finish" << std::endl;
+			
+	}
 
 
 	if (swith_state == 0)
 	{
 		if (s.apply(da, ts1))
 		{
-			output_volume_cube.make_interface([&, this](property_transfer& pt) {
-				pt.set_transfer(dr, ts1, ts1.inverse_float4x4());
-			});
+			output_volume_cube << [&, this](property_local_transfer& pt) {
+				pt.set_local_to_world(ts1, ts1.inverse_float4x4());
+			};
 		}
 	}
 	else if (swith_state == 1)
 	{
 		if (s.apply(da, ts2))
 		{
-			back_ground.make_interface([&](property_transfer& pt) {
-				pt.set_transfer(dr, ts2, ts2.inverse_float4x4());
-			});
+			back_ground << [&](property_local_transfer& pt) {
+				pt.set_local_to_world(ts2, ts2.inverse_float4x4());
+			};
 		}
 	}
 
-	output_volume_cube.make_interface([&, this](property_render_2d_for_3d& pt) {
-		pt.set_option(dr, float3{ -1.0, -1.0, -1.0 }, float3{ 1.0, 1.0, 1.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
-	});
+	output_volume_cube << [&, this](property_render_2d_for_3d& pt) {
+		pt.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
+	};
 	
 	dr << back_ground;
 	dr << output_volume_cube;

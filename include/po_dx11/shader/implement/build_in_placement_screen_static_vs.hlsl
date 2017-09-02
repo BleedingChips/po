@@ -1,4 +1,15 @@
 #include "../include/build_in_standard_input_type.hlsli"
+#include "../include/build_in_property_type.hlsli"
+
+cbuffer screen_ : register(b0)
+{
+    property_screen_static sp;
+}
+
+cbuffer tran : register(b1)
+{
+    transfer_type mat;
+}
 
 void main(in standard_ia_input input, out standard_ps_input output)
 {

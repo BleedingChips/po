@@ -4,7 +4,7 @@ RWTexture2D<float> linearize_z : register(u0);
 
 cbuffer b0 : register(b0)
 {
-    property_screen_static pss;
+    property_viewport_transfer pss;
 }
 
 
@@ -13,22 +13,22 @@ cbuffer b0 : register(b0)
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    float f = pss.far_plane;
-    float n = pss.near_plane;
-    float nv = pss.viewports_near_far.x;
-    float fv = pss.viewports_near_far.y;
+    float f = pss.far_surface;
+    float n = pss.near_surface;
+    float nv = pss.view_near_surface;
+    float fv = pss.view_far_surface;
 
-    float f_n = pss.far_plane - pss.near_plane;
-    linearize_z[DTid.xy] =
-    (-2.0 * f * n) / ((2 * depth_stencil_texture[DTid.xy].x - fv - nv) * (f - n) / (fv - nv) - f - n);
-
-
+    float depth = depth_stencil_texture[DTid.xy].x;
+    float result = (-2.0 * f * n) / ((2 * depth - fv - nv) * (f - n) / (fv - nv) - f - n);
+    linearize_z[DTid.xy] = result;
 
 
-
+    //linearize_z[DTid.xy] = (-2.0 * f * n) / ((2 * depth_stencil_texture[DTid.xy].x - fv - nv) * (f - n) / (fv - nv) - f - n);
+    //linearize_z[DTid.xy] = depth_stencil_texture[DTid.xy].x / 2.0;
+    
     /*
-    float A = -(pss.far_plane + pss.near_plane) / (pss.far_plane - pss.near_plane);
-    float B = (-2.0 * pss.far_plane * pss.near_plane) / (pss.far_plane - pss.near_plane);
+    float A = -(pss.far_surface + pss.near_surface) / (pss.far_surface - pss.near_surface);
+    float B = (-2.0 * pss.far_surface * pss.near_surface) / (pss.far_surface - pss.near_surface);
     linearize_z[DTid.xy] = (B) / (A + depth_stencil_texture[DTid.xy].x);
 */
 }

@@ -1431,17 +1431,25 @@ namespace PO
 
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt)
 			{
-				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers);
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetConstantBuffers);
 			}
 
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt)
 			{
-				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetShaderResources);
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetShaderResources);
 			}
 
 			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt)
 			{
-				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetSamplers);
+				shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetSamplers);
+			}
+
+			void compute_shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const unordered_access_view& cb, size_t solt)
+			{
+				if (count <= solt)
+					count = static_cast<UINT>(solt + 1);
+				ID3D11UnorderedAccessView * const buffer[1] = { cb.ptr };
+				cp->CSSetUnorderedAccessViews(static_cast<UINT>(solt), 1, buffer, &cb.offset);
 			}
 
 		}

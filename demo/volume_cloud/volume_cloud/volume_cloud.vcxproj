@@ -23,6 +23,7 @@
     <ClCompile Include="compute\generator_3d_shadow_texture_64.cpp" />
     <ClCompile Include="compute\generator_3d_volume_texture.cpp" />
     <ClCompile Include="compute\volume_cloud_compute.cpp" />
+    <ClCompile Include="geometry\ue4_geometry.cpp" />
     <ClCompile Include="material\render_3d_volume_texture_64.cpp" />
     <ClCompile Include="material\texture_3d_viewer.cpp" />
     <ClCompile Include="material\volume_cloud_material.cpp" />
@@ -36,6 +37,7 @@
     <ClInclude Include="compute\generator_3d_shadow_texture_64.h" />
     <ClInclude Include="compute\generator_3d_volume_texture.h" />
     <ClInclude Include="compute\volume_cloud_compute.h" />
+    <ClInclude Include="geometry\ue4_geometry.h" />
     <ClInclude Include="material\render_3d_volume_texture_64.h" />
     <ClInclude Include="material\texture_3d_viewer.h" />
     <ClInclude Include="material\volume_cloud_material.h" />
@@ -133,28 +135,24 @@
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
     <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
-    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
     <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
-    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
     <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
-    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="volume_cloud.props" />
     <Import Project="..\..\..\project\vs2017\po\po.props" />
     <Import Project="..\..\..\project\vs2017\po_dx11\po_dx11.props" />
-    <Import Project="..\..\..\project\vs2017\po_dx11_defer_renderer\po_dx11_defer_renderer.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />

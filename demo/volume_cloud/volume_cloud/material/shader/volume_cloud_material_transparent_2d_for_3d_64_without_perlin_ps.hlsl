@@ -1,8 +1,17 @@
 #include "volume_cloud_material_property.hlsli"
-#include "../../../../../include/po_dx11_defer_renderer/shader/include/build_in_property_type.hlsli"
-#include "../../../../../include/po_dx11_defer_renderer/shader/include/build_in_standard_input_type.hlsli"
+#include "../../../../../include/po_dx11/shader/include/build_in_property_type.hlsli"
+#include "../../../../../include/po_dx11/shader/include/build_in_standard_input_type.hlsli"
 
-#define ASMACRO
+
+float4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
+{
+    return Tex.Sample(Sampler, UV);
+}
+
+
+
+
+
 
 cbuffer b0 : register(b0)
 {
@@ -10,11 +19,11 @@ cbuffer b0 : register(b0)
 }
 cbuffer b1 : register(b1)
 {
-    property_transfer mat;
+    property_local_transfer mat;
 }
 cbuffer b2 : register(b2)
 {
-    property_screen ps;
+    property_viewport_transfer ps;
 }
 
 Texture2D ten : register(t0);
@@ -52,10 +61,10 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     float3 min_w = float3(-1.0, -1.0, -1.0);
     float3 max_w = float3(1.0, 1.0, 1.0);
 
-    float2 screen_uv = (input.uv_screen / input.position_sv.w + 1.0) / 2.0;
-
+    //float2 screen_uv = (input.uv_screen / input.position_sv.w + 1.0) / 2.0;
+    float2 screen_uv = get_uv_screen(input.uv_screen, input.position_sv);
     //世界坐标系下的射线向量，并单位化，升维
-    float4 eye_ray_NOR = float4(normalize(input.position_world.xyz - ps.view_position), 0.0);
+    float4 eye_ray_NOR = float4(normalize(input.position_world.xyz - property_viewport_transfer_eye_world_position(ps)), 0.0);
 
     //计算深度差
     float depth_length = max(linearize_z.Sample(ss, screen_uv).x - input.position_view.z, 0.0);
@@ -63,23 +72,23 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     //局部坐标系下的射线向量，降维，此时由于立方体本身的变换矩阵，所以不是单位化的
     eye_ray_NOR = mul(mat.world_to_local, eye_ray_NOR);
 
-    output.color = //float4(linearize_z.Sample(ss, screen_uv).x / 1000, 0.0, 0.0, 1.0);
-    //float4(input.uv_screen, 0.0, 1.0);
+    output.color = //float4(linearize_z.Sample(ss, screen_uv).x / 10.0, 0.0, 0.0, 1.0);
+    //float4(input.position_view.z / 10.0, 0.0, 0.0, 1.0);
     implement(
     ten,
     ss,
     input.position_local.xyz / input.position_local.w, 
     eye_ray_NOR.xyz, 
-    min_w, 
-    max_w, 
+    pp.min_width, 
+    pp.max_width, 
     pp.density, 
     depth_length, 
     ps.time * 0.0001, 
     float3(0.2, -1.0, 0.0), float3(1.0, 0.0, 0.0), 
-    float3(0.5, 0.5, 0.5));
+    float3(50, 50, 50));
 }
 
-
+/*
 void ASMACRO COORDINATE_I3_TO_I3(out int3 out_I3, in int3 in_I3, in uint4 worley_U4)
 {
     uint4 worley = worley_U4;
@@ -148,6 +157,7 @@ void ASMACRO HG(out float Output_F, in float3 Light_F3, in float3 Ray_F3, in flo
     float g2 = g * g;
     Output_F = 0.5 * (1.0 - g2) / pow(1.0 + g2 - 2.0 * g * dot(il, rl), 1.5);
 }
+*/
 
 /*
 float4 Sample(Texture2D tex, SamplerState ss, float3 local)
@@ -169,12 +179,45 @@ float4 Sample(Texture2D tex, SamplerState ss, float3 local)
 }
 */
 
-SamplerState BuildInSampleState
+float4 Sample_implement(Texture2D Tex, SamplerState SS, float3 SampleLocaltion, uint4 Block)
 {
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = MIRROR;
-    AddressV = MIRROR;
-};
+   
+    float3 MirroLocation = abs(1.0 - fmod(abs(SampleLocaltion + 1.0), 2.0));
+
+    float3 IntLoacation = MirroLocation * uint3(Block.x, Block.y, Block.z * Block.w);
+
+    uint ZCount = Block.z * Block.w - 1;
+    float ZChunk = MirroLocation.z * ZCount;
+    uint ZChunkLast = floor(ZChunk);
+    uint ZChunkMax = ZChunkLast + 1;
+    float rate = ZChunk - ZChunkLast;
+    ZChunkMax = step(ZChunkMax, ZCount) * (ZChunkMax);
+    uint2 LastChunkXY = uint2(ZChunkLast % Block.z, ZChunkLast / float(Block.z));
+    uint2 MaxChunkXY = uint2(ZChunkMax % Block.z, ZChunkMax / float(Block.z));
+    float2 FinalLocationLast = float2(
+    //(15 * MirroLocation.x + 1.0 + LastChunkXY.x) / float(Block.z),
+    //(15 * MirroLocation.y + 1.0 + LastChunkXY.y) / float(Block.w)
+    (MirroLocation.x * 0.98 + 0.01 + LastChunkXY.x) / float(Block.z),
+    (MirroLocation.y * 0.98 + 0.01 + LastChunkXY.y) / float(Block.w)
+    );
+    float2 FinalLocationMax = float2(
+    (MirroLocation.x * 0.98 + 0.01 + MaxChunkXY.x) / float(Block.z),
+    (MirroLocation.y * 0.98 + 0.01 + MaxChunkXY.y) / float(Block.w)
+    );
+
+    float4 S1 = Texture2DSample(Tex, SS, FinalLocationLast);
+    float4 S2 = Texture2DSample(Tex, SS, FinalLocationMax);
+
+    return lerp(S1, S2, rate);
+
+}
+
+
+
+
+
+
+
 
 float4 implement(
 Texture2D Noise_T,
@@ -220,22 +263,22 @@ float3 Scale_F3
 
     float ray_length = target_depth / 31.0;
 
-    float Noise;
-    CALCULATE_NOISE(Noise, LocalPoint_F3, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
-    //return float4(Noise, Noise, Noise,1.0);
+    float Noise = Sample_implement(Noise_T, Noise_TSampler, LocalPoint_F3 / 10.0, uint4(256, 256, 16, 16)).x;
+    //CALCULATE_NOISE(Noise, LocalPoint_F3, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
+    return float4(Noise, Noise, Noise,1.0);
     float last_density = Noise * MaxDensity_F;
     float decay = 0.0;
     float color = 0.0;
 
     float HG_V;
-    HG(HG_V, LocalLight_F, LocalRay_F3, 0.2);
+    //HG(HG_V, LocalLight_F, LocalRay_F3, 0.2);
     
     uint count = 0;
     for (count = 1; count < 31; ++count)
     {
         float3 poi = LocalPoint_F3 + ray * count;
-        float Noise;
-        CALCULATE_NOISE(Noise, poi, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
+        float Noise = Sample_implement(Noise_T, Noise_TSampler, poi / 50.0, uint4(256, 256, 16, 16)).x;
+        //CALCULATE_NOISE(Noise, poi, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
         float now_density = Noise * MaxDensity_F;
         float current_decay = (now_density + last_density) / 2.0 * ray_length;
         color = color + (1.0 - exp(-current_decay * 100.0)) * (exp(-decay)) * HG_V;

@@ -107,20 +107,19 @@ namespace PO
 
 		void property_local_transfer::update(renderer_data& rd, stage_context& sc)
 		{
-			if (!sc || need_update)
+			if (!rd.transfer || need_update)
 			{
 				shader_storage<float4x4, float4x4> as{ local_to_world, world_to_local };
 				need_update = false;
-				if (!sc)
+				if (!rd.transfer)
 				{
-					sc.create_constant_buffer(&as, true);
+					rd.transfer = sc.create_constant_buffer(&as, true);
 				}
 				else {
 					sc.write_constant_buffer(rd.transfer, [&, this](void* data) {
 						*static_cast<shader_storage<float4x4, float4x4>*>(data) = as;
 					});
 				}
-					
 			}
 		}
 		void property_local_transfer::push(property_local_transfer& pt, creator& c)
@@ -136,31 +135,32 @@ namespace PO
 
 		void property_viewport_transfer::update(renderer_data& rd, stage_context& sc)
 		{
-			if (need_update || !rd.viewport)
+			using type = shader_storage<float4x4, float4x4, float4x4, float4x4, float, float, float , float , float>;
+			type temporary{ world_to_eye, eye_to_world , world_to_camera, camera_to_world, near_surface, far_surface, view_near_surface, view_far_surface, time };
+			//type temporary{ eye, world_to_screen, screen_to_world, float3{ eye._41, eye._42, eye._43 }, time };
+			if (!rd.viewport)
 			{
-				using type = shader_storage<float4x4, float4x4, float4x4, float3, float>;
-				type temporary{ eye, world_to_screen, screen_to_world, float3{ eye._41, eye._42, eye._43 }, time };
-				if (!rd.viewport)
-				{
-					sc.create_constant_buffer(&temporary, true);
-				}
-				else {
-					sc.write_constant_buffer(rd.viewport, [&, this](void* data) {
-						*static_cast<shader_storage<float4x4, float4x4, float4x4, float3, float>*>(data) = temporary;
-					});
-				}
+				rd.viewport = sc.create_constant_buffer(&temporary, true);
+			}
+			else {
+				sc.write_constant_buffer(rd.viewport, [&, this](void* data) {
+					*static_cast<type*>(data) = temporary;
+				});
 			}
 		}
+
 		void property_viewport_transfer::push(property_viewport_transfer& pt, creator& c)
 		{
 			pt = *this;
-			need_update = false;
 		}
 
 		geometry_screen::geometry_screen(creator& c)
 		{
 			ia << c.create_vertex(square_2d_static, layout_type<syntax<position, 0, float2>, syntax<texcoord, 0, float2>>{})[0]
 				<< c.create_index(square_2d_static_index);
+			decltype(rs)::description des = decltype(rs)::default_description;
+			//des.CullMode = decltype(des.CullMode)::D3D11_CULL_NONE;
+			//rs = c.create_raterizer_state(des);
 		}
 		void geometry_screen::geometry_apply(stage_context& sc)
 		{
@@ -195,7 +195,7 @@ namespace PO
 			ia << c.create_vertex(cube_static_3d, layout_type<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>{})[0]
 				<< c.create_index(cube_static_3d_index);
 		}
-		void geometry_cube::geometry_apply(stage_context& sc) { sc << ia; }
+		void geometry_cube::geometry_apply(stage_context& sc) { sc << ia; sc << index_call{static_cast<UINT>(cube_static_3d_index.size()), 0, 0}; }
 		bool geometry_cube::geometry_update(stage_context& sc, property_interface& pi) 
 		{
 			return false;
@@ -209,6 +209,7 @@ namespace PO
 		const std::u16string& placement_static_viewport_static::placement_shader_patch_vs()
 		{
 			static std::u16string patch(u"build_in_placement_view_static_vs.cso");
+			return patch;
 		}
 		void placement_static_viewport_static::placement_apply(stage_context& sc)
 		{
@@ -224,7 +225,7 @@ namespace PO
 		}
 		const std::set<std::type_index>& placement_static_viewport_static::placement_requirement() const
 		{
-			return make_property_info_set<property_local_transfer>{};
+			return make_property_info_set<property_local_transfer, property_viewport_transfer>{};
 		}
 
 

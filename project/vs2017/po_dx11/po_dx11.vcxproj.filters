@@ -124,6 +124,9 @@
     <None Include="..\..\..\include\po_dx11\shader\include\build_in_standard_input_type.hlsli">
       <Filter>po_dx11\shader\include</Filter>
     </None>
+    <None Include="..\..\..\include\po_dx11\shader\include\build_in_property_type.hlsli">
+      <Filter>po_dx11\shader\include</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_direct_vs.hlsl">
@@ -144,13 +147,13 @@
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_merge_gbuffer_ps.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
-    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_screen_static_vs.hlsl">
-      <Filter>po_dx11\shader\implement</Filter>
-    </FxCompile>
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_view_static_vs.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\buildin_vertext_shader.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_screen_static_vs.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
   </ItemGroup>
