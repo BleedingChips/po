@@ -68,8 +68,7 @@ void new_plugin::init(defer_renderer_default& dr)
 	s.set_translation_speed(10.0);
 	
 	//ts1.sca = float3(1.0, 0.5, 1.0);
-
-	worley = dr.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, 256 * 16, 256 * 16);
+	worley.create_unordered_access(dr, DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, { 256 * 16, 256 * 16 });
 	compute << dr.ins.create_compute<compute_perlin_worley_noise_tex2_3d>()
 		<< [&](property_output_tex2& pot) {
 		pot.set_texture(dr, worley, 2.0, { 256, 256, 16, 16 });
@@ -77,10 +76,11 @@ void new_plugin::init(defer_renderer_default& dr)
 		pot.set_seed({ 123, 456, 789 });
 	};
 
+
 	dr << compute;
 
 	ts1.poi = float3(0.0, 0.0, 5.0);
-	ts1.sca = float3(0.02, 0.02, 0.02);
+	ts1.sca = float3(0.02f, 0.02f, 0.02f);
 
 	output_volume_cube << dr.ins.create_geometry<UE4_cube_static>()
 		<< dr.ins.create_placement<placement_static_viewport_static>()
@@ -103,18 +103,30 @@ void new_plugin::init(defer_renderer_default& dr)
 	std::array<float, 8 * 8 * 8> data;
 	for (size_t o = 0; o < 8 * 8; ++o)
 		data[o] = o / float(8 * 8);
-	UINT d = 8;
+	uint32_t d = 8;
 	void* dat = data.data();
 
-	tex3 sudyuiasd = dr.create_tex3(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, 8, {}, D3D11_USAGE_DYNAMIC, data.data(), 8, 8);
-	tex2 sudyuiasd2 = dr.create_tex2(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, 8, 8, {}, {}, D3D11_USAGE_DYNAMIC, &dat, &d);
+	perlin_out.create_unordered_access(dr, DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_TYPELESS, { 256 * 16, 256 * 16 });
+
+	perlin_element << dr.ins.create_compute<compute_perlin_noise_for_2d_rbga_uint8>();
+	perlin_element << [&](property_output_texture_2d_simulate_3d& po) {
+		po.set_mark_blend(float4(0.0, 1.0, 0.0, 0.0), float4(1.0, 0.0, 1.0, 1.0));
+		po.set_texture(dr, perlin_out, uint32_t4{ 256,256, 16,16 });
+	} << [&](property_random_point_f& purp) {
+		purp.create_uniform_point(dr, compute_perlin_noise_for_2d_rbga_uint8::max_count(), 1234563, 0.0, 1.0);
+	};
+
+	dr << perlin_element;
 
 	back_ground << dr.ins.create_geometry<geometry_cube>()
 		<< dr.ins.create_placement<placement_static_viewport_static>()
-		<< dr.ins.create_material<material_qpaque_texture_coord>()
+		<< dr.ins.create_material<material_opaque_tex2_viewer>()
 		<< [&](property_local_transfer& pt) {
 		pt.set_local_to_world(ts2, ts2.inverse_float4x4());
-	};
+	} << [&](property_tex2& pt) {
+		pt.set_texture(dr, perlin_out.cast_shader_resource_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UNORM));
+	}
+	;
 
 
 	/*
@@ -142,16 +154,15 @@ static int count__ = 0;
 
 void new_plugin::tick(defer_renderer_default& dr, duration da)
 {
-	
 	count__++;
 	if (count__ == 10)
 	{
 		CoInitialize(nullptr);
-		if(false)
+		if(true)
 		{
 			DirectX::ScratchImage SI;
-			DirectX::CaptureTexture(dr.dev, dr.context.imp->ptr, worley.ptr, SI);
-			if(false)
+			DirectX::CaptureTexture(dr.dev, dr.context.imp->ptr, perlin_out.ptr, SI);
+			if(true)
 				if (!
 					SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"NEW_IMAGE.DDS"))
 					) __debugbreak();

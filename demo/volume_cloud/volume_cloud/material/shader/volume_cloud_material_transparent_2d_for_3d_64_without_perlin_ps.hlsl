@@ -9,10 +9,6 @@ float4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
 }
 
 
-
-
-
-
 cbuffer b0 : register(b0)
 {
     property_rendder_2d_for_3d pp;
@@ -263,9 +259,9 @@ float3 Scale_F3
 
     float ray_length = target_depth / 31.0;
 
-    float Noise = Sample_implement(Noise_T, Noise_TSampler, LocalPoint_F3 / 10.0, uint4(256, 256, 16, 16)).x;
+    float Noise = Sample_implement(Noise_T, Noise_TSampler, LocalPoint_F3 / 50.0, uint4(256, 256, 16, 16)).y;
     //CALCULATE_NOISE(Noise, LocalPoint_F3, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
-    return float4(Noise, Noise, Noise,1.0);
+    //return float4(Noise, Noise, Noise,1.0);
     float last_density = Noise * MaxDensity_F;
     float decay = 0.0;
     float color = 0.0;
@@ -277,7 +273,8 @@ float3 Scale_F3
     for (count = 1; count < 31; ++count)
     {
         float3 poi = LocalPoint_F3 + ray * count;
-        float Noise = Sample_implement(Noise_T, Noise_TSampler, poi / 50.0, uint4(256, 256, 16, 16)).x;
+        float Noise = //Sample_implement(Noise_T, Noise_TSampler, poi / 50.0, uint4(256, 256, 16, 16)).x;
+        Sample_implement(Noise_T, Noise_TSampler, poi / 50.0, uint4(256, 256, 16, 16)).y;
         //CALCULATE_NOISE(Noise, poi, Noise_T, NoiseSize, Move, Time_F, Scale_F3);
         float now_density = Noise * MaxDensity_F;
         float current_decay = (now_density + last_density) / 2.0 * ray_length;

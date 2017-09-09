@@ -1,6 +1,5 @@
 #include "volume_cloud_material.h"
 
-
 void property_render_2d_for_3d::push(property_render_2d_for_3d& prf, creator& c)
 {
 	prf.m_srv = m_srv;
@@ -22,7 +21,7 @@ void property_render_2d_for_3d::update(renderer_data& rd, stage_context& sc)
 		using type = shader_storage<float3, float3, float3, float>;
 		type ss{ min_width, max_width, light, density };
 		if (!rd.m_cb)
-			rd.m_cb = sc.create_constant_buffer(&ss, true);
+			rd.m_cb.create_pod(sc, ss, true);
 		else
 			sc.write_constant_buffer(rd.m_cb, [&](void* da) { 
 			*static_cast<type*>(da) = ss;

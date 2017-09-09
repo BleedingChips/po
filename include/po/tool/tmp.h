@@ -17,6 +17,12 @@ namespace PO
 		template<typename T, typename I, typename ...AT> struct is_not_one_of<T, I, AT...> : is_not_one_of<T, AT...> {};
 		template<typename T, typename ...AT> struct is_not_one_of<T, T, AT...> : std::false_type {};
 
+
+		/* value_add */
+		template<typename T, T value, T ...o_value> struct value_add : std::integral_constant<T, value>{};
+		template<typename T, T value, T value2, T ...o_value> struct value_add<T, value, value2, o_value...> : value_add<T, value + value2, o_value...> {};
+
+
 		/* is_repeat */
 		template<typename ...AT> struct is_repeat : public std::false_type {};
 		template<typename T, typename ...AT>

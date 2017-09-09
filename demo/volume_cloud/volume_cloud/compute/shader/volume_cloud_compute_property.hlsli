@@ -22,4 +22,20 @@ struct property_perline_worley_noise_3d_point
     float3 poi2[200];
     float3 poi3[400];
 };
+
+struct property_random_point_f
+{
+    uint count;
+    uint style;
+    float4 parameter_1;
+    float4 parameter_2;
+};
+
+struct property_output_texture_2d_simulate_3d
+{
+    uint2 texture_size;
+    uint4 simulate_size;
+    float4 mark;
+    float4 blend;
+};
 #endif

@@ -156,5 +156,8 @@
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_screen_static_vs.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_tex2_view.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

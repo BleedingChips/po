@@ -138,5 +138,8 @@
     <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_perlin_noise_rgba_uint8.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

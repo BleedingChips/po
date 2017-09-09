@@ -27,8 +27,8 @@ namespace PO
 
 		struct tex_sample
 		{
-			UINT count = 1;
-			UINT quality = 0;
+			uint32_t count = 1;
+			uint32_t quality = 0;
 		};
 
 		class shader_binary
@@ -39,7 +39,7 @@ namespace PO
 			shader_binary(std::fstream& f);
 			~shader_binary();
 			operator const void* () const { return data; }
-			operator UINT() const { return static_cast<UINT>(size); }
+			operator uint32_t() const { return static_cast<uint32_t>(size); }
 		};
 
 		template<typename T, size_t count> class aligned_array

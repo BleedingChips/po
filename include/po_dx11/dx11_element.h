@@ -13,12 +13,21 @@ namespace PO
 
 		class property_proxy_map;
 
-		template<typename ...T>
-		struct make_property_info_set
+
+		class property_resource
 		{
-			operator const std::set<std::type_index> &() {
-				static const std::set<std::type_index> set{ typeid(typename T::renderer_data)... };
-				return set;
+			bool m_need_update = true;
+		protected:
+			void need_update() { m_need_update = true; }
+		public:
+			bool is_need_update() const { return m_need_update; }
+			property_default& operator=(property_default& pd)
+			{
+				if (m_need_update)
+				{
+					m_need_update = false;
+					pd.m_need_update = true;
+				}
 			}
 		};
 
@@ -70,7 +79,219 @@ namespace PO
 			virtual ~property_interface();
 		};
 
-		struct stage_requirement
+		namespace Implement
+		{
+
+			template<typename T> class property_implement : public property_interface, public T 
+			{ 
+			public:
+				property_implement() : property_interface(typeid(T), typeid(decltype(*this))) {}
+				operator T& () { return *this; } 
+				operator const T&() const { return *this; } 
+			};
+
+			template<typename T> class property_proxy_implement;
+
+			class property_proxy_interface : public base_interface<property_proxy_implement>
+			{
+				const std::type_index associate_info;
+				virtual property_interface& get_associate() = 0;
+
+				virtual void logic_to_swap() = 0;
+				virtual void swap_to_renderer() = 0;
+				virtual void logic_to_renderer() = 0;
+
+				virtual void update() = 0;
+				virtual void push() = 0;
+
+				friend struct property_map;
+				friend class property_proxy_map;
+			public:
+				const std::type_index& associate_id() const { return associate_info; }
+				property_proxy_interface(const std::type_index& original, const std::type_index& real, const std::type_index& asso);
+				virtual ~property_proxy_interface();
+			};
+
+			template<typename T, typename = void> struct property_have_is_need_update :std::false_type{};
+			template<typename T> struct property_have_is_need_update<T, std::void_t<decltype(std::declval<T>().is_need_update())>> : std::true_type {};
+
+
+			template<typename T> class property_proxy_implement : public property_proxy_interface
+			{
+				T direct_block;
+				T::renderer_data swap_lock;
+				property_implement<typename T::renderer_data> renderer_lock;
+				bool need_update = false;
+			public:
+				property_proxy_implement() : property_proxy_interface(typeid(T), typeid(decltype(*this)), typeid(typename T::renderer_data)) {}
+				virtual property_interface& get_associate() { return renderer_lock; }
+				operator T& () { return direct_block; }
+				operator const T& () const { return direct_block; }
+
+				virtual void logic_to_swap()
+				{
+					if constexpr (property_have_is_need_update<T>::value)
+					{
+						need_update = T::is_need_update();
+						if (need_update)
+							direct_block.update(swap_lock);
+					}
+					else {
+						direct_block.update(swap_lock);
+						need_update = true;
+					}
+				}
+				virtual void swap_to_renderer()
+				{
+					if (need_update)
+					{
+						static_cast<T::renderer_data&>(renderer_lock) = swap_lock;
+						need_update = false;
+					}
+				}
+				virtual void logic_to_renderer()
+				{
+					need_update = false;
+					if constexpr (property_have_is_need_update<T>::value)
+					{
+						if (T::is_need_update();)
+							direct_block.update(swap_lock);
+					}
+					else {
+						direct_block.update(swap_lock);
+					}
+				}
+			};
+
+			struct property_map
+			{
+				bool allready_update = true;
+
+				// proxy_id
+				std::map<std::type_index, std::shared_ptr<property_proxy_interface>> swap_mapping;
+
+				// associate id
+				std::map<std::type_index, std::shared_ptr<property_proxy_interface>> renderer_mapping;
+				friend struct element_renderer_storage;
+			public:
+				template<typename F> bool find_associate(const std::type_index& ti, F&& f)
+				{
+					auto ite = renderer_mapping.find(ti);
+					if (ite != renderer_mapping.end())
+						return (f(ite->second->get_associate()), true);
+					return false;
+				}
+				void swap_to_renderer();
+			};
+		}
+
+		class property_proxy_map
+		{
+			// // proxy_id
+			std::map<std::type_index, std::shared_ptr<Implement::property_proxy_interface>> mapping;
+
+			template<typename T>
+			struct check
+			{
+				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
+				static_assert(funtype::size == 1, "only receive one parameter");
+				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+			};
+			template<typename T> using check_t = typename check<T>::true_type;
+
+			friend struct element_logic_storage;
+
+			std::shared_ptr<Implement::property_map> inside_map;
+
+		public:
+			
+			std::shared_ptr<Implement::property_map> map() const { return inside_map; }
+
+			void logic_to_swap();
+			void logic_to_renderer();
+
+			property_proxy_map() : inside_map(std::make_shared<Implement::property_map>()) {}
+
+			template<typename F> property_proxy_map& operator<<(F&& f)
+			{
+				using type = check_t<F>;
+				auto ite = mapping.find(typeid(type));
+				if (ite != mapping.end())
+					f(ite->second->cast<type>());
+				else {
+					auto ptr = std::make_shared<Implement::property_proxy_implement<type>>();
+					mapping.insert({ typeid(type), ptr });
+					f(*ptr);
+				}
+				return *this;
+			}
+			void clear() { mapping.clear(); }
+		};
+
+		class element_requirement;
+
+		namespace Implement
+		{
+			class stage_resource
+			{
+			public:
+				bool apply_property(stage_context& sc, property_interface& pi);
+				const element_requirement& requirement() const;
+				virtual ~stage_resource();
+			};
+
+			shader_compute stage_load_cs(const std::u16string& p, creator& c);
+			shader_vertex stage_load_vs(const std::u16string& path, creator& c);
+			shader_pixel stage_load_ps(const std::u16string& path, creator& c);
+		}
+
+		class geometry_resource : public Implement::stage_resource
+		{
+		protected:
+			primitive_topology primitive;
+			layout_view view;
+			raterizer_state state;
+		public:
+			layout_view ia_view() const { return view; }
+			geometry_resource(creator& c, layout_view view = layout_view{}, std::optional<raterizer_state::description> state_description = {}, primitive_topology primitive = primitive_topology::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			void apply(stage_context& sc);
+		};
+
+		class compute_resource : public Implement::stage_resource
+		{
+		protected:
+			std::u16string patch;
+			shader_compute shader;
+		public:
+			void apply(stage_context& sc);
+			compute_resource(creator& c, std::u16string cs_pacth);
+		};
+
+		class material_resource : public Implement::stage_resource
+		{
+		protected:
+			std::u16string patch;
+			shader_pixel shader;
+			blend_state bs;
+			std::type_index id_for_pipeline;
+		public:
+			void apply(stage_context& sc);
+			const std::type_index& pipeline_id() const { return id_for_pipeline; }
+			material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> description = {}, const std::type_index& pipeline_id = typeid(void));
+		};
+
+		class placement_resource : public Implement::stage_resource
+		{
+		protected:
+			std::u16string patch;
+			shader_vertex shader;
+		public:
+			void apply(stage_context& sc);
+			placement_resource(creator& c, std::u16string ps_patch);
+			const shader_vertex& get_vs_shader() const { return shader; }
+		};
+
+		class element_requirement
 		{
 			template<typename T, typename K>
 			struct stage_requirement_picker
@@ -109,167 +330,27 @@ namespace PO
 			//1, 将后边两个函数进行类型还原的函数. 2，bool (*)(stage_context& , property_interface, void (*)(stage_context&, T&)). 3, bool (*)(stage_context&, T&);
 			map_t mapping;
 
+			static bool apply_property_implement(Implement::stage_resource&, stage_context&, const map_t::value_type& map_ite, Tool::stack_list<Implement::property_map>* sl);
+
+		public:
+
+			bool apply_property(Implement::stage_resource&, stage_context&, Tool::stack_list<Implement::property_map>* sl = nullptr) const;
 
 			template<typename ...F>
-			stage_requirement(F&& ...f) : mapping({ make_mapping_pair(f)... }) {}
+			element_requirement(F&& ...f) : mapping({ make_mapping_pair(f)... }) {}
 		};
-
-		namespace Implement
-		{
-
-			template<typename T> class property_implement : public property_interface, public T 
-			{ 
-			public:
-				property_implement() : property_interface(typeid(T), typeid(decltype(*this))) {}
-				operator T& () { return *this; } 
-				operator const T&() const { return *this; } 
-			};
-
-			template<typename T> class property_proxy_implement;
-
-			class property_proxy_interface : public base_interface<property_proxy_implement>
-			{
-				const std::type_index associate_info;
-				virtual void update(stage_context& sc) = 0;
-				virtual property_interface& get_associate() = 0;
-				virtual void push(creator& c) = 0;
-
-				friend struct property_map;
-				friend class property_proxy_map;
-			public:
-				const std::type_index& associate_id() const { return associate_info; }
-				property_proxy_interface(const std::type_index& original, const std::type_index& real, const std::type_index& asso);
-				virtual ~property_proxy_interface();
-			};
-
-			template<typename T> class property_proxy_implement : public property_proxy_interface
-			{
-				T direct_block;
-				T swap_lock;
-				property_implement<typename T::renderer_data> renderer_lock;
-			public:
-				property_proxy_implement() : property_proxy_interface(typeid(T), typeid(decltype(*this)), typeid(typename T::renderer_data)) {}
-				virtual property_interface& get_associate() { return renderer_lock; }
-				operator T& () { return direct_block; }
-				operator const T& () const { return direct_block; }
-
-				virtual void update(stage_context& sc)
-				{
-					swap_lock.update(renderer_lock, sc);
-				}
-				virtual void push(creator& c)
-				{
-					direct_block.push(swap_lock, c);
-				}
-			};
-
-			struct property_map
-			{
-				bool allready_update = true;
-
-				// proxy_id
-				std::map<std::type_index, std::shared_ptr<property_proxy_interface>> proxy_mapping;
-
-				// associate id
-				std::map<std::type_index, std::shared_ptr<property_proxy_interface>> associate_mapping;
-				friend struct element_renderer_storage;
-			public:
-				template<typename F> bool find_associate(const std::type_index& ti, F&& f)
-				{
-					auto ite = associate_mapping.find(ti);
-					if (ite != associate_mapping.end())
-						return (f(ite->second->get_associate()), true);
-					return false;
-				}
-				void update(stage_context& sc);
-			};
-		}
-
-		class property_proxy_map
-		{
-			// // proxy_id
-			std::map<std::type_index, std::shared_ptr<Implement::property_proxy_interface>> mapping;
-
-			template<typename T>
-			struct check
-			{
-				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
-				static_assert(funtype::size == 1, "only receive one parameter");
-				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
-			};
-			template<typename T> using check_t = typename check<T>::true_type;
-			std::shared_ptr<Implement::property_map> push(creator& c, const std::set<std::type_index>& require);
-			friend struct element_logic_storage;
-		public:
-			std::shared_ptr<Implement::property_map> inside_map;
-			std::shared_ptr<Implement::property_map> push(creator& c);
-			property_proxy_map() : inside_map(std::make_shared<Implement::property_map>()) {}
-
-			template<typename F> property_proxy_map& operator<<(F&& f)
-			{
-				using type = check_t<F>;
-				auto ite = mapping.find(typeid(type));
-				if (ite != mapping.end())
-					f(ite->second->cast<type>());
-				else {
-					auto ptr = std::make_shared<Implement::property_proxy_implement<type>>();
-					mapping.insert({ typeid(type), ptr });
-					f(*ptr);
-				}
-				return *this;
-			}
-			void clear() { mapping.clear(); }
-			
-		};
-
-		namespace Implement
-		{
-			class stage_interface
-			{
-			public:
-				virtual const stage_requirement& requirement() const;
-			};
-		}
-
-		class geometry_interface : public Implement::stage_interface
-		{
-		protected:
-			input_assember_stage input_stage;
-		public:
-			const input_assember_stage& input() { return input_stage; }
-			void apply(stage_context& sc) { sc << input_stage; }
-			virtual void execute(stage_context&) = 0;
-		};
-
-		class compute_interface : public Implement::stage_interface
-		{
-		protected:
-			compute_shader cs;
-		};
+		
 
 
 
 		namespace Implement
 		{
-
-			compute_shader stage_load_cs(const std::u16string& p, creator& c);
-			vertex_shader stage_load_vs(const std::u16string& path, creator& c);
-			pixel_shader stage_load_ps(const std::u16string& path, creator& c);
 
 			class stage_ptr
 			{
-				bool update(stage_context& sc, const std::type_index& ti, Tool::stack_list<property_map>* sl = nullptr);
-				virtual bool update_implement(stage_context&, property_interface& pi) = 0;
-				friend struct element_draw_request;
 			public:
-				virtual const std::set<std::type_index>& requirement() const = 0;
-				virtual void apply(stage_context&) = 0;
-				bool update(stage_context& sc, Tool::stack_list<property_map>* sl = nullptr);
-				template<typename ...PropertyMapping> auto update(stage_context& pi, PropertyMapping& ...pl) { 
-					return Tool::make_stack_list([&, this](Tool::stack_list<property_map>* p) {
-						update(sc, p);
-					}, pl...);
-				}
+				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl = nullptr) = 0;
+				virtual void apply_stage(stage_context& sc) = 0;
 			};
 
 			template<typename compute_t> class compute_implement;
@@ -284,12 +365,17 @@ namespace PO
 			template<typename compute_t>
 			class compute_implement : public compute_ptr, public compute_t
 			{
-				compute_shader shader;
 			public:
-				virtual const std::set<std::type_index>& requirement() const { return compute_t::compute_requirement(); }
-				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return compute_t::compute_update(sc, pi); }
-				virtual void apply(stage_context& sc) override { sc << shader; compute_t::compute_apply(sc); }
-				compute_implement(creator& c) : compute_ptr(typeid(compute_t), typeid(decltype(*this))), compute_t(c) { shader = stage_load_cs(compute_t::compute_shader_patch_cs(), c); assert(shader); }
+				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
+				{
+					const auto& ref = compute_t::requirement();
+					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+				}
+				void apply_stage(stage_context& sc) override final
+				{
+					compute_t::apply(sc);
+				}
+				compute_implement(creator& c) : compute_ptr(typeid(compute_t), typeid(decltype(*this))), compute_t(c) {}
 			};
 			template<typename T> using compute_implement_t = compute_implement<std::decay_t<T>>;
 
@@ -297,23 +383,27 @@ namespace PO
 
 			class placement_ptr : public base_interface<placement_implement>,  public stage_ptr
 			{
-				
 				friend struct element_draw_request;
 			public:
 				using base_interface<placement_implement>::base_interface;
-				virtual const vertex_shader& shader() const = 0;
+				virtual const shader_vertex& get_vs_shader() const = 0;
 			};
 
 			template<typename placement_t>
 			class placement_implement : public placement_ptr, public placement_t
 			{
-				vertex_shader vsshader;
 			public:
-				virtual const std::set<std::type_index>& requirement() const { return placement_t::placement_requirement(); }
-				virtual const vertex_shader& shader() const { return vsshader; }
-				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return placement_t::placement_update(sc, pi); }
-				virtual void apply(stage_context& sc) override { sc << vsshader; placement_t::placement_apply(sc); }
-				placement_implement(creator& c) : placement_ptr(typeid(placement_t), typeid(decltype(*this))), placement_t(c) { vsshader = stage_load_vs(placement_t::placement_shader_patch_vs(), c); assert(vsshader); }
+				virtual const shader_vertex& shader() const { return placement_t::get_vs_shader(); }
+				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
+				{
+					const auto& ref = placement_t::requirement();
+					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+				}
+				void apply_stage(stage_context& sc) override final
+				{
+					placement_t::apply(sc);
+				}
+				placement_implement(creator& c) : placement_ptr(typeid(placement_t), typeid(decltype(*this))), placement_t(c) { }
 			};
 
 			template<typename T> using placement_implement_t = placement_implement<std::decay_t<T>>;
@@ -322,40 +412,42 @@ namespace PO
 
 			class geometry_ptr : public base_interface<geometry_implement>,  public stage_ptr
 			{
-				virtual void apply(stage_context& sc) override final{}
-			public:
+				//virtual void apply(stage_context& sc) override final{}
+			protected:
 				std::map<std::type_index, input_layout> layout_map;
-				virtual void apply_implement(stage_context& sc, const std::type_index& ti) = 0;
-				using stage_ptr::stage_ptr;
-				virtual void update_layout(placement_ptr&, creator& c) = 0;
+			public:
+				virtual void apply_layout(stage_context& sc, placement_ptr&) = 0;
 				using base_interface<geometry_implement>::base_interface;
 			};
 
 			template<typename geometry_t>
 			class geometry_implement : public geometry_ptr, public geometry_t
 			{
-
 			public:
-				virtual const std::set<std::type_index>& requirement() const { return geometry_t::geometry_requirement(); }
-				virtual void update_layout(placement_ptr& pi, creator& c) override
+
+				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
-					auto ite = layout_map.find(pi.id());
+					const auto& ref = geometry_t::requirement();
+					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+				}
+				void apply_stage(stage_context& sc) override final
+				{
+					placement_t::apply(sc);
+				}
+
+				virtual void apply_layout(stage_context& sc, placement_ptr& pp) override
+				{
+					auto ite = layout_map.find(pp.id());
 					if (ite == layout_map.end())
 					{
-						input_layout tem = c.create_layout(geometry_t::geometry_input(), pi.shader());
+						input_layout tem;
+						tem.create(c, geometry_t::geometry_layout_view(), pi.shader());
 						layout_map.insert({ pi.id(), tem });
+						sc << tem;
 					}
+					else
+						ss << ite->second;
 				}
-
-				virtual void apply_implement(stage_context& sc, const std::type_index& ti) override
-				{
-					auto ite = layout_map.find(ti);
-					if (ite != layout_map.end())
-						sc << ite->second;
-					geometry_t::geometry_apply(sc);
-				}
-
-				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return geometry_t::geometry_update(sc, pi); }
 				geometry_implement(creator& c) : geometry_ptr(typeid(geometry_t), typeid(decltype(*this))), geometry_t(c) {}
 			};
 
@@ -363,35 +455,31 @@ namespace PO
 
 			class material_ptr : public base_interface<material_implement>, public stage_ptr
 			{
-				std::type_index pipeline_id;
 			public:
-				const std::type_index& pipeline() const { return pipeline_id; }
-				material_ptr(const std::type_index& ori, const std::type_index& rea, const std::type_index& pipe = typeid(void)) : base_interface<material_implement>(ori, rea), pipeline_id(pipe) {}
+				virtual const std::type_index& pipeline() const = 0;
+				using base_interface<material_implement>::base_interface;
 			};
 
 			template<typename material_t>
 			class material_implement : public material_ptr, public material_t
 			{
-				pixel_shader shader;
-
-				//template<typename T, typename = void> struct material_pipeline_detect : std::false_type {};
-				//template<typename T> struct material_pipeline_detect<T, std::void_t<decltype(material_t::pipeline_id())>> : std::true_type {};
 			public:
-				virtual const std::set<std::type_index>& requirement() const { return material_t::material_requirement(); }
-				virtual void apply(stage_context& sc) override { sc << shader; material_t::material_apply(sc); }
-				virtual bool update_implement(stage_context& sc, property_interface& pi) override { return material_t::material_update(sc, pi); }
-				material_implement(creator& c) : material_ptr(typeid(material_t), typeid(decltype(*this)), material_t::pipeline_id()), material_t(c) { shader = stage_load_ps(material_t::material_shader_patch_ps(), c);  assert(shader); }
+
+				const std::type_index& pipeline() const override final { return material_t::pipeline_id(); }
+				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
+				{
+					const auto& ref = material_t::requirement();
+					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+				}
+				void apply_stage(stage_context& sc) override final
+				{
+					material_t::apply(sc);
+				}
+
+				material_implement(creator& c) : material_ptr(typeid(material_t), typeid(decltype(*this))), material_t(c) {}
 			};
 			template<typename T> using placement_implement_t = placement_implement<std::decay_t<T>>;
 		}
-
-		struct material_default
-		{
-			static const std::type_index& pipeline_id() { static std::type_index tem = typeid(void);  return tem; }
-			static const std::set<std::type_index>& material_requirement() { return make_property_info_set<>{}; }
-			static void material_apply(stage_context& sc) { }
-			static bool material_update(stage_context& sc, property_interface& pi) { return false; }
-		};
 
 
 		class stage_instance
@@ -483,7 +571,7 @@ namespace PO
 			{
 				std::shared_ptr<compute_ptr> compute;
 				std::shared_ptr<property_map> mapping;
-				void update(stage_context& sc) { mapping->update(sc); }
+				void swap_to_renderer() { mapping->swap_to_renderer(); }
 				void dispatch(stage_context& sc, Tool::stack_list<property_map> * = nullptr);
 			};
 
@@ -493,7 +581,7 @@ namespace PO
 				std::shared_ptr<geometry_ptr> geometry;
 				std::shared_ptr<material_ptr> material;
 				std::shared_ptr<property_map> mapping;
-				void update(stage_context& sc) { mapping->update(sc); }
+				void swap_to_renderer() { mapping->swap_to_renderer(); }
 				void draw(stage_context& sc, Tool::stack_list<property_map> * = nullptr);
 			};
 		}
@@ -512,7 +600,7 @@ namespace PO
 			std::vector<std::shared_ptr<Implement::element_implement>> element_store;
 
 			element_logic_storage& operator<< (const element& ele) { if (ele.ptr) element_store.push_back(ele.ptr); return *this; }
-			void push (element_swap_block& esb, creator& c);
+			void logic_to_swap (element_swap_block& esb, creator& c);
 		};
 
 
@@ -520,7 +608,7 @@ namespace PO
 		{
 			std::vector<Implement::element_dispatch_request> dispatch_request;
 			std::unordered_map<std::type_index, std::vector<Implement::element_draw_request>> draw_request;
-			void get(element_swap_block& esb, stage_context& sc);
+			void swap_to_renderer(element_swap_block& esb, stage_context& sc);
 		};
 
 		class pipeline_interface
@@ -531,9 +619,7 @@ namespace PO
 			pipeline_interface(const std::type_index& ti);
 			const std::type_index& id() const { return type_info; }
 			virtual ~pipeline_interface();
-			void push(creator& c);
 			void execute(stage_context& sc, element_renderer_storage& ers, Tool::stack_list<Implement::property_map>* pml = nullptr);
-
 			virtual void execute_implement(stage_context& sc, element_renderer_storage& ers, Tool::stack_list<Implement::property_map>* pml = nullptr) = 0;
 		};
 

@@ -82,19 +82,19 @@ namespace PO
 		
 		class property_gbuffer_default
 		{
-			shader_resource_view srv;
-			shader_resource_view linear_z;
+			shader_resource_view<tex2> srv;
+			shader_resource_view<tex2> linear_z;
 			sample_state ss;
 		public:
 			struct renderer_data
 			{
-				shader_resource_view srv;
-				shader_resource_view linear_z;
+				shader_resource_view<tex2> srv;
+				shader_resource_view<tex2> linear_z;
 				sample_state ss;
 			};
 			void push(property_gbuffer_default& pgb, creator& sc) { pgb.srv = srv;  pgb.ss = ss;  pgb.linear_z = linear_z; }
 			void update(renderer_data& rd, creator& c) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; }
-			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = c.cast_shader_resource_view(t); ss = c.create_sample_state(); linear_z = c.cast_shader_resource_view(linear); }
+			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = t.cast_shader_resource_view(c); ss.create(c); linear_z = linear.cast_shader_resource_view(c); }
 		};
 
 
@@ -112,9 +112,9 @@ namespace PO
 		struct pipeline_opaque_default : public pipeline_interface
 		{
 			tex2 g_buffer;
-			render_target_view rtv;
+			render_target_view<tex2> rtv;
 			tex2 depth;
-			depth_stencil_view dsv;
+			depth_stencil_view<tex2> dsv;
 			depth_stencil_state dss;
 			blend_state bs;
 			output_merge_stage om;
@@ -142,19 +142,19 @@ namespace PO
 
 		class property_linearize_z
 		{
-			shader_resource_view input_depth;
-			unordered_access_view output_depth;
+			shader_resource_view<tex2> input_depth;
+			unordered_access_view<tex2> output_depth;
 			uint32_t2 size;
 		public:
 			struct renderer_data
 			{
-				shader_resource_view input_depth;
-				unordered_access_view output_depth;
+				shader_resource_view<tex2> input_depth;
+				unordered_access_view<tex2> output_depth;
 				uint32_t2 size;
 			};
 			void set_taregt(creator& c, const tex2& input, const tex2& output) {
-				input_depth = c.cast_shader_resource_view(input);
-				output_depth = c.cast_unordered_access_view(output);
+				input_depth = input.cast_shader_resource_view(c);
+				output_depth = output.cast_unordered_access_view(c);
 				size = output.size();
 			}
 			void push(property_linearize_z& plz, creator& c) { plz = *this; }
@@ -243,6 +243,33 @@ namespace PO
 			defer_renderer_default& operator << (const element& el) { els << el; return *this; }
 		};
 
+		struct property_tex2
+		{
+			shader_resource_view<tex2> srv;
+			sample_state ss;
+			struct renderer_data
+			{
+				shader_resource_view<tex2> srv;
+				sample_state ss;
+			};
+			void push(property_tex2& pt, creator& c) { pt.srv = srv; pt.ss = ss; }
+			void update(renderer_data& rd, stage_context& sc) { rd.srv = srv; rd.ss = ss; }
+			void set_texture(creator& c, const shader_resource_view<tex2>& t, const sample_state::description& des = sample_state::default_description) {
+				srv = t; 
+				ss.create(c, des);
+			}
+		};
+
+		class material_opaque_tex2_viewer //: public material_default
+		{
+		public:
+			std::type_index pipeline_id() { return typeid(pipeline_opaque_default); }
+			static const char16_t* material_shader_patch_ps();
+			static const std::set<std::type_index>& material_requirement();
+			static void material_apply(stage_context& sc) {}
+			static bool material_update(stage_context&, property_interface& pi);
+			material_opaque_tex2_viewer(creator& v) {}
+		};
 
 
 

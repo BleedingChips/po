@@ -40,7 +40,7 @@ namespace PO
 			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
 			/*instance(*this),*/ main_view(vt.get<tex2>().size_f()), ins(*this)
 		{
-			om << cast_render_target_view(back_buffer)[0];
+			om << back_buffer.cast_render_target_view(*this);
 			view = viewport{ back_buffer.size_f() };
 		}
 
@@ -85,22 +85,22 @@ namespace PO
 
 		void pipeline_opaque_default::set(creator& c, uint32_t2 size)
 		{
-
-			g_buffer = c.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, size.x, size.y);
-			depth = c.create_tex2_depth_stencil(DST_format::D24_UI8, g_buffer);
-			rtv = c.cast_render_target_view(g_buffer);
-			dsv = c.cast_depth_setncil_view(depth);
-			om << rtv[0] << dsv;
+			g_buffer.create_render_target(c, DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, size);
+			depth.create_depth_stencil(c, DST_format::D24_UI8, size);
+			rtv = g_buffer.cast_render_target_view(c);
+			dsv = depth.cast_depth_stencil_view(c);
+			om.clear();
+			om << rtv << dsv;
 			PO::Dx11::depth_stencil_state::description dss_defer_des = PO::Dx11::depth_stencil_state::description{
 				TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS },
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
 			};
-			dss = c.create_depth_stencil_state(dss_defer_des);
+			dss.create(c, dss_defer_des);
 			blend_state::description one_to_zero = blend_state::description{
 				FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
 			};
-			bs = c.create_blend_state(one_to_zero);
+			bs.create(c, one_to_zero);
 		}
 
 		const char16_t* material_opaque_testing::material_shader_patch_ps()
@@ -136,13 +136,13 @@ namespace PO
 			blend_state::description s_alpha_to_inv_s_alpha = blend_state::description{
 				FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
 			};
-			bs = c.create_blend_state(s_alpha_to_inv_s_alpha);
+			bs.create(c, s_alpha_to_inv_s_alpha);
 			PO::Dx11::depth_stencil_state::description dss_transparent_des = PO::Dx11::depth_stencil_state::description{
 				TRUE, D3D11_DEPTH_WRITE_MASK_ZERO, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS },
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
 			}; 
-			dss = c.create_depth_stencil_state(dss_transparent_des);
+			dss.create(c, dss_transparent_des);
 		}
 		void pipeline_transparent_default::execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr)
 		{
@@ -174,15 +174,15 @@ namespace PO
 			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
 			/*instance(*this),*/ view(vt.get<tex2>().size_f()), ins(*this)
 		{
-			om << cast_render_target_view(back_buffer)[0];
+			om << back_buffer.cast_render_target_view(*this);
 			mapping >> view;
 			opaque_pipeline.set(*this, back_buffer.size());
 
-			linear_z_buffer = create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, back_buffer);
+			linear_z_buffer.create_unordered_access(*this, DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, back_buffer.size());
 
 			decltype(dss)::description des = decltype(dss)::default_description;
 			des.DepthEnable = false;
-			dss = create_depth_stencil_state(des);
+			dss.create(*this, des);
 
 			merga << ins.create_geometry<geometry_screen>() << ins.create_placement<placement_direct>() << ins.create_material<material_merga_gbuffer_default>();
 			post_mapping << [this](property_gbuffer_default& pgd) {
@@ -227,7 +227,7 @@ namespace PO
 			context.unbind();
 
 			output_merge_stage om_tem;
-			om_tem << opaque_pipeline.rtv[0] << opaque_pipeline.dsv;
+			om_tem << opaque_pipeline.rtv << opaque_pipeline.dsv;
 			context << om_tem;
 
 			transparent_pipeline.execute(context, ers, &tem2);
@@ -244,10 +244,24 @@ namespace PO
 
 			context.unbind();
 
-			
 		}
 
+		const char16_t* material_opaque_tex2_viewer::material_shader_patch_ps()
+		{
+			return u"build_in_material_tex2_view.cso";
+		}
 
+		const std::set<std::type_index>& material_opaque_tex2_viewer::material_requirement()
+		{
+			return make_property_info_set<property_tex2>{};
+		}
+
+		bool material_opaque_tex2_viewer::material_update(stage_context& sc, property_interface& pi)
+		{
+			return pi.cast([&](property_tex2::renderer_data& rd) {
+				sc.PS() << rd.srv[0] << rd.ss[0];
+			});
+		}
 
 
 

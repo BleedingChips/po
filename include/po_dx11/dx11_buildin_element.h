@@ -7,11 +7,12 @@ namespace PO
 	{
 		using namespace PO::Dx;
 		
-		class property_local_transfer
+		class property_local_transfer : public property_resource
 		{
 			float4x4 local_to_world;
 			float4x4 world_to_local;
 			bool need_update = false;
+			constant_buffer transfer;
 		public:
 			struct renderer_data
 			{
@@ -45,14 +46,17 @@ namespace PO
 
 		class geometry_screen
 		{
-			input_assember_stage ia;
+			primitive_topology ele;
+			index_buffer index;
+			vertex_buffer vertex;
+			layout_view lv;
 			raterizer_state rs;
 		public:
 			geometry_screen(creator& c);
 			void geometry_apply(stage_context& sc);
 			bool geometry_update(stage_context& sc, property_interface& pi);
 			const std::set<std::type_index>& geometry_requirement() const;
-			const input_assember_stage& geometry_input() { return ia; }
+			const layout_view& geometry_layout_view() { return lv; }
 		};
 
 		class placement_direct
@@ -77,13 +81,17 @@ namespace PO
 
 		class geometry_cube
 		{
-			input_assember_stage ia;
+			primitive_topology ele;
+			index_buffer index;
+			vertex_buffer vertex;
+			layout_view lv;
+			raterizer_state rs;
 		public:
 			geometry_cube(creator& c);
 			void geometry_apply(stage_context& sc);
 			bool geometry_update(stage_context& sc, property_interface& pi);
 			const std::set<std::type_index>& geometry_requirement() const;
-			const input_assember_stage& geometry_input() { return ia; }
+			const layout_view& geometry_layout_view() { return lv; }
 		};
 
 		class placement_static_viewport_static
@@ -96,7 +104,6 @@ namespace PO
 			bool placement_update(stage_context& sc, property_interface& pi);
 			const std::set<std::type_index>& placement_requirement() const;
 		};
-
 
 		/*
 		class property_transfer : public property_interface

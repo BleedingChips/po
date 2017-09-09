@@ -113,7 +113,7 @@ namespace PO
 				need_update = false;
 				if (!rd.transfer)
 				{
-					rd.transfer = sc.create_constant_buffer(&as, true);
+					rd.transfer.create_pod(sc, as, true);
 				}
 				else {
 					sc.write_constant_buffer(rd.transfer, [&, this](void* data) {
@@ -140,7 +140,7 @@ namespace PO
 			//type temporary{ eye, world_to_screen, screen_to_world, float3{ eye._41, eye._42, eye._43 }, time };
 			if (!rd.viewport)
 			{
-				rd.viewport = sc.create_constant_buffer(&temporary, true);
+				rd.viewport.create_pod(sc, temporary, true);
 			}
 			else {
 				sc.write_constant_buffer(rd.viewport, [&, this](void* data) {
@@ -156,15 +156,18 @@ namespace PO
 
 		geometry_screen::geometry_screen(creator& c)
 		{
-			ia << c.create_vertex(square_2d_static, layout_type<syntax<position, 0, float2>, syntax<texcoord, 0, float2>>{})[0]
-				<< c.create_index(square_2d_static_index);
+			ele = primitive_topology::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			index.create_index(c, square_2d_static_index);
+			vertex.create_vertex(c, square_2d_static);
+			lv = layout_type<buffer_layout<syntax<position, 0, float2>, syntax<texcoord, 0, float2>>>{};
 			decltype(rs)::description des = decltype(rs)::default_description;
 			//des.CullMode = decltype(des.CullMode)::D3D11_CULL_NONE;
 			//rs = c.create_raterizer_state(des);
 		}
 		void geometry_screen::geometry_apply(stage_context& sc)
 		{
-			sc << ia << index_call{ static_cast<UINT>(square_2d_static_index.size()), 0, 0 } << rs;
+			sc << ele << index_call{ static_cast<uint32_t>(square_2d_static_index.size()), 0, 0 } << rs;
+			sc << index << vertex[0];
 		}
 		bool geometry_screen::geometry_update(stage_context& sc, property_interface& pi) { return false; }
 		const std::set<std::type_index>& geometry_screen::geometry_requirement() const
@@ -192,10 +195,14 @@ namespace PO
 
 		geometry_cube::geometry_cube(creator& c)
 		{
-			ia << c.create_vertex(cube_static_3d, layout_type<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>{})[0]
-				<< c.create_index(cube_static_3d_index);
+			ele = decltype(ele)::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			index.create_index(c, cube_static_3d_index);
+			vertex.create_vertex(c, cube_static_3d);
+			lv = layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{};
 		}
-		void geometry_cube::geometry_apply(stage_context& sc) { sc << ia; sc << index_call{static_cast<UINT>(cube_static_3d_index.size()), 0, 0}; }
+		void geometry_cube::geometry_apply(stage_context& sc) { 
+			sc << ele << index << vertex[0] << index_call{static_cast<UINT>(cube_static_3d_index.size()), 0, 0}; 
+		}
 		bool geometry_cube::geometry_update(stage_context& sc, property_interface& pi) 
 		{
 			return false;
@@ -254,7 +261,8 @@ namespace PO
 				transfer_sb = c.create_structured_buffer_unorder_access(v);
 				transfer_srv = c.cast_shader_resource_view(transfer_sb);
 				transfer_uav = c.cast_unordered_access_view(transfer_sb);
-				count = static_cast<UINT>(v.size());
+				count = static_cast<
+				>(v.size());
 				buffer_size = count;
 			}
 			else {

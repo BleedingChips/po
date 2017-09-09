@@ -10,14 +10,14 @@ class property_render_2d_for_3d
 
 	float3 min_width, max_width, light;
 	float density;
-	shader_resource_view m_srv;
+	shader_resource_view<tex2> m_srv;
 	sample_state m_ss;
 
 public:
 	
 	struct renderer_data
 	{
-		shader_resource_view m_srv;
+		shader_resource_view<tex2> m_srv;
 		sample_state m_ss;
 		constant_buffer m_cb;
 	};
@@ -33,7 +33,7 @@ public:
 	}
 	void set_texture(creator& c, const tex2& t, sample_state::description de = sample_state::default_description) 
 	{ 
-		m_srv = c.cast_shader_resource_view(t); m_ss = c.create_sample_state(de); 
+		m_srv = t.cast_shader_resource_view(c); m_ss.create(c, de);;
 	}
 
 	void push(property_render_2d_for_3d& prf, creator& c);

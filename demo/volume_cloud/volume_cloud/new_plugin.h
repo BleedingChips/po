@@ -9,9 +9,11 @@ struct new_plugin
 {
 	int swith_state = 0;
 	tex2 worley;
+	tex2 perlin_out;
 	element compute;
 	element output_volume_cube;
 	element back_ground;
+	element perlin_element;
 	//defer_element viewer;
 	transfer3D ts1;
 	transfer3D ts2;

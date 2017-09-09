@@ -29,129 +29,176 @@ namespace PO
 				: base_interface<property_proxy_implement>(original, real), associate_info(asso){}
 			property_proxy_interface::~property_proxy_interface() {}
 
-			void property_map::update(stage_context& sc)
+			void property_map::swap_to_renderer()
 			{
 				if (allready_update == false)
 				{
-					associate_mapping.clear();
-					for (auto& ite : proxy_mapping)
+					renderer_mapping.clear();
+					for (auto& ite : swap_mapping)
 					{
-						ite.second->update(sc);
-						associate_mapping.insert({ ite.second->associate_id(), ite.second });
+						ite.second->swap_to_renderer();
+						renderer_mapping.insert({ ite.second->associate_id(), ite.second });
 					}
 					allready_update = true;
 				}
 			}
 		}
 
-		std::shared_ptr<Implement::property_map> property_proxy_map::push(creator& c, const std::set<std::type_index>& require)
+		void property_proxy_map::logic_to_swap()
 		{
-			inside_map->proxy_mapping.clear();
+			inside_map->swap_mapping.clear();
 			for (auto& ite : mapping)
 			{
-				auto id = ite.second->associate_id();
-				if (require.find(id) != require.end())
-				{
-					ite.second->push(c);
-					inside_map->proxy_mapping.insert(ite);
-				}
+				ite.second->logic_to_swap();
+				inside_map->swap_mapping.insert(ite);
 			}
 			inside_map->allready_update = false;
-			return inside_map;
 		}
 
-		std::shared_ptr<Implement::property_map> property_proxy_map::push(creator& c)
+		void property_proxy_map::logic_to_renderer()
 		{
-			inside_map->proxy_mapping.clear();
+			inside_map->renderer_mapping.clear();
 			for (auto& ite : mapping)
 			{
-				ite.second->push(c);
-				inside_map->proxy_mapping.insert(ite);
+				ite.second->logic_to_renderer();
+				inside_map->renderer_mapping.insert(ite);
 			}
-			inside_map->allready_update = false;
-			return inside_map;
+			inside_map->allready_update = true;
 		}
 
 		namespace Implement
 		{
-			compute_shader stage_load_cs(const std::u16string& path, creator& c)
+			bool stage_resource::apply_property(stage_context& sc, property_interface& pi) { return true; }
+			stage_resource::~stage_resource() {}
+			const element_requirement& stage_resource::requirement() const
 			{
-				compute_shader temporary;
+				static element_requirement re{};
+				return re;
+			}
+		}
+
+		geometry_resource::geometry_resource(creator& c, layout_view v, std::optional<raterizer_state::description> o, primitive_topology t) : view(v), primitive(t)
+		{
+			if (o)
+				state.create(c, *o);
+		}
+
+		void geometry_resource::apply(stage_context& sc)
+		{
+			sc << primitive << state;
+		}
+
+		void compute_resource::apply(stage_context& sc) { sc << shader; }
+		compute_resource::compute_resource(creator& c, std::u16string cs_pacth): patch(std::move(cs_pacth))
+		{
+			if (!cs_pacth.empty())
+				shader = Implement::stage_load_cs(patch, c);
+		}
+
+		void material_resource::apply(stage_context& sc)
+		{
+			sc << bs << shader;
+		}
+
+		material_resource::material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> des, const std::type_index& ti) : patch(std::move(ps_patch)), id_for_pipeline(ti)
+		{
+			if(!ps_patch.empty())
+				shader = Implement::stage_load_ps(patch, c);
+			if (des)
+				bs.create(c, *des);
+		}
+
+		void placement_resource::apply(stage_context& sc)
+		{
+			sc << shader;
+		}
+
+		placement_resource::placement_resource(creator& c, std::u16string ps_patch) : patch(std::move(ps_patch))
+		{
+			if (!ps_patch.empty())
+				shader = Implement::stage_load_vs(patch, c);
+		}
+
+		bool element_requirement::apply_property_implement(Implement::stage_resource& sr, stage_context& sc, const map_t::value_type& map_ite, Tool::stack_list<Implement::property_map>* sl)
+		{
+			if (sl != nullptr)
+			{
+				bool result = false;
+				return apply_property_implement(sr, sc, map_ite, sl->front) || (sl->type_ref.find_associate(map_ite.first, [&](property_interface& pi) {
+					auto& ref = (map_ite.second);
+					result = (*std::get<0>(ref))(sc, pi, std::get<1>(ref)) && sr.apply_property(sc, pi);
+				}) && result);
+			}else
+				return false;
+		}
+
+		bool element_requirement::apply_property(Implement::stage_resource& sr, stage_context& sc, Tool::stack_list<Implement::property_map>* sl) const
+		{
+			for (auto& ite : mapping)
+				if (!apply_property_implement(sr, sc, ite, sl)) return false;
+			return true;
+		}
+
+		namespace Implement
+		{
+			shader_compute stage_load_cs(const std::u16string& path, creator& c)
+			{
+				shader_compute temporary;
 				get_shader_scene().lock([&](PO::scene& s) mutable {
 					s.load(path, true, [&](const PO::Dx::shader_binary& b) mutable {
-						temporary = c.create_compute_shader(b);
+						temporary.create(c, b);
 					});
 				});
 				return temporary;
 			}
 
-			vertex_shader stage_load_vs(const std::u16string& path, creator& c)
+			shader_vertex stage_load_vs(const std::u16string& path, creator& c)
 			{
-				vertex_shader temporary;
+				shader_vertex temporary;
 				get_shader_scene().lock([&](PO::scene& s) mutable {
 					s.load(path, true, [&](std::shared_ptr<PO::Dx::shader_binary> b) mutable {
-						temporary = c.create_vertex_shader(std::move(b));
+						temporary.create(c, b);
 					});
 				});
 				return temporary;
 			}
 
-			pixel_shader stage_load_ps(const std::u16string& path, creator& c)
+			shader_pixel stage_load_ps(const std::u16string& path, creator& c)
 			{
-				pixel_shader temporary;
+				shader_pixel temporary;
 				get_shader_scene().lock([&](PO::scene& s) mutable {
 					s.load(path, true, [&](const PO::Dx::shader_binary& b) mutable {
-						temporary = c.create_pixel_shader(b);
+						temporary.create(c, b);
 					});
 				});
 				return temporary;
-			}
-
-			bool stage_ptr::update(stage_context& sc, const std::type_index& ti, Tool::stack_list<property_map>* sl)
-			{
-				if (sl == nullptr)
-					return false;
-				else
-				{
-					bool result = false;
-					return update(sc, ti, sl->front) || sl->type_ref.find_associate(ti, [&, this](property_interface& pi) {
-						result = update_implement(sc, pi);
-					}) && result;
-				}
-			}
-			bool stage_ptr::update(stage_context& sc, Tool::stack_list<property_map>* sl)
-			{
-				for (auto& ite : requirement())
-					if (!update(sc, ite, sl))
-						return false;
-				return true;
 			}
 
 			void element_dispatch_request::dispatch(stage_context& sc, Tool::stack_list<property_map> * sl)
 			{
 				Tool::stack_list<property_map> tem{ *mapping, sl };
-				if (compute->update(sc, &tem))
+				if (compute->apply_property(sc, &tem))
 				{
-					compute->apply(sc);
+					compute->apply_stage(sc);
 					sc.call();
 				}
-				
 			}
 
 			void element_draw_request::draw(stage_context& sc, Tool::stack_list<property_map> * sl)
 			{
 				Tool::stack_list<property_map> tem{ *mapping, sl };
-				if (placemenet->update(sc, &tem) && geometry->update(sc, &tem) && material->update(sc, &tem))
+				if (placemenet->apply_property(sc, &tem) && geometry->apply_property(sc, &tem) && material->apply_property(sc, &tem))
 				{
-					placemenet->apply(sc);
-					geometry->apply_implement(sc, placemenet->id());
-					material->apply(sc);
+					placemenet->apply_stage(sc);
+					geometry->apply_stage(sc);
+					geometry->apply_layout(sc, *placemenet);
+					material->apply_stage(sc);
 					sc.call();
 				}
 			}
 		}
 
-		void element_logic_storage::push(element_swap_block& esb, creator& c)
+		void element_logic_storage::logic_to_swap(element_swap_block& esb, creator& c)
 		{
 			if (esb.swap_lock.try_lock())
 			{
@@ -161,33 +208,8 @@ namespace PO
 				
 				for (auto & ite : element_store)
 				{
-					std::set<std::type_index> temporary;
-
-					for (auto& ite2 : ite->compute)
-					{
-						auto& info = ite2->requirement();
-						temporary.insert(info.begin(), info.end());
-					}
-
-					if (ite->placement)
-					{
-						auto& info = ite->placement->requirement();
-						temporary.insert(info.begin(), info.end());
-					}
-
-					if (ite->geometry)
-					{
-						auto& info = ite->geometry->requirement();
-						temporary.insert(info.begin(), info.end());
-					}
-
-					for (auto& ite2 : ite->material)
-					{
-						auto& info = ite2.second->requirement();
-						temporary.insert(info.begin(), info.end());
-					}
-
-					auto map = ite->mapping.push(c, temporary);
+					ite->mapping.logic_to_swap();
+					auto map = ite->mapping.map();
 
 					for (auto& ite2 : ite->compute)
 					{
@@ -196,7 +218,6 @@ namespace PO
 
 					if (ite->placement && ite->geometry)
 					{
-						ite->geometry->update_layout(*(ite->placement), c);
 						for (auto& ite2 : ite->material)
 						{
 							(esb.draw_request)[ite2.second->pipeline()].emplace_back(Implement::element_draw_request{ ite->placement, ite->geometry, ite2.second, map });
@@ -208,7 +229,7 @@ namespace PO
 			}
 		}
 
-		void element_renderer_storage::get(element_swap_block& esb, stage_context& sc)
+		void element_renderer_storage::swap_to_renderer(element_swap_block& esb, stage_context& sc)
 		{
 			{
 				std::lock_guard<decltype(esb.swap_lock)> lg(esb.swap_lock);
@@ -217,22 +238,19 @@ namespace PO
 			}
 			
 			for (auto& ite : dispatch_request)
-				ite.update(sc);
+				ite.swap_to_renderer();
 			for (auto& ite : draw_request)
 				for (auto& ite2 : ite.second)
-					ite2.update(sc);
+					ite2.swap_to_renderer();
 		}
 
 		pipeline_interface::pipeline_interface(const std::type_index& ti) : type_info(ti) {}
 		pipeline_interface::~pipeline_interface() {}
-		void pipeline_interface::push(creator& c) {
-			property_mapping.push(c);
-		}
 
 		void pipeline_interface::execute(stage_context& sc, element_renderer_storage& esb, Tool::stack_list<Implement::property_map>* pml)
 		{
-			property_mapping.inside_map->update(sc);
-			Tool::stack_list<Implement::property_map> tem{ *(property_mapping.inside_map), pml };
+			property_mapping.logic_to_renderer();
+			Tool::stack_list<Implement::property_map> tem{*(property_mapping.map()), pml };
 			execute_implement(sc, esb, &tem);
 		}
 

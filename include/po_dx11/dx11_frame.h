@@ -4,137 +4,529 @@
 #include <tuple>
 #include "../po/tool/auto_adapter.h"
 #include "../po_dx/dx_type.h"
+#include <optional>
 namespace PO
 {
 	namespace Dx11
 	{
 		using namespace Dx;
-		struct UINT2 { UINT x, y; };
 
-		struct structured_buffer {
-			Win32::com_ptr<ID3D11Buffer> ptr;
-			std::tuple<structured_buffer, size_t> operator[](size_t i) && {return std::tuple<structured_buffer, size_t>{std::move(*this), i}; }
-			std::tuple<const structured_buffer&, size_t> operator[](size_t i) const& { return std::tuple<const structured_buffer&, size_t>{std::move(*this), i}; }
-			operator bool() const { return ptr; }
-		};
+		uint32_t calculate_mipmap_count(uint32_t p, uint32_t mipmap);
 
-		struct input_element
+		inline uint32_t calculate_mipmap_count(uint32_t2 p, uint32_t mipmap)
 		{
-			std::vector<D3D11_INPUT_ELEMENT_DESC> layout;
-			template<typename F>
-			void insert(const input_element& ie, F&& f)
-			{
-				auto ite = layout.insert(layout.end(), ie.layout.begin(), ie.layout.end());
-				for (; ite != layout.end(); ++ite)
-					f(*ite);
-			}
-			template<typename F>
-			void remove_if(F&& f)
-			{
-				layout.erase(
-					std::remove_if(layout.begin(), layout.end(), f),
-					layout.end()
-				);
-			}
-			input_element& insert_with_solt(const input_element& ie, size_t i);
-			input_element& insert_offset_solt(const input_element& ie, size_t i);
-			input_element() = default;
-			input_element(const input_element&) = default;
-			input_element(input_element&&) = default;
-			input_element& operator=(const input_element&) = default;
-			input_element& operator=(input_element&&) = default;
-			input_element(std::vector<D3D11_INPUT_ELEMENT_DESC> p) : layout(std::move(p)) {}
-		};
+			return calculate_mipmap_count(p.x > p.y ? p.x : p.y, mipmap);
+		}
 
-		struct vertex
+		inline uint32_t calculate_mipmap_count(uint32_t3 p, uint32_t mipmap)
 		{
-			Win32::com_ptr<ID3D11Buffer> ptr;
-			UINT offset;
-			UINT element_size;
-			UINT num;
+			return calculate_mipmap_count(uint32_t2{ p.x > p.y ? p.x : p.y, p.z }, mipmap);
+		}
 
-			input_element layout;
-
-			std::tuple<vertex, size_t> operator[](size_t i) && {return std::tuple<vertex, size_t>{std::move(*this), i}; }
-			std::tuple<const vertex&, size_t> operator[](size_t i) const& { return std::tuple<const vertex&, size_t>{*this, i}; }
-
-			operator structured_buffer() const { return structured_buffer{ptr}; }
-			operator bool() const { return ptr; }
-
-		};
-
-		struct index
+		struct creator
 		{
-			Win32::com_ptr<ID3D11Buffer> ptr;
-			UINT offset;
-			DXGI_FORMAT format;
-			UINT num;
+			Win32::com_ptr<ID3D11Device> dev;
+			creator(Win32::com_ptr<ID3D11Device> d) : dev(std::move(d)) { assert(dev); }
+			creator(const creator&) = default;
 		};
 
-		struct index_vertex
-		{
-			Win32::com_ptr<ID3D11Buffer> ptr;
-			UINT v_offset;
-			UINT v_element_size;
-			UINT v_num;
-			input_element v_layout;
-			UINT i_offset;
-			DXGI_FORMAT i_format;
-			UINT i_num;
-			std::tuple<index_vertex, size_t> operator[](size_t i) && {return std::tuple<index_vertex, size_t>{std::move(*this), i}; }
-			std::tuple<const index_vertex&, size_t> operator[](size_t i) const& { return std::tuple<const index_vertex&, size_t>{*this, i}; }
-		};
-
-		struct tex1 { 
-			Win32::com_ptr<ID3D11Texture1D> ptr; 
-			operator bool() const { return ptr; } 
-			uint32_t size() const;
-		};
-		struct tex2 { 
-			Win32::com_ptr<ID3D11Texture2D> ptr; 
-			operator bool() const { return ptr; }
-			PO::Dx::uint32_t2 size() const;
-			PO::Dx::float2 size_f() const { auto s = size(); return float2{static_cast<float>(s.x), static_cast<float>(s.y)}; }
-		};
-		struct tex3 { 
-			Win32::com_ptr<ID3D11Texture3D> ptr; 
-			operator bool() const { return ptr; } 
-			PO::Dx::uint32_t3 size() const;
-		};
-
-		struct constant_buffer { 
-			Win32::com_ptr<ID3D11Buffer> ptr; 
-			std::tuple<constant_buffer, size_t> operator[](size_t i) && {return std::tuple<constant_buffer, size_t>{std::move(*this), i}; }
-			std::tuple<const constant_buffer&, size_t> operator[](size_t i) const& {return std::tuple<const constant_buffer&, size_t>{std::move(*this), i}; }
-			operator bool() const { return ptr; }
-		};
-		
-		struct readable_buffer { Win32::com_ptr<ID3D11Buffer> ptr; };
-
-		struct shader_resource_view { 
+		struct shader_resource_view_interface {
 			Win32::com_ptr<ID3D11ShaderResourceView> ptr;
-			std::tuple<shader_resource_view, size_t> operator[](size_t i) && {return std::tuple<shader_resource_view, size_t>{std::move(*this), i}; }
-			std::tuple<const shader_resource_view&, size_t> operator[](size_t i) const& { return std::tuple<const shader_resource_view&, size_t>{std::move(*this), i}; }
+			std::tuple<shader_resource_view_interface, uint32_t> operator[](uint32_t i) && {return std::tuple<shader_resource_view_interface, uint32_t>{std::move(*this), i}; }
+			std::tuple<const shader_resource_view_interface&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const shader_resource_view_interface&, uint32_t>{*this, i}; }
 			operator bool() const { return ptr; }
+			shader_resource_view_interface() = default;
+			shader_resource_view_interface(Win32::com_ptr<ID3D11ShaderResourceView> p) : ptr(std::move(p)) {}
+			shader_resource_view_interface(const shader_resource_view_interface&) = default;
+			shader_resource_view_interface(shader_resource_view_interface&&) = default;
+			shader_resource_view_interface& operator=(const shader_resource_view_interface&) = default;
+			shader_resource_view_interface& operator=(shader_resource_view_interface&&) = default;
 		};
 
-		struct unordered_access_view { 
-			Win32::com_ptr<ID3D11UnorderedAccessView> ptr; UINT offset; 
-			std::tuple<unordered_access_view, size_t> operator[](size_t i) && {return std::tuple<unordered_access_view, size_t>{std::move(*this), i}; }
-			std::tuple<const unordered_access_view&, size_t> operator[](size_t i) const& { return std::tuple<const unordered_access_view&, size_t>{std::move(*this), i}; }
+		struct unordered_access_view_interface {
+			Win32::com_ptr<ID3D11UnorderedAccessView> ptr; uint32_t offset = 0;
+			std::tuple<unordered_access_view_interface, uint32_t> operator[](uint32_t i) && {return std::tuple<unordered_access_view_interface, uint32_t>{std::move(*this), i}; }
+			std::tuple<const unordered_access_view_interface&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const unordered_access_view_interface&, uint32_t>{*this, i}; }
 			operator bool() const { return ptr; }
+			unordered_access_view_interface() = default;
+			unordered_access_view_interface(Win32::com_ptr<ID3D11UnorderedAccessView> p, uint32_t off = 0) : ptr(std::move(p)), offset(off) {}
+			unordered_access_view_interface(const unordered_access_view_interface&) = default;
+			unordered_access_view_interface(unordered_access_view_interface&&) = default;
+			unordered_access_view_interface& operator=(const unordered_access_view_interface&) = default;
+			unordered_access_view_interface& operator=(unordered_access_view_interface&&) = default;
 		};
 
-		struct render_target_view { 
+		struct render_target_view_interface {
 			Win32::com_ptr<ID3D11RenderTargetView> ptr;
-			std::tuple<render_target_view, size_t> operator[](size_t i) && {return std::tuple<render_target_view, size_t>{std::move(*this), i}; }
-			std::tuple<const render_target_view&, size_t> operator[](size_t i) const& { return std::tuple<const render_target_view&, size_t>{std::move(*this), i}; }
+			//std::tuple<render_target_view_interface, uint32_t> operator[](uint32_t i) && {return std::tuple<render_target_view_interface, uint32_t>{std::move(*this), i}; }
+			//std::tuple<const render_target_view_interface&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const render_target_view_interface&, uint32_t>{*this, i}; }
 			operator bool() const { return ptr; }
+			render_target_view_interface() = default;
+			render_target_view_interface(Win32::com_ptr<ID3D11RenderTargetView> p) : ptr(std::move(p)) {}
+			render_target_view_interface(const render_target_view_interface&) = default;
+			render_target_view_interface(render_target_view_interface&&) = default;
+			render_target_view_interface& operator=(const render_target_view_interface&) = default;
+			render_target_view_interface& operator=(render_target_view_interface&&) = default;
 		};
 
-		struct depth_stencil_view { 
-			Win32::com_ptr<ID3D11DepthStencilView> ptr; 
+		struct depth_stencil_view_interface {
+			Win32::com_ptr<ID3D11DepthStencilView> ptr;
 			operator bool() const { return ptr; }
+			depth_stencil_view_interface() = default;
+			depth_stencil_view_interface(Win32::com_ptr<ID3D11DepthStencilView> p) : ptr(std::move(p)) {}
+			depth_stencil_view_interface(const depth_stencil_view_interface&) = default;
+			depth_stencil_view_interface(depth_stencil_view_interface&&) = default;
+			depth_stencil_view_interface& operator=(const depth_stencil_view_interface&) = default;
+			depth_stencil_view_interface& operator=(depth_stencil_view_interface&&) = default;
+		};
+
+		template<typename T> struct shader_resource_view : shader_resource_view_interface {
+			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array>::value, "only receive tex1 and tex2");
+		};
+		template<typename T> struct render_target_view : render_target_view_interface {
+			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array>::value, "only receive tex1 and tex2");
+		};
+
+		template<typename T> struct depth_stencil_view : depth_stencil_view_interface {
+			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array>::value, "only receive tex1 and tex2");
+		};
+
+		template<typename T> struct unordered_access_view : unordered_access_view_interface {
+			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array, tex3, structured_buffer>::value, "only receive tex1, tex2, tex3, and structured buffer");
+		};
+
+		struct tex1_source { 
+			void* data_ptr; 
+			operator D3D11_SUBRESOURCE_DATA () const { return { data_ptr, 0, 0}; }
+			tex1_source(const tex1_source&) = default;
+			tex1_source(tex1_source&&) = default;
+			tex1_source(void* data) : data_ptr(data) {}
+		};
+
+		struct tex2_source { 
+			void* data_ptr; 
+			uint32_t line_size;
+			operator D3D11_SUBRESOURCE_DATA () const { return { data_ptr, line_size, 0 }; }
+			tex2_source(const tex2_source&) = default;
+			tex2_source(tex2_source&&) = default;
+			tex2_source(void* data, uint32_t line) : data_ptr(data), line_size(line) {}
+		};
+
+		struct tex3_source {
+			void* data_ptr;
+			uint32_t line_size;
+			uint32_t surface_size;
+			operator D3D11_SUBRESOURCE_DATA () const { return { data_ptr, line_size, surface_size }; }
+			tex3_source(const tex3_source&) = default;
+			tex3_source(tex3_source&&) = default;
+			tex3_source(void* data, uint32_t line, uint32_t surface) : data_ptr(data), line_size(line), surface_size(surface){}
+		};
+
+		enum class DST_format
+		{
+			D16,
+			D24_UI8,
+			F32,
+			F32_UI8,
+			UNKNOW
+		};
+
+		DXGI_FORMAT translate_DST_format(DST_format DSF);
+
+
+		namespace Implement
+		{
+			struct buffer_interface {
+				Win32::com_ptr<ID3D11Buffer> ptr;
+				operator bool() const { return ptr; }
+			protected:
+				std::optional<HRESULT> create_implement(creator& c, uint32_t width, D3D11_USAGE DU, uint32_t BIND, uint32_t misc_flag, uint32_t struct_byte, const void* data) noexcept;
+			};
+
+			struct tex1_interface {
+				Win32::com_ptr<ID3D11Texture1D> ptr;
+				operator bool() const { return ptr; }
+				uint32_t size() const;
+				using size_type = uint32_t;
+				using source_type = tex1_source;
+			protected:
+				std::optional<HRESULT> create_implement(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel, uint32_t count, D3D11_USAGE DU, uint32_t BIND, uint32_t misc, const tex1_source* source) noexcept;
+			};
+
+			struct tex2_interface {
+				Win32::com_ptr<ID3D11Texture2D> ptr;
+				operator bool() const { return ptr; }
+				PO::Dx::uint32_t2 size() const;
+				PO::Dx::float2 size_f() const { auto s = size(); return float2{ static_cast<float>(s.x), static_cast<float>(s.y) }; }
+				using size_type = uint32_t2;
+				using source_type = tex2_source;
+			protected:
+				std::optional<HRESULT> create_implement(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel, uint32_t count, uint32_t sample_num, uint32_t sample_quality, D3D11_USAGE usage, uint32_t bind, uint32_t mis, const tex2_source* source) noexcept;
+			};
+
+			struct tex3_interface {
+				Win32::com_ptr<ID3D11Texture3D> ptr;
+				operator bool() const { return ptr; }
+				PO::Dx::uint32_t3 size() const;
+				using size_type = uint32_t3;
+				using source_type = tex3_source;
+			protected:
+				std::optional<HRESULT> create_implement(creator& c, DXGI_FORMAT DF, uint32_t3 size, uint32_t miplevel, D3D11_USAGE usage, uint32_t bind, uint32_t mis, const tex3_source* source) noexcept;
+			};
+
+			enum class AvalibleViewType
+			{
+				NONE,
+				SR,
+				RT,
+				DS,
+				UA
+			};
+		}
+
+		class structured_buffer : Implement::buffer_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, uint32_t size, uint32_t struct_byte, const void* data = nullptr, bool write_able = false) {
+				bool result = !Implement::buffer_interface::create_implement(c, size, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, struct_byte, data).has_value();
+				av = ViewType::SR;
+				return result;
+			}
+			template<typename T, typename K> bool create(creator& c, const std::vector<T, K>& data, bool write_able = false) {
+				return create(c, static_cast<uint32_t>(data.size() * sizeof(T)), sizeof(T), data.data(), write_able);
+			}
+			bool create_unordered_access(creator& c, uint32_t size, uint32_t struct_byte, const void* data) {
+				bool result = !Implement::buffer_interface::create_implement(c, size, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, struct_byte, data).has_value();
+				av = ViewType::RT;
+				return result;
+			}
+			shader_resource_view<structured_buffer> cast_shader_resource_view(creator& c, std::optional<uint32_t2> range = {}) const;
+			unordered_access_view<structured_buffer> cast_unordered_access_view(creator& c, std::optional<uint32_t2> elemnt_start_and_count = {}, std::optional<uint32_t> offset = {}, bool is_append_or_consume = false) const;
+		};
+
+		struct vertex_buffer : Implement::buffer_interface{
+			uint32_t stride;
+			bool create_vertex(creator& c, uint32_t size, uint32_t struct_byte, const void* data, bool write_able = false) {
+				bool result = !Implement::buffer_interface::create_implement(c, size, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_VERTEX_BUFFER, 0, 0, data).has_value();
+				if (result) stride = struct_byte;
+				return result;
+			}
+			template<typename T, size_t count> bool create_vertex(creator& c, const std::array<T, count>& arr, bool write_able = false) {
+				return create_vertex(c, sizeof(T) * count, sizeof(T), arr.data(), write_able);
+			}
+			std::tuple<vertex_buffer, uint32_t> operator[](uint32_t i) && {return std::tuple<vertex_buffer, uint32_t>{std::move(*this), i}; }
+			std::tuple<const vertex_buffer&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const vertex_buffer&, uint32_t>{*this, i}; }
+		};
+
+		struct index_buffer : Implement::buffer_interface {
+			DXGI_FORMAT DF = DXGI_FORMAT_UNKNOWN;
+			bool create_index(creator& c, uint32_t count, const uint32_t* data, bool write_able = false) {
+				bool result = !Implement::buffer_interface::create_implement(c, count * sizeof(uint32_t), write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_INDEX_BUFFER, 0, 0, data).has_value();
+				if (result) DF = DXGI::data_format<uint32_t>::format;
+				return result;
+			}
+			bool create_index(creator& c, uint32_t count, const uint16_t* data, bool write_able = false) {
+				bool result = !Implement::buffer_interface::create_implement(c, count * sizeof(uint16_t), write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_INDEX_BUFFER, 0, 0, data).has_value();
+				if (result) DF = DXGI::data_format<uint16_t>::format;
+				return result;
+			}
+			template<typename T, size_t count> bool create_index(creator& c, const std::array<T, count>& arr, bool write_able = false) {
+				return create_index(c, count, arr.data(), write_able);
+			}
+		};
+
+		struct constant_buffer : Implement::buffer_interface{
+			std::tuple<constant_buffer, uint32_t> operator[](uint32_t i) && {return std::tuple<constant_buffer, uint32_t>{std::move(*this), i}; }
+			std::tuple<const constant_buffer&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const constant_buffer&, uint32_t>{*this, i}; }
+			bool create_raw(creator& c, uint32_t width, const void* data = nullptr);
+			template<typename T> bool create_pod(creator& c, const T& pod)
+			{
+				return create_raw(c, sizeof(T), &pod);
+			}
+		};
+
+		class tex1 : Implement::tex1_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, bool write_able = false, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, 1, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, 1, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t size, uint32_t miplevel = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, translate_DST_format(DF), size, miplevel, 1, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, 1, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex1> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_start_range = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_start_range); }
+			shader_resource_view<tex1> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_start_range = {}) const;
+			depth_stencil_view<tex1> cast_depth_stencil_view(creator& c, uint32_t miplevel = 0) const;
+			render_target_view<tex1> cast_render_target_view(creator& c, uint32_t miplevel = 0) const { return cast_render_target_view_as_format(c,DXGI_FORMAT_UNKNOWN, miplevel); }
+			render_target_view<tex1> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0) const;
+			unordered_access_view<tex1> cast_unordered_access_view(creator& c, uint32_t miplevel = 0) const { return cast_unordered_access_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel); }
+			unordered_access_view<tex1> cast_unordered_access_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0) const;
+		};
+
+		class tex1_array : public Implement::tex1_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, uint32_t count = 1, bool write_able = false, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, count, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, uint32_t count = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, count, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t size, uint32_t miplevel = 1, uint32_t count = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, translate_DST_format(DF), size, miplevel, count, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t size, uint32_t miplevel = 1, uint32_t count = 1, const tex1_source* source = nullptr) {
+				bool result = !Implement::tex1_interface::create_implement(c, DF, size, miplevel, count, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex1_array> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_range, array_start_and_count); }
+			shader_resource_view<tex1_array> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {})const;
+			depth_stencil_view<tex1_array> cast_depth_stencil_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+			render_target_view<tex1_array> cast_render_target_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			render_target_view<tex1_array> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+			unordered_access_view<tex1_array> cast_unordered_access_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_unordered_access_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			unordered_access_view<tex1_array> cast_unordered_access_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+		};
+
+		class tex2 : public Implement::tex2_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, bool write_able = false, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 1, 1, 0, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 1, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, miplevel, 1, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 1, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex2> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_start_range = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_start_range); }
+			shader_resource_view<tex2> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_start_range = {}) const;
+			depth_stencil_view<tex2> cast_depth_stencil_view(creator& c, uint32_t miplevel = 0)const;
+			render_target_view<tex2> cast_render_target_view(creator& c, uint32_t miplevel = 0) const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel); }
+			render_target_view<tex2> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0) const;
+			unordered_access_view<tex2> cast_unordered_access_view(creator& c, uint32_t miplevel = 0) const { return cast_unordered_access_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel); }
+			unordered_access_view<tex2> cast_unordered_access_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0)const;
+		};
+
+		class tex2_array : public Implement::tex2_interface
+		{
+		protected:
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, bool write_able = false, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, count, 1, 0, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, miplevel, count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex2_array> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_range, array_start_and_count); }
+			shader_resource_view<tex2_array> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {})const;
+			depth_stencil_view<tex2_array> cast_depth_stencil_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+			render_target_view<tex2_array> cast_render_target_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			render_target_view<tex2_array> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+			unordered_access_view<tex2_array> cast_unordered_access_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_unordered_access_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			unordered_access_view<tex2_array> cast_unordered_access_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+		};
+
+		class tex2ms : public Implement::tex2_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, bool write_able = false, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, 1, 1, sample.x, sample.y, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, 1, 1, sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, 1, 1, sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			shader_resource_view<tex2ms> cast_shader_resource_view(creator& c) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN); }
+			shader_resource_view<tex2ms> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF)const;
+			depth_stencil_view<tex2ms> cast_depth_stencil_view(creator& c)const;
+			render_target_view<tex2ms> cast_render_target_view(creator& c)const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN); }
+			render_target_view<tex2ms> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF)const;
+		};
+
+		class tex2ms_array : public Implement::tex2_interface
+		{
+			using ViewType = Implement::AvalibleViewType;
+			ViewType av = ViewType::NONE;
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, uint32_t count = 1, bool write_able = false, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, 1, count, sample.x, sample.y, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, uint32_t count = 1, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, 1, count, sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, std::optional<uint32_t2> sample_count_quality = {}, uint32_t count = 1, const tex2_source* source = nullptr) {
+				uint32_t2 sample = sample_count_quality.value_or(uint32_t2{ 1, 0 });
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, 1, count, sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			shader_resource_view<tex2ms_array> cast_shader_resource_view(creator& c, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, array_start_and_count); }
+			shader_resource_view<tex2ms_array> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> array_start_and_count = {})const;
+			depth_stencil_view<tex2ms_array> cast_depth_stencil_view(creator& c, std::optional<uint32_t2> array_start_and_count = {})const;
+			render_target_view<tex2ms_array> cast_render_target_view(creator& c, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN, array_start_and_count); }
+			render_target_view<tex2ms_array> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> array_start_and_count = {})const;
+		};
+
+		class tex_cube : public tex2_array
+		{
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, bool write_able = false, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6, 1, 0, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, miplevel, 6, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex_cube> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_range = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_range); }
+			shader_resource_view<tex_cube> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_range = {})const;
+			using tex2_array::cast_depth_stencil_view;
+			using tex2_array::cast_render_target_view;
+			using tex2_array::cast_unordered_access_view;
+			using tex2_array::cast_unordered_access_view_as_format;
+		};
+
+		class tex_cube_array : public tex2_array
+		{
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, bool write_able = false, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6 * count, 1, 0, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::SR;
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6 * count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::RT;
+				return result;
+			}
+			bool create_depth_stencil(creator& c, DST_format DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, translate_DST_format(DF), size, miplevel, 6 * count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::DS;
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t2 size, uint32_t miplevel = 1, uint32_t count = 1, const tex2_source* source = nullptr) {
+				bool result = !Implement::tex2_interface::create_implement(c, DF, size, miplevel, 6 * count, 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_TEXTURECUBE, source).has_value();
+				if (result) av = ViewType::UA;
+				return result;
+			}
+			shader_resource_view<tex_cube_array> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_range, array_start_and_count); }
+			shader_resource_view<tex_cube_array> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_range = {}, std::optional<uint32_t2> array_start_and_count = {})const;
+			using tex2_array::cast_depth_stencil_view;
+			using tex2_array::cast_render_target_view;
+			using tex2_array::cast_unordered_access_view;
+			using tex2_array::cast_unordered_access_view_as_format;
+		};
+
+		class tex3 : public Implement::tex3_interface
+		{
+		public:
+			bool create(creator& c, DXGI_FORMAT DF, uint32_t3 size, uint32_t miplevel = 1, bool write_able = false, const tex3_source* source = nullptr) {
+				bool result = !Implement::tex3_interface::create_implement(c, DF, size, miplevel, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE, 0, source).has_value();
+				return result;
+			}
+			bool create_render_target(creator& c, DXGI_FORMAT DF, uint32_t3 size, uint32_t miplevel = 1, const tex3_source* source = nullptr) {
+				bool result = !Implement::tex3_interface::create_implement(c, DF, size, miplevel, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, source).has_value();
+				return result;
+			}
+			bool create_unordered_access(creator& c, DXGI_FORMAT DF, uint32_t3 size, uint32_t miplevel = 1, const tex3_source* source = nullptr) {
+				bool result = !Implement::tex3_interface::create_implement(c, DF, size, miplevel, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, source).has_value();
+				return result;
+			}
+			shader_resource_view<tex3> cast_shader_resource_view(creator& c, std::optional<uint32_t2> miplevel_range = {}) const { return cast_shader_resource_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel_range); }
+			shader_resource_view<tex3> cast_shader_resource_view_as_format(creator& c, DXGI_FORMAT DF, std::optional<uint32_t2> miplevel_range = {})const;
+			render_target_view<tex3> cast_render_target_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_render_target_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			render_target_view<tex3> cast_render_target_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
+			unordered_access_view<tex3> cast_unordered_access_view(creator& c, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {}) const { return cast_unordered_access_view_as_format(c, DXGI_FORMAT_UNKNOWN, miplevel, array_start_and_count); }
+			unordered_access_view<tex3> cast_unordered_access_view_as_format(creator& c, DXGI_FORMAT DF, uint32_t miplevel = 0, std::optional<uint32_t2> array_start_and_count = {})const;
 		};
 
 		struct sample_state { 
@@ -142,8 +534,9 @@ namespace PO
 			static description default_description;
 			operator bool() const { return ptr; }
 			Win32::com_ptr<ID3D11SamplerState> ptr;
-			std::tuple<sample_state, size_t> operator[](size_t i) && {return std::tuple<sample_state, size_t>{std::move(*this), i}; }
-			std::tuple<const sample_state&, size_t> operator[](size_t i) const& { return std::tuple<const sample_state&, size_t>{std::move(*this), i}; }
+			std::tuple<sample_state, uint32_t> operator[](uint32_t i) && {return std::tuple<sample_state, uint32_t>{std::move(*this), i}; }
+			std::tuple<const sample_state&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const sample_state&, uint32_t>{std::move(*this), i}; }
+			void create(creator& c, const description& = default_description);
 		};
 
 		struct viewport
@@ -162,23 +555,12 @@ namespace PO
 			scissor& operator=(const scissor&) = default;
 		};
 
-		/*
-		struct viewports {
-			std::vector<D3D11_VIEWPORT> views;
-			std::vector<D3D11_RECT> scissor;
-			viewports& set(const D3D11_VIEWPORT& port, size_t solt);
-			viewports& fill_texture(size_t solt, const tex2& t, float min_depth = 0.0, float max_depth = 1.0);
-			viewports& capture_texture(size_t solt, const tex2& t, float top_left_x_rate, float top_left_y_rate, float button_right_x_rate, float button_right_y_rate, float min_depth = 0.0, float max_depth = 1.0);
-			std::tuple<viewports, size_t> operator[](size_t i) && {return std::tuple<viewports, size_t>{std::move(*this), i}; }
-			std::tuple<const viewports&, size_t> operator[](size_t i) const& { return std::tuple<const viewports&, size_t>{std::move(*this), i}; }
-		};
-		*/
-
 		struct raterizer_state {
 			using description = D3D11_RASTERIZER_DESC;
 			static description default_description;
 			Win32::com_ptr<ID3D11RasterizerState> ptr;
 			operator bool() const { return ptr; }
+			void create(creator& c, const description& = default_description);
 		};
 
 		struct blend_state {
@@ -188,7 +570,8 @@ namespace PO
 			Win32::com_ptr<ID3D11BlendState> ptr;
 			operator bool() const { return ptr; }
 			std::array<float, 4> bind_factor = {1.0f, 1.0f, 1.0f, 1.0f};
-			UINT sample_mask = 0xffffffff;
+			uint32_t sample_mask = 0xffffffff;
+			void create(creator& c, const description& = default_description);
 		};
 
 		struct depth_stencil_state {
@@ -197,407 +580,191 @@ namespace PO
 
 			Win32::com_ptr<ID3D11DepthStencilState> ptr;
 			operator bool() const { return ptr; }
-			UINT stencil_ref = 0;
+			uint32_t stencil_ref = 0;
+			void create(creator& c, const description& = default_description);
 		};
 
-		struct shader_resource
+		struct shader_vertex
 		{
-			Win32::com_vector<ID3D11Buffer> cbuffer_array;
-			Win32::com_vector<ID3D11ShaderResourceView> shader_resource_view_array;
-			Win32::com_vector<ID3D11SamplerState> sample_array;
-
-			shader_resource& set(const constant_buffer& cb, size_t solt);
-			shader_resource& set(const shader_resource_view& ptr, size_t solt);
-			shader_resource& set(const sample_state& sd, size_t solt);
-
-			shader_resource& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-
+			std::shared_ptr<PO::Dx::shader_binary> code;
+			Win32::com_ptr<ID3D11VertexShader> ptr;
+			operator bool() const { return ptr; }
+			void create(creator& c, std::shared_ptr<PO::Dx::shader_binary> code);
 		};
+
+		struct shader_pixel
+		{
+			Win32::com_ptr<ID3D11PixelShader> ptr;
+			operator bool() const { return ptr; }
+			void create(creator& c, const PO::Dx::shader_binary& code);
+		};
+
+		struct shader_compute
+		{
+			Win32::com_ptr<ID3D11ComputeShader> ptr;
+			operator bool() const { return ptr; }
+			void create(creator& c, const PO::Dx::shader_binary& code);
+		};
+
+		template<typename syntax_t, size_t i, typename store_type, size_t ic = 0, bool force_instance = false>
+		struct syntax : DXGI::data_format<store_type>
+		{
+			static constexpr uint32_t align = alignof(store_type);
+			static constexpr uint32_t size = sizeof(store_type);
+			static constexpr uint32_t index = i;
+			static constexpr D3D11_INPUT_CLASSIFICATION buffer_type = ((!force_instance && ic == 0) ? D3D11_INPUT_PER_VERTEX_DATA : D3D11_INPUT_PER_INSTANCE_DATA);
+			static constexpr uint32_t instance_used = ic;
+			static const char* name() { return syntax_t{}(); }
+		};
+
+		template<typename T, typename ...AT> struct layout_type;
+
+		namespace Implement
+		{
+			template<size_t d, typename T> struct layout_element
+			{
+				using type = T;
+				void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt) const
+				{
+					*DIED = D3D11_INPUT_ELEMENT_DESC{
+						T::name(), T::index, T::format, static_cast<UINT>(solt), static_cast<UINT>(d),
+						T::buffer_type,
+						static_cast<UINT>(T::instance_used)
+					};
+				}
+			};
+
+			template<typename its, typename ...oth> struct final_layout
+			{
+				static_assert(!Tmp::is_repeat<typename its::type, typename oth::type...>::value, "layout can not contain same element");
+
+				void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt) const
+				{
+					its{}(DIED, solt);
+					final_layout<oth...>{}(DIED + 1, solt);
+				}
+			};
+
+			template<typename its> struct final_layout<its>
+			{
+				void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt) const
+				{
+					its{}(DIED, solt);
+				}
+			};
+
+			template<typename input, size_t last, typename ...AT> struct make_layout_execute;
+			template<typename ...input, size_t last, typename its, typename ...AT> struct make_layout_execute<std::tuple<input...>, last, its, AT...>
+			{
+				using type = typename make_layout_execute<
+					std::tuple<input..., layout_element<last, its>>,
+					((last % its::align) == 0 ? (last + its::size) : (last + its::align - (last %its::align))),
+					//((( last + its::size ) % 4) == 0 ? (last + its::size) : ((last /4 +1 )*4)),
+					AT...
+				>::type;
+			};
+
+			/*
+			template<typename ...input, size_t last, size_t count, typename ...its, typename ...AT> struct make_layout_execute<std::tuple<input...>, last, count, layout_type<its...>, AT...>
+			{
+				using type = typename make_layout_execute <
+					std::tuple<input...>, last, count, its..., AT...
+				>::type;
+			};
+			*/
+
+			template<typename ...input, size_t last> struct make_layout_execute<std::tuple<input...>, last>
+			{
+				using type = final_layout<input...>;
+			};
+
+		}
+
+		template<typename T, typename ...AT> struct buffer_layout
+		{
+			using type = typename Implement::make_layout_execute<std::tuple<>, 0, T, AT...>::type;
+			static constexpr size_t size = sizeof...(AT)+1;
+			void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt) const
+			{
+				type{}(DIED, solt);
+			}
+		};
+
+		namespace Implement
+		{
+			template<typename T, typename ...AT> struct layout_type_implement
+			{
+				void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt)
+				{
+					T{}(DIED, solt);
+					layout_type_implement<AT...>{}(DIED + T::size, solt + 1);
+				}
+			};
+			template<typename T> struct layout_type_implement<T>
+			{
+				void operator()(D3D11_INPUT_ELEMENT_DESC* DIED, uint32_t solt)
+				{
+					T{}(DIED, solt);
+				}
+			};
+			template<size_t count> struct layout_carry
+			{
+				std::array<D3D11_INPUT_ELEMENT_DESC, count> carry;
+				template<typename T> layout_carry(T&& t) { t(carry.data(), 0); }
+			};
+		}
+
+		struct layout_view
+		{
+			const D3D11_INPUT_ELEMENT_DESC* ptr = nullptr;
+			uint32_t size = 0;
+		};
+
+		template<typename T, typename ...AT> struct layout_type
+		{
+			static constexpr size_t size = Tmp::value_add<size_t, T::size, AT::size...>::value;
+			operator layout_view() const {
+				static Implement::layout_carry<size> static_array(Implement::layout_type_implement<T, AT...>{});
+				return { static_array.carry.data(), size };
+			}
+		};
+
+
 
 		struct input_layout
 		{
 			Win32::com_ptr<ID3D11InputLayout> ptr;
 			operator bool() const { return ptr; }
+			void create(creator&, const layout_view& view, const shader_vertex& sv);
+			template<typename T, typename ...AT> void create(creator& c, const layout_type<T, AT...>& t, const shader_vertex& sv)
+			{
+				create(c, t.cast_layout_view(), sv);
+			}
 		};
 
-		struct input_assember_stage
-		{
-			Win32::com_vector<ID3D11Buffer> vertex_array;
-			std::vector<UINT> offset_array;
-			std::vector<UINT> element_array;
-
-			input_element element;
-
-			D3D11_PRIMITIVE_TOPOLOGY primitive = D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-			Win32::com_ptr<ID3D11Buffer> index_ptr;
-			UINT offset;
-			DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
-
-			//input_assember_stage& operator=(const input_assember_stage&) = default;
-			//input_assember_stage& operator=(input_assember_stage&&) = default;
-
-			input_assember_stage& operator<<(const std::tuple<vertex, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			input_assember_stage& operator<<(const std::tuple<const vertex&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			input_assember_stage& operator<<(index bp) { return set(std::move(bp)); }
-
-			input_assember_stage& operator<<(const std::tuple<index_vertex, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			input_assember_stage& operator<<(const std::tuple<const index_vertex&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-
-			input_assember_stage& operator<<(D3D11_PRIMITIVE_TOPOLOGY DPT) { return set(DPT); }
-
-			input_assember_stage& set_without_input_element(const vertex& v, size_t = 0);
-			input_assember_stage& set_input_element(const input_element& v, size_t = 0);
-
-			input_assember_stage& set(const vertex& v, size_t solt = 0);
-			input_assember_stage& set(index bp);
-			input_assember_stage& set(const index_vertex& iv, size_t solt = 0);
-
-			input_assember_stage& set(D3D11_PRIMITIVE_TOPOLOGY DPT) { primitive = DPT; return *this; }
-			operator const input_element& () const { return element; }
-			bool check() const;
-		};
-
-		struct vertex_shader
-		{
-			std::shared_ptr<PO::Dx::shader_binary> code;
-			Win32::com_ptr<ID3D11VertexShader> ptr;
-			operator bool() const { return ptr; }
-		};
-
-		struct vertex_resource : shader_resource
-		{
-			vertex_resource& set(const constant_buffer& cb, size_t solt) { shader_resource::set(cb, solt); return *this; }
-			vertex_resource& set(const shader_resource_view& ptr, size_t solt) { shader_resource::set(ptr, solt); return *this; }
-			vertex_resource& set(const sample_state& sd, size_t solt) { shader_resource::set(sd, solt); return *this; }
-
-			shader_resource& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			shader_resource& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-		};
-
-		struct vertex_stage : vertex_resource
-		{
-			vertex_shader code;
-			using vertex_resource::operator=;
-			operator const vertex_shader&() const { return code; }
-
-			vertex_stage& operator<<(vertex_shader vs) { return this->set(std::move(vs)); }
-			vertex_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			vertex_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			vertex_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			vertex_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			vertex_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			vertex_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			//vertex_stage& operator<< (const constant_buffer& vs) { return this->set(std::move(vs)); }
-
-			vertex_stage& set(vertex_shader vs) { code = std::move(vs); return *this; }
-			vertex_stage& set(const constant_buffer& cb, size_t solt = 0) { vertex_resource::set(cb, solt); return *this; }
-			vertex_stage& set(const shader_resource_view& ptr, size_t solt = 0) { vertex_resource::set(ptr, solt); return *this; }
-			vertex_stage& set(const sample_state& sd, size_t solt = 0) { vertex_resource::set(sd, solt); return *this; }
-			bool check() const;
-		};
-
-		struct pixel_shader
-		{
-			Win32::com_ptr<ID3D11PixelShader> ptr;
-			operator bool() const { return ptr; }
-		};
-
-		struct pixel_resource : shader_resource
-		{
-			pixel_resource& set(const constant_buffer& cb, size_t solt) { shader_resource::set(cb, solt); return *this; }
-			pixel_resource& set(const shader_resource_view& ptr, size_t solt) { shader_resource::set(ptr, solt); return *this; }
-			pixel_resource& set(const sample_state& sd, size_t solt) { shader_resource::set(sd, solt); return *this; }
-
-			pixel_resource& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_resource& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_resource& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_resource& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_resource& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_resource& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-		};
-
-		struct pixel_stage : pixel_resource
-		{
-			pixel_shader code;
-
-			pixel_stage& operator<<(pixel_shader ps) { return this->set(std::move(ps)); }
-			pixel_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			pixel_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-
-			pixel_stage& set(pixel_shader ps) { code = std::move(ps); return *this; }
-			pixel_stage& set(const constant_buffer& cb, size_t solt = 0) { pixel_resource::set(cb, solt); return *this; }
-			pixel_stage& set(const shader_resource_view& ptr, size_t solt = 0) { pixel_resource::set(ptr, solt); return *this; }
-			pixel_stage& set(const sample_state& sd, size_t solt = 0) { pixel_resource::set(sd, solt); return *this; }
-			bool check() const;
-		};
+		using primitive_topology = D3D11_PRIMITIVE_TOPOLOGY;
 
 		struct output_merge_stage
 		{
-			Win32::com_vector<ID3D11RenderTargetView> render_array;
-			depth_stencil_view depth;
-			output_merge_stage& set(const render_target_view& rtv, size_t o);
-			output_merge_stage& set(depth_stencil_view dsv) { depth = std::move(dsv); return *this; }
 
-			output_merge_stage& operator<< (const std::tuple<render_target_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			output_merge_stage& operator<< (const std::tuple<const render_target_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			output_merge_stage& operator<< (depth_stencil_view dsv) { return set(std::move(dsv)); }
+			uint32_t avalible_render_target_size;
+			std::array<ID3D11RenderTargetView*, 8> target;
+			depth_stencil_view_interface depth;
 
-			bool check() const;
-		};
 
-		struct compute_shader
-		{
-			Win32::com_ptr<ID3D11ComputeShader> ptr;
-			operator bool() const { return ptr; }
-		};
 
-		struct compute_resource : shader_resource
-		{
-
-			Win32::com_vector<ID3D11UnorderedAccessView> UAV_array;
-			std::vector<UINT> offset;
-
-			compute_resource& set(const constant_buffer& cb, size_t solt) { shader_resource::set(cb, solt); return *this; }
-			compute_resource& set(const shader_resource_view& ptr, size_t solt) { shader_resource::set(ptr, solt); return *this; }
-			compute_resource& set(const sample_state& sd, size_t solt) { shader_resource::set(sd, solt); return *this; }
-
-			compute_resource& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-
-			compute_resource& set(const unordered_access_view& uav, size_t solt);
-			compute_resource& operator<<(const std::tuple<unordered_access_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_resource& operator<<(const std::tuple<const unordered_access_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-		};
-
-		struct compute_stage : compute_resource
-		{
-			
-			compute_shader code;
-			compute_stage& operator<<(compute_shader cs) { return set(std::move(cs)); }
-
-			compute_stage& operator<<(const std::tuple<constant_buffer, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<const constant_buffer&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<shader_resource_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<const shader_resource_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<sample_state, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<const sample_state&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<unordered_access_view, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-			compute_stage& operator<<(const std::tuple<const unordered_access_view&, size_t>& t) { return set(std::get<0>(t), std::get<1>(t)); }
-
-			compute_stage& set(const unordered_access_view& uav, size_t solt) { compute_resource::set(uav, solt); return *this; }
-			compute_stage& set(compute_shader cs) { code = std::move(cs); return *this; }
-			compute_stage& set(const constant_buffer& cb, size_t solt = 0) { compute_resource::set(cb, solt); return *this; }
-			compute_stage& set(const shader_resource_view& ptr, size_t solt = 0) { compute_resource::set(ptr, solt); return *this; }
-			compute_stage& set(const sample_state& sd, size_t solt = 0) { compute_resource::set(sd, solt); return *this; }
-			bool check() const;
-		};
-
-		enum class DST_format
-		{
-			D16,
-			D24_UI8,
-			F32,
-			F32_UI8,
-			UNKNOW
-		};
-
-		struct creator
-		{
-			Win32::com_ptr<ID3D11Device> dev;
-			creator(Win32::com_ptr<ID3D11Device> d) : dev(std::move(d)) { assert(dev); }
-			creator(const creator&) = default;
-
-			static DXGI_FORMAT DST_format_to_dstex_format(DST_format dsf);
-			static DXGI_FORMAT dstex_format_to_dsview_format(DXGI_FORMAT);
-			static DXGI_FORMAT dstex_format_to_srview_format(DXGI_FORMAT);
-			static UINT creator::translate_usage_to_cpu_flag(D3D11_USAGE DU);
-
-			sample_state create_sample_state(const sample_state::description& scri = sample_state::default_description);
-			raterizer_state create_raterizer_state(const raterizer_state::description& scri = raterizer_state::default_description);
-			blend_state create_blend_state(const blend_state::description& scri = blend_state::default_description, std::array<float, 4> bind_factor = { 1.0f, 1.0f, 1.0f, 1.0f }, UINT sample_mask = 0xffffffff);
-			depth_stencil_state create_depth_stencil_state(const depth_stencil_state::description& scri = depth_stencil_state::default_description, UINT stencil_ref = 0);
-
-			input_layout create_layout(const input_element& ia, const vertex_shader& vd);
-
-			Win32::com_ptr<ID3D11Buffer> create_buffer_implement(UINT width, D3D11_USAGE DU, UINT BIND, UINT misc_flag, UINT struct_byte,  const void* data);
-
-			vertex create_vertex(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false);
-			template<typename T, typename K> vertex create_vertex(const std::vector<T, K>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
-				return create_vertex(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), std::move(layout), write_able);
-			}
-
-			template<typename T, size_t i> vertex create_vertex(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
-				return create_vertex(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout), write_able);
-			}
-
-			vertex create_vertex_shader_resource(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false);
-			template<typename T, typename K> vertex create_vertex_shader_resource(const std::vector<T, K>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
-				return create_vertex_shader_resource(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), std::move(layout), write_able);
-			}
-
-			template<typename T, size_t i> vertex create_vertex_shader_resource(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout, bool write_able = false) {
-				return create_vertex_shader_resource(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout), write_able);
-			}
-
-			vertex create_vertex_unordered_access(const void* data, UINT ele, UINT num, std::vector<D3D11_INPUT_ELEMENT_DESC> layout);
-			template<typename T, typename K> vertex create_vertex_unordered_access(const std::vector<T, K>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout) {
-				return create_vertex_unordered_access(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), std::move(layout));
-			}
-
-			template<typename T, size_t i> vertex create_vertex_unordered_access(const std::array<T, i>& v, std::vector<D3D11_INPUT_ELEMENT_DESC> layout) {
-				return create_vertex_unordered_access(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), std::move(layout));
-			}
-
-			index create_index(const void* data, UINT size, UINT num, DXGI_FORMAT DF, bool write_able = false);
-			template<typename T, typename K> index create_index(const std::vector<T, K>& v, bool write_able = false) {
-				return create_index(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), DXGI::data_format<T>::format, write_able);
-			}
-			template<typename T, size_t i> index create_index(const std::array<T, i>& v, bool write_able = false) {
-				return create_index(v.data(), static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), DXGI::data_format<T>::format, write_able);
-			}
-
-			constant_buffer create_constant_buffer(UINT width, const void* data = nullptr, bool write_enable = true);
-			template<typename T> constant_buffer create_constant_buffer(const T* data, bool write_enable = true) { return create_constant_buffer(sizeof(T), data, write_enable); }
-			inline constant_buffer create_constant_buffer_with_size(size_t size, bool write_enable = true) { return create_constant_buffer(static_cast<UINT>(size), nullptr, write_enable); }
-
-			structured_buffer create_structured_buffer(UINT element_size, UINT element_num, const void* data = nullptr, bool write_enable = true) {
-				structured_buffer sb;
-				sb.ptr = create_buffer_implement(element_size * element_num, (write_enable ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE), D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
-				return sb;
-			}
-			template<typename T, typename K> structured_buffer create_structured_buffer(const std::vector<T, K>& v, bool write_enable = true) {
-				return create_structured_buffer(static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), v.data(), write_enable);
-			}
-			template<typename T, size_t i> structured_buffer create_structured_buffer(const std::array<T, i>& v, bool write_enable = true) {
-				return create_structured_buffer(static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), v.data(), write_enable);
-			}
-			structured_buffer create_structured_buffer_unorder_access(UINT element_size, UINT element_num, const void* data = nullptr) {
-				structured_buffer sb;
-				sb.ptr = create_buffer_implement(element_size * element_num, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, element_size, data);
-				return sb;
-			}
-			template<typename T, typename K> structured_buffer create_structured_buffer_unorder_access(const std::vector<T, K>& v) {
-				return create_structured_buffer_unorder_access(static_cast<UINT>(sizeof(T)), static_cast<UINT>(v.size()), v.data());
-			}
-			template<typename T, size_t i> structured_buffer create_structured_buffer_unorder_access(const std::array<T, i>& v) {
-				return create_structured_buffer_unorder_access(static_cast<UINT>(sizeof(T)), static_cast<UINT>(i), v.data());
-			}
-
-			vertex_shader create_vertex_shader(std::shared_ptr<PO::Dx::shader_binary> b);
-			pixel_shader create_pixel_shader(const PO::Dx::shader_binary&);
-			compute_shader create_compute_shader(const PO::Dx::shader_binary&);
-
-			tex1 create_tex1_implement(DXGI_FORMAT DF, UINT length, UINT miplevel, UINT count, D3D11_USAGE DU, UINT BIND, UINT misc, void** data);
-			tex2 create_tex2_implement(DXGI_FORMAT DF, UINT width, UINT height, UINT miplevel, UINT count, UINT sample_num, UINT sample_quality, D3D11_USAGE usage, UINT bind, UINT mis, void** data, UINT* line);
-			tex3 create_tex3_implement(DXGI_FORMAT DF, UINT width, UINT height, UINT depth, UINT miplevel, D3D11_USAGE usage, UINT bind, UINT mis, void* data, UINT line, UINT slice);
-
-			tex1 create_tex1(DXGI_FORMAT DF, UINT length, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, D3D11_USAGE DU = D3D11_USAGE_DYNAMIC, void** data = nullptr) {
-				return create_tex1_implement(DF, length, (miplevel ? *miplevel : 1), (count ? *count : 1), DU, D3D11_BIND_SHADER_RESOURCE, 0, data);
-			}
-			tex1 create_tex1_unordered_access(DXGI_FORMAT DF, UINT length, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr) {
-				return create_tex1_implement(DF, length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, data);
-			}
-			tex1 create_tex1_render_target(DXGI_FORMAT DF, UINT length, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr) {
-				return create_tex1_implement(DF, length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data);
-			}
-			tex1 create_tex1_depth_stencil(DST_format DF, UINT length, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr) {
-				return create_tex1_implement(DST_format_to_dstex_format(DF), length, (miplevel ? *miplevel : 1), (count ? *count : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, data);
-			}
-
-			tex2 create_tex2(DXGI_FORMAT DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, D3D11_USAGE usage = D3D11_USAGE_DYNAMIC, void** data = nullptr, UINT* line = nullptr) {
-				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
-				return create_tex2_implement(DF, width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, usage, D3D11_BIND_SHADER_RESOURCE, 0, data, line);
-			}
-
-			tex2 create_tex2(DXGI_FORMAT DF, const tex2& t, D3D11_USAGE usage = D3D11_USAGE_DYNAMIC, void** data = nullptr, UINT* line = nullptr);
-
-			tex2 create_tex2_unordered_access(DXGI_FORMAT DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
-				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
-				return create_tex2_implement(DF, width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, data, line);
-			}
-			tex2 create_tex2_unordered_access(DXGI_FORMAT DF, const tex2& t, void** data = nullptr, UINT* line = nullptr);
-			tex2 create_tex2_render_target(DXGI_FORMAT DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
-				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
-				return create_tex2_implement(DF, width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, 0, data, line);
-			}
-			tex2 create_tex2_render_target(DXGI_FORMAT DF, const tex2& t);
-			tex2 create_tex2_depth_stencil(DST_format DF, UINT width, UINT height, Tool::variant<UINT, UINT2> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
-				UINT2 sample = miplevel.able_cast<UINT2>() ? miplevel.cast<UINT2>() : UINT2{ 1, 0 };
-				return create_tex2_implement(DST_format_to_dstex_format(DF), width, height, (miplevel.able_cast<UINT>() ? miplevel.cast<UINT>() : 1), (count ? *count : 1), sample.x, sample.y, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL, 0, data, line);
-			}
-			tex2 create_tex2_depth_stencil(DST_format DF, const tex2& t, void** data = nullptr, UINT* line = nullptr);
-
-			tex2 create_tex_cube(DXGI_FORMAT DF, UINT width, UINT height, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
-				return create_tex2_implement(DF, width, height, (miplevel ? *miplevel : 1), (count ? *count * 6 : 6), 1, 0, D3D11_USAGE_DYNAMIC, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_TEXTURECUBE, data, line);
-			}
-			tex2 create_tex_cube_unorder_access(DXGI_FORMAT DF, UINT width, UINT height, Tool::optional<UINT> miplevel = {}, Tool::optional<UINT> count = {}, void** data = nullptr, UINT* line = nullptr) {
-				return create_tex2_implement(DF, width, height, (miplevel ? *miplevel : 1), (count ? *count * 6 : 6), 1, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, D3D11_RESOURCE_MISC_TEXTURECUBE, data, line);
-			}
-
-			tex3 create_tex3(DXGI_FORMAT DF, UINT width, UINT height, UINT depth, Tool::optional<UINT> miplevel = {}, D3D11_USAGE usage = D3D11_USAGE_DYNAMIC, void* data = nullptr, UINT line = 0, UINT slice = 0){
-				return create_tex3_implement(DF, width, height, depth, (miplevel ? *miplevel : 1), usage, D3D11_BIND_SHADER_RESOURCE, 0, data, line, slice);
-			}
-			tex3 create_tex3_unordered_access(DXGI_FORMAT DF, UINT width, UINT height, UINT depth, Tool::optional<UINT> miplevel = {}, void* data = nullptr, UINT line = 0, UINT slice = 0) {
-				return create_tex3_implement(DF, width, height, depth, (miplevel ? *miplevel : 1), D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS, 0, data, line, slice);
-			}
-
-			shader_resource_view cast_shader_resource_view(const structured_buffer& t, Tool::optional<UINT2> range = {});
-
-			shader_resource_view cast_shader_resource_view(const tex1& t, Tool::optional<UINT2> mip_range = {});
-			shader_resource_view cast_shader_resource_view(const tex2& t, Tool::optional<UINT2> mip_range = {});
-
-			shader_resource_view cast_shader_resource_view_array(const tex1& t, Tool::optional<UINT2> mip_range = {}, Tool::optional<UINT2> array = {});
-			shader_resource_view cast_shader_resource_view_array(const tex2& t, Tool::optional<UINT2> mip_range = {}, Tool::optional<UINT2> array = {});
-
-			shader_resource_view cast_shader_resource_view_ms(const tex2& t);
-			shader_resource_view cast_shader_resource_view_ms_array(const tex2& t, Tool::optional<UINT2> array = {});
-
-			shader_resource_view cast_shader_resource_view_cube(const tex2& t, Tool::optional<UINT2> mip_range = {});
-			shader_resource_view cast_shader_resource_view_cube_array(const tex2& t, Tool::optional<UINT2> mip_range = {}, Tool::optional<UINT2> array = {});
-
-			shader_resource_view cast_shader_resource_view(const tex3& t, Tool::optional<UINT2> mip_range = {});
-
-			render_target_view cast_render_target_view(const tex1& t, UINT miplevel = 0);
-			render_target_view cast_render_target_view(const tex2& t, UINT miplevel = 0);
-			render_target_view cast_render_target_view(const tex3& t, UINT miplevel = 0, Tool::optional<UINT2> z_range = {});
-
-			render_target_view cast_render_target_view_array(const tex1& t, UINT miplevel = 0, Tool::optional<UINT2> array_range = {});
-			render_target_view cast_render_target_view_array(const tex2& t, UINT miplevel = 0, Tool::optional<UINT2> array_range = {});
-
-			render_target_view cast_render_target_view_ms(const tex2& t);
-			render_target_view cast_render_target_view_ms_array(const tex2& t, Tool::optional<UINT2> array_range = {});
-
-			depth_stencil_view cast_depth_setncil_view(const tex1& t, UINT miplevel = 0, Tool::optional<bool> depth_read_only = {});
-			depth_stencil_view cast_depth_setncil_view(const tex2& t, UINT miplevel = 0, Tool::optional<bool> depth_read_only = {});
-			depth_stencil_view cast_depth_setncil_view_array(const tex1& t, UINT miplevel = 0, Tool::optional<UINT2> array_range = {}, Tool::optional<bool> depth_read_only = {});
-			depth_stencil_view cast_depth_setncil_view_array(const tex2& t, UINT miplevel = 0, Tool::optional<UINT2> array_range = {}, Tool::optional<bool> depth_read_only = {});
-			depth_stencil_view cast_depth_setncil_view_ms(const tex2& t, Tool::optional<bool> depth_read_only = {});
-			depth_stencil_view cast_depth_setncil_view_ms_array(const tex2& t, Tool::optional<UINT2> array_range = {}, Tool::optional<bool> depth_read_only = {});
-
-			unordered_access_view cast_unordered_access_view(const structured_buffer& tp, Tool::optional<UINT2> elemnt_start_and_count = {}, Tool::optional<UINT> offset = {}, bool is_append_or_consume = false);
-			unordered_access_view cast_unordered_access_view(const tex1& tp, UINT mipslice = 0);
-			unordered_access_view cast_unordered_access_view_array(const tex1& tp, UINT mipslice = 0, Tool::optional<UINT2> array = {});
-			unordered_access_view cast_unordered_access_view(const tex2& tp, UINT mipslice = 0);
-			unordered_access_view cast_unordered_access_view_array(const tex2& tp, UINT mipslice = 0, Tool::optional<UINT2> array = {});
-			unordered_access_view cast_unordered_access_view(const tex3& tp, UINT mipslice = 0, Tool::optional<UINT2> z_range = {});
+			output_merge_stage& set(const render_target_view_interface& tvi);
+			output_merge_stage& set(depth_stencil_view_interface dsv) { depth = std::move(dsv); return *this; }
+			output_merge_stage& operator<< (const render_target_view_interface& dsv) { return set(dsv); }
+			output_merge_stage& operator<< (depth_stencil_view_interface dsv) { return set(std::move(dsv)); }
+			output_merge_stage::~output_merge_stage();
+			void clear();
+			void clear_render_target();
+			output_merge_stage();
+			output_merge_stage(const output_merge_stage& oms);
+			output_merge_stage(output_merge_stage&& oms);
+			output_merge_stage& operator=(const output_merge_stage&);
+			output_merge_stage& operator=(output_merge_stage&&);
 		};
 
 		namespace Implement
@@ -605,71 +772,53 @@ namespace PO
 
 			struct shader_context_t
 			{
-				UINT srv_count = 0;
-				UINT cb_count = 0;
-				UINT sample_count = 0;
-
-
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource& id, 
-					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
-				);
+				uint32_t srv_count = 0;
+				uint32_t cb_count = 0;
+				uint32_t sample_count = 0;
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp,
-					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *),
-					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *),
-					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+					void (__stdcall ID3D11DeviceContext::* cb_f)(uint32_t, uint32_t, ID3D11Buffer* const *),
+					void (__stdcall ID3D11DeviceContext::* srv_f)(uint32_t, uint32_t, ID3D11ShaderResourceView* const *),
+					void (__stdcall ID3D11DeviceContext::* sample_f)(uint32_t, uint32_t, ID3D11SamplerState* const *)
 				);
 
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, shader_resource& id,
-					void (__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer**),
-					void (__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView**),
-					void (__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState**)
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, uint32_t solt,
+					void(__stdcall ID3D11DeviceContext::* cb_f)(uint32_t, uint32_t, ID3D11Buffer* const *)
 				);
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, size_t solt,
-					void(__stdcall ID3D11DeviceContext::* cb_f)(UINT, UINT, ID3D11Buffer* const *)
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& id, uint32_t solt,
+					void(__stdcall ID3D11DeviceContext::* srv_f)(uint32_t, uint32_t, ID3D11ShaderResourceView* const *)
 				);
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& id, size_t solt, 
-					void(__stdcall ID3D11DeviceContext::* srv_f)(UINT, UINT, ID3D11ShaderResourceView* const *)
-				);
-
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& id, size_t solt,
-					void(__stdcall ID3D11DeviceContext::* sample_f)(UINT, UINT, ID3D11SamplerState* const *)
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& id, uint32_t solt,
+					void(__stdcall ID3D11DeviceContext::* sample_f)(uint32_t, uint32_t, ID3D11SamplerState* const *)
 				);
 			};
 
 			struct input_assember_context_t
 			{
-				UINT vb_count = 0;
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_assember_stage& id);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_layout& id);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_assember_stage& id);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_layout& id);
+				uint32_t vb_count = 0;
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, primitive_topology tp) { cp->IASetPrimitiveTopology(tp); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_buffer& vi, uint32_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const index_buffer& iv);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_layout& id) { cp->IASetInputLayout(id.ptr); }
+				//void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_layout& id);
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
-			struct vertex_shader_context_t : shader_context_t
+			struct vertex_stage_context_t : shader_context_t
 			{
 				//size_t max_shader_resource_view = 0;
 				//size_t max_sample = 0;
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_stage& vs) { bind(cp, static_cast<const vertex_resource&>(vs)); bind(cp, vs.code); }
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_resource&);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_shader& vs) { cp->VSSetShader(vs.ptr, nullptr, 0); }
-
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, vertex_stage& vs) { extract(cp, static_cast<vertex_resource&>(vs)); extract(cp, vs.code); }
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, vertex_resource& v);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, vertex_shader& vs);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_vertex& vs) { cp->VSSetShader(vs.ptr, nullptr, 0); }
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
-				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetShaderResources); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetSamplers); }
 			};
 
 			struct raterizer_context_t
@@ -687,29 +836,22 @@ namespace PO
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
 			};
 
-			struct pixel_shader_context_t : shader_context_t
+			struct pixel_stage_context_t : shader_context_t
 			{
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_stage& ps) { bind(cp, static_cast<const pixel_resource&>(ps)); bind(cp, ps.code); }
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_resource&);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const pixel_shader& ps) { cp->PSSetShader(ps.ptr, nullptr, 0); }
-				
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, pixel_stage& ps) { extract(cp, static_cast<pixel_stage&>(ps)); extract(cp, ps.code); }
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, pixel_resource& ps);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, pixel_shader& ps);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_pixel& ps) { cp->PSSetShader(ps.ptr, nullptr, 0); }
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
-				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetShaderResources); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetSamplers); }
 
 			};
 
 			struct output_merge_context_t
 			{
-				UINT max_render_target = 0;
-				void clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, size_t solt, const std::array<float, 4>& color);
+				void clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, uint32_t solt, const std::array<float, 4>& color);
 				void clear_render_target(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, const std::array<float, 4>& color);
 				void clear_depth(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, float depth);
 				void clear_stencil(Win32::com_ptr<ID3D11DeviceContext>& cp, output_merge_stage& omd, uint8_t ref);
@@ -721,49 +863,43 @@ namespace PO
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const blend_state&);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const depth_stencil_state&);
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
-				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 			};
 
-			struct compute_shader_context_t : shader_context_t
+			struct compute_stage_context_t : shader_context_t
 			{
-				UINT count = 0;
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_stage& cd) { bind(cp, static_cast<const compute_resource&>(cd)); bind(cp, cd.code); }
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_resource& cd);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const compute_shader& cd) { cp->CSSetShader(cd.ptr, nullptr, 0); }
-
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, compute_stage& ps) { extract(cp, static_cast<compute_resource&>(ps)); extract(cp, ps.code); }
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, compute_resource& ps);
-				void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, compute_shader& ps);
+				uint32_t count = 0;
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_compute& cd) { cp->CSSetShader(cd.ptr, nullptr, 0); }
 
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
-				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp);
+				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, size_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const unordered_access_view& cb, size_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetShaderResources); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetSamplers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const unordered_access_view_interface& cb, uint32_t solt);
 			};
 		}
 
 		struct dispatch_call { 
-			UINT x, y, z; 
+			uint32_t x, y, z; 
 		};
 
-		struct vertex_call { UINT count, start; };
-		struct index_call { UINT index_count, index_start, vertex_start; };
-		struct vertex_instance_call { UINT vertex_pre_instance, instance_count, vertex_start, instance_start; };
-		struct index_instance_call { UINT index_pre_instance, instance_count, index_start, base_vertex, instance_start; };
+		struct vertex_call { uint32_t count, start; };
+		struct index_call { uint32_t index_count, index_start, vertex_start; };
+		struct vertex_instance_call { uint32_t vertex_pre_instance, instance_count, vertex_start, instance_start; };
+		struct index_instance_call { uint32_t index_pre_instance, instance_count, index_start, base_vertex, instance_start; };
 
 		struct stage_context_implement
 		{
 			Win32::com_ptr<ID3D11DeviceContext> ptr;
 			Implement::input_assember_context_t IA;
-			Implement::vertex_shader_context_t VS;
+			Implement::vertex_stage_context_t VS;
 			Implement::raterizer_context_t RA;
-			Implement::pixel_shader_context_t PS;
+			Implement::pixel_stage_context_t PS;
 			Implement::output_merge_context_t OM;
 
-			Implement::compute_shader_context_t CS;
+			Implement::compute_stage_context_t CS;
 
 			Tool::variant<dispatch_call, vertex_call, index_call, vertex_instance_call, index_instance_call> call_require;
 
@@ -781,28 +917,29 @@ namespace PO
 
 			DrawMode last_mode = DrawMode::NONE;
 
-			void dispatch(UINT x, UINT y, UINT z);
+			void dispatch(uint32_t x, uint32_t y, uint32_t z);
 
-			void draw_vertex(UINT count, UINT start);
-			void draw_index(UINT index_count, UINT index_start, UINT vertex_start);
-			void draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start);
-			void draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start);
+			void draw_vertex(uint32_t count, uint32_t start);
+			void draw_index(uint32_t index_count, uint32_t index_start, uint32_t vertex_start);
+			void draw_vertex_instance(uint32_t vertex_pre_instance, uint32_t instance_count, uint32_t vertex_start, uint32_t instance_start);
+			void draw_index_instance(uint32_t index_pre_instance, uint32_t instance_count, uint32_t index_start, uint32_t base_vertex, uint32_t instance_start);
 
 			void unbind();
 
-			stage_context_implement& bind(const input_assember_stage& d) { IA.bind(ptr, d); return *this; }
+			stage_context_implement& bind(primitive_topology d) { IA.bind(ptr, d); return *this; }
 			stage_context_implement& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const vertex_stage& d) { VS.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const vertex_shader& d) { VS.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const pixel_shader& d) { PS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const index_buffer& d) { IA.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const vertex_buffer& vv, uint32_t solt) { IA.bind(ptr, vv, solt); return *this; }
+			//stage_context_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const shader_vertex& d) { VS.bind(ptr, d); return *this; }
+			//stage_context_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
+			//stage_context_implement& bind(const pixel_resource& d) { PS.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const shader_pixel& d) { PS.bind(ptr, d); return *this; }
 			stage_context_implement& bind(const output_merge_stage& d) { OM.bind(ptr, d); return *this; }
 			stage_context_implement& bind(const raterizer_state& rs) { RA.bind(ptr, rs); return *this; }
-			stage_context_implement& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
-			stage_context_implement& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
-			stage_context_implement& bind(const compute_shader& cd) { CS.bind(ptr, cd); return *this; }
+			//stage_context_implement& bind(const compute_stage& cd) { CS.bind(ptr, cd); return *this; }
+			//stage_context_implement& bind(const compute_resource& cd) { CS.bind(ptr, cd); return *this; }
+			stage_context_implement& bind(const shader_compute& cd) { CS.bind(ptr, cd); return *this; }
 			stage_context_implement& bind(const viewport& vp) { RA.bind(ptr, vp); return *this; }
 			stage_context_implement& bind(const blend_state& bs) { OM.bind(ptr, bs); return *this; }
 			stage_context_implement& bind(const depth_stencil_state& dss) { OM.bind(ptr, dss); return *this; }
@@ -815,36 +952,13 @@ namespace PO
 
 			void call();
 
-			stage_context_implement& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
+			stage_context_implement& clear_render_target(output_merge_stage& omd, uint32_t solt, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, solt, color); return *this; }
 			stage_context_implement& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { OM.clear_render_target(ptr, omd, color); return *this;}
 			stage_context_implement& clear_depth(output_merge_stage& omd, float depth) { OM.clear_depth(ptr, omd, depth); return *this;}
 			stage_context_implement& clear_stencil(output_merge_stage& omd, uint8_t ref) { OM.clear_stencil(ptr, omd, ref); return *this;}
 			stage_context_implement& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
-			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t)
-			{
-				if (b.ptr == nullptr) return false;
-				D3D11_MAPPED_SUBRESOURCE DMS;
-				if (SUCCEEDED(ptr->Map(b.ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
-				{
-					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(b.ptr, 0); });
-					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
-				}
-				return false;
-			}
-
-			template<typename T> bool write_structured_buffer(structured_buffer& b, T&& t)
-			{
-				if (b.ptr == nullptr) return false;
-				D3D11_MAPPED_SUBRESOURCE DMS;
-				if (SUCCEEDED(ptr->Map(b.ptr, 0, D3D11_MAP_WRITE_DISCARD, 0, &DMS)))
-				{
-					Tool::at_scope_exit ate([&, this]() { ptr->Unmap(b.ptr, 0); });
-					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
-				}
-				return false;
-			}
-
+			/*
 			template<typename T> bool write_constant_buffer(shader_resource& b, size_t o, T&& t)
 			{
 				if (b.cbuffer_array.size() <= o) return false;
@@ -856,7 +970,7 @@ namespace PO
 					return Tool::auto_adapter_unorder(t, DMS.pData, DMS.RowPitch, DMS.DepthPitch), true;
 				}
 				return false;
-			}
+			}*/
 
 		};
 
@@ -865,7 +979,7 @@ namespace PO
 			Win32::com_ptr<ID3D11DeviceContext>& ptr;
 			std::decay_t<T>& t;
 			template<typename F>
-			stage_reference operator<<(const std::tuple<F, size_t>& ts) { t.bind(ptr, std::get<0>(ts), std::get<1>(ts)); return *this; }
+			stage_reference operator<<(const std::tuple<F, uint32_t>& ts) { t.bind(ptr, std::get<0>(ts), std::get<1>(ts)); return *this; }
 		};
 
 		
@@ -877,29 +991,27 @@ namespace PO
 			stage_context(const stage_context& pl) : imp(pl.imp), creator(pl) { assert(imp); }
 
 			stage_reference<Implement::input_assember_context_t> IA() { return stage_reference<decltype(imp->IA)> { imp->ptr, imp->IA}; }
-			stage_reference<Implement::vertex_shader_context_t> VS() { return stage_reference<decltype(imp->VS)> { imp->ptr, imp->VS}; }
-			stage_reference<Implement::pixel_shader_context_t> PS() { return stage_reference<decltype(imp->PS)> { imp->ptr, imp->PS}; }
-			stage_reference<Implement::compute_shader_context_t> CS() { return stage_reference<decltype(imp->CS)> { imp->ptr, imp->CS}; }
+			stage_reference<Implement::vertex_stage_context_t> VS() { return stage_reference<decltype(imp->VS)> { imp->ptr, imp->VS}; }
+			stage_reference<Implement::pixel_stage_context_t> PS() { return stage_reference<decltype(imp->PS)> { imp->ptr, imp->PS}; }
+			stage_reference<Implement::compute_stage_context_t> CS() { return stage_reference<decltype(imp->CS)> { imp->ptr, imp->CS}; }
 
 			template<typename T> stage_context& operator<<(const T& t) { imp->bind(t); return *this; }
+			stage_context& operator<<(const std::tuple<const vertex_buffer&, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
+			stage_context& operator<<(const std::tuple<vertex_buffer, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
 			void unbind() { imp->unbind(); }
-			stage_context& clear_render_target(output_merge_stage& omd, size_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
+			stage_context& clear_render_target(output_merge_stage& omd, uint32_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
 			stage_context& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
 			stage_context& clear_depth(output_merge_stage& omd, float depth) { imp->clear_depth(omd, depth); return *this; }
 			stage_context& clear_stencil(output_merge_stage& omd, uint8_t ref) { imp->clear_stencil(omd, ref); return *this; }
 			stage_context& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { imp->clear_depth_stencil(omd, depth, ref); return *this; }
 
-			template<typename T> bool write_constant_buffer(constant_buffer& b, T&& t) { return imp->write_constant_buffer(b, std::forward<T>(t)); }
-			template<typename T> bool write_structured_buffer(structured_buffer& b, T&& t) { return imp->write_structured_buffer(b, std::forward<T>(t)); }
-			template<typename T> bool write_constant_buffer(shader_resource& b, size_t o, T&& t) { return imp->write_constant_buffer(b, o, std::forward<T>(t)); }
-
-			void draw_vertex(UINT count, UINT start) { imp->draw_vertex(count, start); }
-			void draw_index(UINT index_count, UINT index_start, UINT vertex_start) { imp->draw_index(index_count, index_start, vertex_start); }
-			void draw_vertex_instance(UINT vertex_pre_instance, UINT instance_count, UINT vertex_start, UINT instance_start) { imp->draw_vertex_instance (vertex_pre_instance, instance_count, vertex_start, instance_start); }
-			void draw_index_instance(UINT index_pre_instance, UINT instance_count, UINT index_start, UINT base_vertex, UINT instance_start) {
+			void draw_vertex(uint32_t count, uint32_t start) { imp->draw_vertex(count, start); }
+			void draw_index(uint32_t index_count, uint32_t index_start, uint32_t vertex_start) { imp->draw_index(index_count, index_start, vertex_start); }
+			void draw_vertex_instance(uint32_t vertex_pre_instance, uint32_t instance_count, uint32_t vertex_start, uint32_t instance_start) { imp->draw_vertex_instance (vertex_pre_instance, instance_count, vertex_start, instance_start); }
+			void draw_index_instance(uint32_t index_pre_instance, uint32_t instance_count, uint32_t index_start, uint32_t base_vertex, uint32_t instance_start) {
 				imp->draw_index_instance (index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 			}
-			void dispatch(UINT x, UINT y, UINT z) { imp->dispatch(x, y, z); }
+			void dispatch(uint32_t x, uint32_t y, uint32_t z) { imp->dispatch(x, y, z); }
 			void call() { imp->call(); }
 		};
 
