@@ -21,14 +21,6 @@ namespace PO
 			void need_update() { m_need_update = true; }
 		public:
 			bool is_need_update() const { return m_need_update; }
-			property_default& operator=(property_default& pd)
-			{
-				if (m_need_update)
-				{
-					m_need_update = false;
-					pd.m_need_update = true;
-				}
-			}
 		};
 
 		namespace Implement
@@ -97,12 +89,9 @@ namespace PO
 				const std::type_index associate_info;
 				virtual property_interface& get_associate() = 0;
 
-				virtual void logic_to_swap() = 0;
+				virtual void logic_to_swap(creator& c) = 0;
 				virtual void swap_to_renderer() = 0;
-				virtual void logic_to_renderer() = 0;
-
-				virtual void update() = 0;
-				virtual void push() = 0;
+				virtual void logic_to_renderer(creator& c) = 0;
 
 				friend struct property_map;
 				friend class property_proxy_map;
@@ -119,7 +108,7 @@ namespace PO
 			template<typename T> class property_proxy_implement : public property_proxy_interface
 			{
 				T direct_block;
-				T::renderer_data swap_lock;
+				typename T::renderer_data swap_lock;
 				property_implement<typename T::renderer_data> renderer_lock;
 				bool need_update = false;
 			public:
@@ -128,18 +117,11 @@ namespace PO
 				operator T& () { return direct_block; }
 				operator const T& () const { return direct_block; }
 
-				virtual void logic_to_swap()
+				virtual void logic_to_swap(creator& c)
 				{
-					if constexpr (property_have_is_need_update<T>::value)
-					{
-						need_update = T::is_need_update();
-						if (need_update)
-							direct_block.update(swap_lock);
-					}
-					else {
-						direct_block.update(swap_lock);
-						need_update = true;
-					}
+					need_update = direct_block.is_need_update();
+					if (need_update)
+						direct_block.update(c, swap_lock);
 				}
 				virtual void swap_to_renderer()
 				{
@@ -149,17 +131,11 @@ namespace PO
 						need_update = false;
 					}
 				}
-				virtual void logic_to_renderer()
+				virtual void logic_to_renderer(creator& c)
 				{
 					need_update = false;
-					if constexpr (property_have_is_need_update<T>::value)
-					{
-						if (T::is_need_update();)
-							direct_block.update(swap_lock);
-					}
-					else {
-						direct_block.update(swap_lock);
-					}
+					if (direct_block.is_need_update())
+						direct_block.update(c, swap_lock);
 				}
 			};
 
@@ -207,8 +183,8 @@ namespace PO
 			
 			std::shared_ptr<Implement::property_map> map() const { return inside_map; }
 
-			void logic_to_swap();
-			void logic_to_renderer();
+			void logic_to_swap(creator& c);
+			void logic_to_renderer(creator& c);
 
 			property_proxy_map() : inside_map(std::make_shared<Implement::property_map>()) {}
 
@@ -235,7 +211,7 @@ namespace PO
 			class stage_resource
 			{
 			public:
-				bool apply_property(stage_context& sc, property_interface& pi);
+				virtual bool apply_property(stage_context& sc, property_interface& pi);
 				const element_requirement& requirement() const;
 				virtual ~stage_resource();
 			};
@@ -304,11 +280,13 @@ namespace PO
 				static bool update_requirement(stage_context& sc, property_interface& pi, void* data)
 				{
 					function_type fun_ptr = static_cast<function_type>(data);
-					return pi.cast([&](type& de) {
-						if constexpr(std::is_same_v<stage_context, std::decay_t<T>>)
-							(*fun_ptr)(sc, de);
-						else
-							(*fun_ptr)(de, sc);
+					if constexpr(std::is_same_v<stage_context, stage_context>)
+						return pi.cast([&](type& de) {
+						(*fun_ptr)(sc, de);
+					});
+					else
+						return pi.cast([&](type& de) {
+						(*fun_ptr)(de, sc);
 					});
 				}
 			};
@@ -340,7 +318,11 @@ namespace PO
 			element_requirement(F&& ...f) : mapping({ make_mapping_pair(f)... }) {}
 		};
 		
-
+		template<typename ...T> const element_requirement& make_element_requirement(T&&... t)
+		{
+			static element_requirement require{ t... };
+			return require;
+		}
 
 
 		namespace Implement
@@ -369,7 +351,7 @@ namespace PO
 				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
 					const auto& ref = compute_t::requirement();
-					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+					return ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
 				}
 				void apply_stage(stage_context& sc) override final
 				{
@@ -397,11 +379,15 @@ namespace PO
 				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
 					const auto& ref = placement_t::requirement();
-					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+					return ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
 				}
 				void apply_stage(stage_context& sc) override final
 				{
 					placement_t::apply(sc);
+				}
+				virtual const shader_vertex& get_vs_shader() const override
+				{
+					return placement_t::get_vs_shader();
 				}
 				placement_implement(creator& c) : placement_ptr(typeid(placement_t), typeid(decltype(*this))), placement_t(c) { }
 			};
@@ -428,11 +414,11 @@ namespace PO
 				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
 					const auto& ref = geometry_t::requirement();
-					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+					return ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
 				}
 				void apply_stage(stage_context& sc) override final
 				{
-					placement_t::apply(sc);
+					geometry_t::apply(sc);
 				}
 
 				virtual void apply_layout(stage_context& sc, placement_ptr& pp) override
@@ -441,12 +427,12 @@ namespace PO
 					if (ite == layout_map.end())
 					{
 						input_layout tem;
-						tem.create(c, geometry_t::geometry_layout_view(), pi.shader());
-						layout_map.insert({ pi.id(), tem });
+						tem.create(sc, geometry_t::ia_view(), pp.get_vs_shader());
+						layout_map.insert({ pp.id(), tem });
 						sc << tem;
 					}
 					else
-						ss << ite->second;
+						sc << ite->second;
 				}
 				geometry_implement(creator& c) : geometry_ptr(typeid(geometry_t), typeid(decltype(*this))), geometry_t(c) {}
 			};
@@ -469,7 +455,7 @@ namespace PO
 				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
 					const auto& ref = material_t::requirement();
-					ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
+					return ref.apply_property(static_cast<stage_resource&>(*this), sc, sl);
 				}
 				void apply_stage(stage_context& sc) override final
 				{

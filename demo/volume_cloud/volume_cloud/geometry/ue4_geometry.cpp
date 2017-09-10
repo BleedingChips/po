@@ -91,25 +91,17 @@ std::array<uint16_t, 36> cube_static_3d_index =
 
 
 
-UE4_cube_static::UE4_cube_static(creator& c)
+UE4_cube_static::UE4_cube_static(creator& c) : 
+	geometry_resource(
+		c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{}
+		)
 {
-	ele = decltype(ele)::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	index.create_index(c, cube_static_3d_index);
 	vertex.create_vertex(c, cube_static_3d2);
-	lv = layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{};
 }
 
-void UE4_cube_static::geometry_apply(stage_context& sc)
+void UE4_cube_static::apply(stage_context& sc)
 {
-	sc << ele << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0};
-}
-
-bool UE4_cube_static::geometry_update(stage_context& sc, property_interface& pi) 
-{
-	return false;
-}
-
-const std::set<std::type_index>& UE4_cube_static::geometry_requirement()
-{
-	return make_property_info_set<>{};
+	geometry_resource::apply(sc);
+	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0};
 }

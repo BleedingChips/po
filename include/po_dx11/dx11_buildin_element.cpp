@@ -104,135 +104,76 @@ namespace PO
 {
 	namespace Dx11
 	{
-
-		void property_local_transfer::update(renderer_data& rd, stage_context& sc)
+		void property_local_transfer::set_local_to_world(creator& c, const float4x4& l_w, const float4x4& w_l)
 		{
-			if (!rd.transfer || need_update)
-			{
-				shader_storage<float4x4, float4x4> as{ local_to_world, world_to_local };
-				need_update = false;
-				if (!rd.transfer)
-				{
-					rd.transfer.create_pod(sc, as, true);
-				}
-				else {
-					sc.write_constant_buffer(rd.transfer, [&, this](void* data) {
-						*static_cast<shader_storage<float4x4, float4x4>*>(data) = as;
-					});
-				}
-			}
-		}
-		void property_local_transfer::push(property_local_transfer& pt, creator& c)
-		{
-			if (need_update)
-			{
-				pt.local_to_world = local_to_world;
-				pt.world_to_local = world_to_local;
-				need_update = false;
-				pt.need_update = true;
-			}
+			shader_storage<float4x4, float4x4> ss{l_w, w_l};
+			transfer.create_pod(c, ss);
+			need_update();
 		}
 
-		void property_viewport_transfer::update(renderer_data& rd, stage_context& sc)
+		void property_local_transfer::update(creator& c, renderer_data& rd)
 		{
-			using type = shader_storage<float4x4, float4x4, float4x4, float4x4, float, float, float , float , float>;
-			type temporary{ world_to_eye, eye_to_world , world_to_camera, camera_to_world, near_surface, far_surface, view_near_surface, view_far_surface, time };
-			//type temporary{ eye, world_to_screen, screen_to_world, float3{ eye._41, eye._42, eye._43 }, time };
-			if (!rd.viewport)
-			{
-				rd.viewport.create_pod(sc, temporary, true);
-			}
-			else {
-				sc.write_constant_buffer(rd.viewport, [&, this](void* data) {
-					*static_cast<type*>(data) = temporary;
-				});
-			}
+			rd.transfer = transfer;
 		}
 
-		void property_viewport_transfer::push(property_viewport_transfer& pt, creator& c)
+		void property_viewport_transfer::update(creator& c, renderer_data& rd)
 		{
-			pt = *this;
+			shader_storage<float4x4, float4x4, float4x4, float4x4, float, float, float, float, float>
+				ss{ world_to_eye, eye_to_world, world_to_camera, camera_to_world, near_surface, far_surface,
+				view_near_surface, view_far_surface, time
+			};
+			rd.viewport.create_pod(c, ss);
 		}
 
-		geometry_screen::geometry_screen(creator& c)
+		geometry_screen::geometry_screen(creator& c) : geometry_resource(c, 
+			layout_type<buffer_layout<syntax<position, 0, float2>, syntax<texcoord, 0, float2>>>{}
+			)
 		{
-			ele = primitive_topology::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			index.create_index(c, square_2d_static_index);
 			vertex.create_vertex(c, square_2d_static);
-			lv = layout_type<buffer_layout<syntax<position, 0, float2>, syntax<texcoord, 0, float2>>>{};
-			decltype(rs)::description des = decltype(rs)::default_description;
-			//des.CullMode = decltype(des.CullMode)::D3D11_CULL_NONE;
-			//rs = c.create_raterizer_state(des);
 		}
-		void geometry_screen::geometry_apply(stage_context& sc)
+		void geometry_screen::apply(stage_context& sc)
 		{
-			sc << ele << index_call{ static_cast<uint32_t>(square_2d_static_index.size()), 0, 0 } << rs;
+			geometry_resource::apply(sc);
+			sc << index_call{ static_cast<uint32_t>(square_2d_static_index.size()), 0, 0 };
 			sc << index << vertex[0];
 		}
-		bool geometry_screen::geometry_update(stage_context& sc, property_interface& pi) { return false; }
-		const std::set<std::type_index>& geometry_screen::geometry_requirement() const
+
+		placement_direct::placement_direct(creator& c) : placement_resource(
+			c,
+			u"build_in_placement_direct_vs.cso"
+		) {}
+
+		material_testing::material_testing(creator& c) : material_resource(c, u"material_test_ps.cso") {}
+
+
+
+		geometry_cube::geometry_cube(creator& c) : geometry_resource(
+			c,
+			layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{}
+		)
 		{
-			return make_property_info_set<>{};
-		}
-
-		const std::u16string& placement_direct::placement_shader_patch_vs() {
-			static const std::u16string patch(u"build_in_placement_direct_vs.cso");
-			return patch;
-		}
-		void placement_direct::placement_apply(stage_context&) {}
-		bool placement_direct::placement_update(stage_context& sc, property_interface& pi) { return false; }
-		const std::set<std::type_index>& placement_direct::placement_requirement()  const  { return make_property_info_set<>{}; }
-
-
-		const std::u16string& material_testing::material_shader_patch_ps()
-		{
-			static const std::u16string patch(u"material_test_ps.cso");
-			return patch;
-		}
-		void material_testing::material_apply(stage_context&) {}
-		bool material_testing::material_update(stage_context& sc, property_interface& pi) { return false; }
-		const std::set<std::type_index>& material_testing::material_requirement() const  { return make_property_info_set<>{}; }
-
-		geometry_cube::geometry_cube(creator& c)
-		{
-			ele = decltype(ele)::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			index.create_index(c, cube_static_3d_index);
 			vertex.create_vertex(c, cube_static_3d);
-			lv = layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{};
-		}
-		void geometry_cube::geometry_apply(stage_context& sc) { 
-			sc << ele << index << vertex[0] << index_call{static_cast<UINT>(cube_static_3d_index.size()), 0, 0}; 
-		}
-		bool geometry_cube::geometry_update(stage_context& sc, property_interface& pi) 
-		{
-			return false;
-		}
-		const std::set<std::type_index>& geometry_cube::geometry_requirement() const
-		{
-			return make_property_info_set<>{};
 		}
 
-
-		const std::u16string& placement_static_viewport_static::placement_shader_patch_vs()
-		{
-			static std::u16string patch(u"build_in_placement_view_static_vs.cso");
-			return patch;
+		void geometry_cube::apply(stage_context& sc) {
+			geometry_resource::apply(sc);
+			sc << index << vertex[0] << index_call{static_cast<UINT>(cube_static_3d_index.size()), 0, 0}; 
 		}
-		void placement_static_viewport_static::placement_apply(stage_context& sc)
-		{
 
-		}
-		bool placement_static_viewport_static::placement_update(stage_context& sc, property_interface& pi)
+		placement_static_viewport_static::placement_static_viewport_static(creator& c) : placement_resource(c, u"build_in_placement_view_static_vs.cso") {}
+
+		const element_requirement& placement_static_viewport_static::requirement() const
 		{
-			return pi.cast([&](property_local_transfer::renderer_data& rd) {
+			return make_element_requirement(
+				[](stage_context& sc, property_local_transfer::renderer_data& rd) {
 				sc.VS() << rd.transfer[1];
-			}) || pi.cast([&](property_viewport_transfer::renderer_data& rd) {
+			},
+				[](stage_context& sc, property_viewport_transfer::renderer_data& rd) {
 				sc.VS() << rd.viewport[0];
-			});
-		}
-		const std::set<std::type_index>& placement_static_viewport_static::placement_requirement() const
-		{
-			return make_property_info_set<property_local_transfer, property_viewport_transfer>{};
+			}
+			);
 		}
 
 

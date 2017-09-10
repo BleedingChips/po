@@ -44,23 +44,23 @@ namespace PO
 			}
 		}
 
-		void property_proxy_map::logic_to_swap()
+		void property_proxy_map::logic_to_swap(creator& c)
 		{
 			inside_map->swap_mapping.clear();
 			for (auto& ite : mapping)
 			{
-				ite.second->logic_to_swap();
+				ite.second->logic_to_swap(c);
 				inside_map->swap_mapping.insert(ite);
 			}
 			inside_map->allready_update = false;
 		}
 
-		void property_proxy_map::logic_to_renderer()
+		void property_proxy_map::logic_to_renderer(creator& c)
 		{
 			inside_map->renderer_mapping.clear();
 			for (auto& ite : mapping)
 			{
-				ite.second->logic_to_renderer();
+				ite.second->logic_to_renderer(c);
 				inside_map->renderer_mapping.insert(ite);
 			}
 			inside_map->allready_update = true;
@@ -208,7 +208,7 @@ namespace PO
 				
 				for (auto & ite : element_store)
 				{
-					ite->mapping.logic_to_swap();
+					ite->mapping.logic_to_swap(c);
 					auto map = ite->mapping.map();
 
 					for (auto& ite2 : ite->compute)
@@ -249,7 +249,7 @@ namespace PO
 
 		void pipeline_interface::execute(stage_context& sc, element_renderer_storage& esb, Tool::stack_list<Implement::property_map>* pml)
 		{
-			property_mapping.logic_to_renderer();
+			property_mapping.logic_to_renderer(sc);
 			Tool::stack_list<Implement::property_map> tem{*(property_mapping.map()), pml };
 			execute_implement(sc, esb, &tem);
 		}

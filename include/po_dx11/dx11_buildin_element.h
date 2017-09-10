@@ -9,21 +9,17 @@ namespace PO
 		
 		class property_local_transfer : public property_resource
 		{
-			float4x4 local_to_world;
-			float4x4 world_to_local;
-			bool need_update = false;
 			constant_buffer transfer;
 		public:
 			struct renderer_data
 			{
 				constant_buffer transfer;
 			};
-			void set_local_to_world(const float4x4& l_w, const float4x4& w_l) { local_to_world = l_w; world_to_local = w_l; need_update = true; }
-			void update(renderer_data& rd, stage_context& sc);
-			void push(property_local_transfer& pt, creator& c);
+			void set_local_to_world(PO::Dx11::creator& c, const float4x4& l_w, const float4x4& w_l);
+			void update(creator& c, renderer_data& rd);
 		};
 
-		class property_viewport_transfer
+		class property_viewport_transfer : public property_resource
 		{
 			float4x4 world_to_eye;
 			float4x4 eye_to_world;
@@ -36,73 +32,48 @@ namespace PO
 			{
 				constant_buffer viewport;
 			};
-			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat; }
-			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; }
-			void set_surface(float ns, float fs, float vns, float vfs) { near_surface = ns; far_surface = fs; view_near_surface = vns; view_far_surface = vfs; }
-			void set_time(float f) { time = f; }
-			void update(renderer_data& rd, stage_context& sc);
-			void push(property_viewport_transfer& pt, creator& c);
+			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat; need_update();}
+			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; need_update(); }
+			void set_surface(float ns, float fs, float vns, float vfs) { near_surface = ns; far_surface = fs; view_near_surface = vns; view_far_surface = vfs; need_update(); }
+			void set_time(float f) { time = f; need_update(); }
+			void update(creator& c, renderer_data& rd);
 		};
 
-		class geometry_screen
+		class geometry_screen : public geometry_resource
 		{
-			primitive_topology ele;
 			index_buffer index;
 			vertex_buffer vertex;
-			layout_view lv;
-			raterizer_state rs;
 		public:
 			geometry_screen(creator& c);
-			void geometry_apply(stage_context& sc);
-			bool geometry_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& geometry_requirement() const;
-			const layout_view& geometry_layout_view() { return lv; }
+			void apply(stage_context& sc);
 		};
 
-		class placement_direct
+		class placement_direct : public placement_resource
 		{
 		public:
-			const std::u16string& placement_shader_patch_vs();
-			placement_direct(creator& c) {}
-			void placement_apply(stage_context&);
-			bool placement_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& placement_requirement() const;
+			placement_direct(creator& c);
 		};
 
-		class material_testing: public material_default
+		class material_testing: public material_resource
 		{
 		public:
-			const std::u16string& material_shader_patch_ps();
-			material_testing(creator& c) {}
-			void material_apply(stage_context&);
-			bool material_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& material_requirement() const;
+			material_testing(creator& c);
 		};
 
-		class geometry_cube
+		class geometry_cube : public geometry_resource
 		{
-			primitive_topology ele;
 			index_buffer index;
 			vertex_buffer vertex;
-			layout_view lv;
-			raterizer_state rs;
 		public:
 			geometry_cube(creator& c);
-			void geometry_apply(stage_context& sc);
-			bool geometry_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& geometry_requirement() const;
-			const layout_view& geometry_layout_view() { return lv; }
+			void apply(stage_context& sc);
 		};
 
-		class placement_static_viewport_static
+		class placement_static_viewport_static : public placement_resource
 		{
 		public:
-			placement_static_viewport_static(creator& c) {}
-
-			const std::u16string& placement_shader_patch_vs();
-			void placement_apply(stage_context&);
-			bool placement_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& placement_requirement() const;
+			placement_static_viewport_static(creator& c);
+			const element_requirement& requirement() const;
 		};
 
 		/*

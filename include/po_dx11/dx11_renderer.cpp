@@ -50,8 +50,8 @@ namespace PO
 		}
 		void renderer_default::pos_tick(duration da)
 		{
-			els.push(esb, *this);
-			ers.get(esb, *this);
+			els.logic_to_swap(esb, *this);
+			ers.swap_to_renderer(esb, *this);
 
 			for (auto& ite : ers.draw_request)
 			{
@@ -103,31 +103,47 @@ namespace PO
 			bs.create(c, one_to_zero);
 		}
 
-		const char16_t* material_opaque_testing::material_shader_patch_ps()
-		{
-			return u"material_test_ps.cso";
-		}
+		material_merga_gbuffer_default::material_merga_gbuffer_default(creator& c) :
+			material_resource(c, u"build_in_material_merge_gbuffer_ps.cso") {}
 
-		std::type_index material_opaque_testing::pipeline_id()
+		const element_requirement& material_merga_gbuffer_default::requirement() const
 		{
-			return typeid(pipeline_opaque_default);
-		}
-
-		const char16_t* material_merga_gbuffer_default::material_shader_patch_ps()
-		{
-			return u"build_in_material_merge_gbuffer_ps.cso";
-		}
-
-		void material_merga_gbuffer_default::material_apply(stage_context&) {}
-		bool material_merga_gbuffer_default::material_update(stage_context& sc, property_interface& pi)
-		{
-			return pi.cast([&](property_gbuffer_default::renderer_data& pgd) {
+			return make_element_requirement(
+				[](stage_context& sc, property_gbuffer_default::renderer_data& pgd) {
 				sc.PS() << pgd.srv[0] << pgd.ss[0];
-			});
+			}
+			);
 		}
-		const std::set<std::type_index>& material_merga_gbuffer_default::material_requirement() const
+
+		material_opaque_testing::material_opaque_testing(creator& c) :
+			material_opaque_resource(c, u"material_test_ps.cso")
+		{}
+
+		material_qpaque_texture_coord::material_qpaque_texture_coord(creator& c) :
+			material_opaque_resource(c, u"build_in_material_defer_render_texcoord_ps.cso") {}
+		
+		void property_linearize_z::set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size) {
+			input_depth = std::move(input);
+			output_depth = std::move(output_f);
+			size = output_size;
+			need_update();
+		}
+
+		compute_linearize_z::compute_linearize_z(creator& c) :
+			compute_resource(c, u"build_in_compute_linearize_z_cs.cso")
+		{}
+
+		const element_requirement& compute_linearize_z::requirement() const
 		{
-			return make_property_info_set<property_gbuffer_default>{};
+			return make_element_requirement(
+				[](stage_context& sc, property_linearize_z::renderer_data& plz) {
+				sc.CS() << plz.input_depth[0] << plz.output_depth[0];
+				sc << dispatch_call{ plz.size.x, plz.size.y , 1 };
+			},
+				[](stage_context& sc, property_viewport_transfer::renderer_data& pvt) {
+				sc.CS() << pvt.viewport[0];
+			}
+			);
 		}
 
 		pipeline_transparent_default::pipeline_transparent_default(): pipeline_interface(typeid(decltype(*this))){}
@@ -158,16 +174,9 @@ namespace PO
 			sc.unbind();
 		}
 
-		const char16_t* material_transparent_testing::material_shader_patch_ps()
-		{
-			return u"material_test_ps.cso";
-		}
-
-		std::type_index material_transparent_testing::pipeline_id()
-		{
-			return typeid(pipeline_transparent_default);
-		}
-
+		material_transparent_testing::material_transparent_testing(creator& c)
+			: material_transparent_resource(c, u"material_test_ps.cso")
+		{}
 
 		defer_renderer_default::defer_renderer_default(value_table& vt) :
 			creator(vt.get<creator>()),
@@ -189,18 +198,19 @@ namespace PO
 				pgd.set_gbuffer(*this, opaque_pipeline.g_buffer, linear_z_buffer);
 			};
 			
-			merga.ptr->mapping.push(*this);
-			merga.ptr->mapping.inside_map->update(context);
-			merga.ptr->geometry->update_layout(*(merga.ptr->placement), *this);
+			//merga.ptr->mapping.logic_to_renderer(*this);
+			//merga.ptr->geometry->update_layout(*(merga.ptr->placement), *this);
 
-			post_mapping.push(*this);
-			post_mapping.inside_map->update(context);
+			//post_mapping.logic_to_renderer(*this);
 
 			linear_z << ins.create_compute<compute_linearize_z>() << [&, this](property_linearize_z& plz) {
-				plz.set_taregt(*this, opaque_pipeline.depth, linear_z_buffer);
+				plz.set_taregt_f(
+					opaque_pipeline.depth.cast_shader_resource_view(*this), 
+					linear_z_buffer.cast_unordered_access_view(*this),
+					linear_z_buffer.size()
+				);
 			};
-			linear_z.ptr->mapping.push(*this);
-			linear_z.ptr->mapping.inside_map->update(context);
+			linear_z.ptr->mapping.logic_to_renderer(*this);
 			transparent_pipeline.set(*this);
 		}
 
@@ -212,17 +222,15 @@ namespace PO
 		void defer_renderer_default::pos_tick(duration da)
 		{
 			context << view;
-			els.push(esb, *this);
-			ers.get(esb, context);
-			mapping.push(*this);
-			mapping.inside_map->update(context);
-			Tool::stack_list<Implement::property_map> tem{ *mapping.inside_map };
+			els.logic_to_swap(esb, *this);
+			ers.swap_to_renderer(esb, context);
+			mapping.logic_to_renderer(*this);
+			Tool::stack_list<Implement::property_map> tem{ *mapping.map() };
 			compute_pipeline.execute(context, ers, &tem);
 			opaque_pipeline.execute(context, ers, &tem);
 			context.unbind();
-			Tool::stack_list<Implement::property_map> tem2{ *post_mapping.inside_map, &tem };
-			Implement::element_dispatch_request temxx2{ linear_z.ptr->compute[0], linear_z.ptr->mapping.inside_map };
-			temxx2.update(context);
+			Tool::stack_list<Implement::property_map> tem2{ *post_mapping.map(), &tem };
+			Implement::element_dispatch_request temxx2{ linear_z.ptr->compute[0], linear_z.ptr->mapping.map() };
 			temxx2.dispatch(context, &tem2);
 			context.unbind();
 
@@ -238,29 +246,25 @@ namespace PO
 
 			
 			
-			Implement::element_draw_request temxx{ merga.ptr->placement, merga.ptr->geometry, merga.ptr->material[typeid(void)], merga.ptr->mapping.inside_map };
-			temxx.update(context);
+			Implement::element_draw_request temxx{ merga.ptr->placement, merga.ptr->geometry, merga.ptr->material[typeid(void)], merga.ptr->mapping.map() };
 			temxx.draw(context, &tem2);
 
 			context.unbind();
 
 		}
 
-		const char16_t* material_opaque_tex2_viewer::material_shader_patch_ps()
-		{
-			return u"build_in_material_tex2_view.cso";
-		}
 
-		const std::set<std::type_index>& material_opaque_tex2_viewer::material_requirement()
-		{
-			return make_property_info_set<property_tex2>{};
-		}
+		material_opaque_tex2_viewer::material_opaque_tex2_viewer(creator& c) :
+			material_opaque_resource(c, u"build_in_material_tex2_view.cso")
+		{}
 
-		bool material_opaque_tex2_viewer::material_update(stage_context& sc, property_interface& pi)
+		const element_requirement& material_opaque_tex2_viewer::requirement() const
 		{
-			return pi.cast([&](property_tex2::renderer_data& rd) {
+			return make_element_requirement(
+				[](stage_context& sc, property_tex2::renderer_data& rd) {
 				sc.PS() << rd.srv[0] << rd.ss[0];
-			});
+			}
+			);
 		}
 
 

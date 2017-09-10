@@ -80,7 +80,7 @@ namespace PO
 		};
 
 		
-		class property_gbuffer_default
+		class property_gbuffer_default : public property_resource
 		{
 			shader_resource_view<tex2> srv;
 			shader_resource_view<tex2> linear_z;
@@ -92,20 +92,16 @@ namespace PO
 				shader_resource_view<tex2> linear_z;
 				sample_state ss;
 			};
-			void push(property_gbuffer_default& pgb, creator& sc) { pgb.srv = srv;  pgb.ss = ss;  pgb.linear_z = linear_z; }
-			void update(renderer_data& rd, creator& c) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; }
+			void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; need_update(); }
 			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = t.cast_shader_resource_view(c); ss.create(c); linear_z = linear.cast_shader_resource_view(c); }
 		};
 
 
-		class material_merga_gbuffer_default : public material_default
+		class material_merga_gbuffer_default : public material_resource
 		{
 		public:
-			static const char16_t* material_shader_patch_ps();
-			material_merga_gbuffer_default(creator& c) {}
-			void material_apply(stage_context&);
-			bool material_update(stage_context& sc, property_interface& pi);
-			const std::set<std::type_index>& material_requirement() const;
+			material_merga_gbuffer_default(creator& c);
+			const element_requirement& requirement() const;
 		};
 
 
@@ -123,24 +119,25 @@ namespace PO
 			pipeline_opaque_default();
 		};
 
-		class material_opaque_testing : public material_default
+		struct material_opaque_resource : public material_resource
+		{
+			material_opaque_resource(creator& c, std::u16string patch) : material_resource(c, std::move(patch), {}, typeid(pipeline_opaque_default)) {}
+		};
+
+		class material_opaque_testing : public material_opaque_resource
 		{
 		public:
-			static const char16_t* material_shader_patch_ps();
-			static std::type_index pipeline_id();
-			material_opaque_testing(creator&) {}
+			material_opaque_testing(creator&);
 		};
 
 
-		class material_qpaque_texture_coord : public material_default
+		class material_qpaque_texture_coord : public material_opaque_resource
 		{
 		public:
-			static const char16_t* material_shader_patch_ps() { return u"build_in_material_defer_render_texcoord_ps.cso"; }
-			static std::type_index pipeline_id() { return typeid(pipeline_opaque_default); }
-			material_qpaque_texture_coord(creator&) {}
+			material_qpaque_texture_coord(creator&);
 		};
 
-		class property_linearize_z
+		class property_linearize_z : public property_resource
 		{
 			shader_resource_view<tex2> input_depth;
 			unordered_access_view<tex2> output_depth;
@@ -152,13 +149,8 @@ namespace PO
 				unordered_access_view<tex2> output_depth;
 				uint32_t2 size;
 			};
-			void set_taregt(creator& c, const tex2& input, const tex2& output) {
-				input_depth = input.cast_shader_resource_view(c);
-				output_depth = output.cast_unordered_access_view(c);
-				size = output.size();
-			}
-			void push(property_linearize_z& plz, creator& c) { plz = *this; }
-			void update(renderer_data& rd, stage_context& sc)
+			void set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size);
+			void update(creator& c, renderer_data& rd)
 			{
 				rd.input_depth = input_depth;
 				rd.output_depth = output_depth;
@@ -166,22 +158,11 @@ namespace PO
 			}
 		};
 
-		class compute_linearize_z
+		class compute_linearize_z : public compute_resource
 		{
 		public:
-			compute_linearize_z(creator&) {}
-			static const char16_t* compute_shader_patch_cs() { return u"build_in_compute_linearize_z_cs.cso"; }
-			static const std::set<std::type_index>& compute_requirement() { return make_property_info_set<property_linearize_z, property_viewport_transfer>{}; }
-			static void compute_apply(stage_context& sc) {};
-			static bool compute_update(stage_context& sc, property_interface& pi)
-			{
-				return pi.cast([&](property_linearize_z::renderer_data& plz) {
-					sc.CS() << plz.input_depth[0] << plz.output_depth[0];
-					sc << dispatch_call{ plz.size.x, plz.size.y , 1};
-				}) || pi.cast([&](property_viewport_transfer::renderer_data& pvt) {
-					sc.CS() << pvt.viewport[0];
-				});
-			}
+			compute_linearize_z(creator&);
+			const element_requirement& requirement() const;
 		};
 
 		class pipeline_transparent_default : public pipeline_interface
@@ -194,12 +175,16 @@ namespace PO
 			pipeline_transparent_default();
 		};
 
-		class material_transparent_testing : public material_default
+		struct material_transparent_resource : public material_resource
+		{
+			material_transparent_resource(creator& c, std::u16string patch, std::optional<blend_state::description> des = {}) :
+				material_resource(c, std::move(patch), des, typeid(pipeline_transparent_default)) {}
+		};
+
+		class material_transparent_testing : public material_transparent_resource
 		{
 		public:
-			static const char16_t* material_shader_patch_ps();
-			static std::type_index pipeline_id();
-			material_transparent_testing(creator&) {}
+			material_transparent_testing(creator&);
 		};
 
 		struct defer_renderer_default : creator
@@ -243,7 +228,7 @@ namespace PO
 			defer_renderer_default& operator << (const element& el) { els << el; return *this; }
 		};
 
-		struct property_tex2
+		struct property_tex2 : public property_resource
 		{
 			shader_resource_view<tex2> srv;
 			sample_state ss;
@@ -252,23 +237,23 @@ namespace PO
 				shader_resource_view<tex2> srv;
 				sample_state ss;
 			};
-			void push(property_tex2& pt, creator& c) { pt.srv = srv; pt.ss = ss; }
-			void update(renderer_data& rd, stage_context& sc) { rd.srv = srv; rd.ss = ss; }
+			void update(creator& c, renderer_data& rd)
+			{
+				rd.srv = srv;
+				rd.ss = ss;
+			}
 			void set_texture(creator& c, const shader_resource_view<tex2>& t, const sample_state::description& des = sample_state::default_description) {
 				srv = t; 
 				ss.create(c, des);
+				need_update();
 			}
 		};
 
-		class material_opaque_tex2_viewer //: public material_default
+		class material_opaque_tex2_viewer : public material_opaque_resource
 		{
 		public:
-			std::type_index pipeline_id() { return typeid(pipeline_opaque_default); }
-			static const char16_t* material_shader_patch_ps();
-			static const std::set<std::type_index>& material_requirement();
-			static void material_apply(stage_context& sc) {}
-			static bool material_update(stage_context&, property_interface& pi);
-			material_opaque_tex2_viewer(creator& v) {}
+			const element_requirement& requirement() const;
+			material_opaque_tex2_viewer(creator& v);
 		};
 
 

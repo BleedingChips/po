@@ -3,11 +3,8 @@
 #include "po_dx11\dx11_renderer.h"
 using namespace PO::Dx;
 using namespace PO::Dx11;
-class property_render_2d_for_3d
+class property_render_2d_for_3d : public property_resource
 {
-	
-	bool data_neeed_update = true;
-
 	float3 min_width, max_width, light;
 	float density;
 	shader_resource_view<tex2> m_srv;
@@ -29,33 +26,26 @@ public:
 		this->max_width = max_width;
 		this->light = light;
 		this->density = density;
-		data_neeed_update = true;
+		need_update();
 	}
 	void set_texture(creator& c, const tex2& t, sample_state::description de = sample_state::default_description) 
 	{ 
 		m_srv = t.cast_shader_resource_view(c); m_ss.create(c, de);;
+		need_update();
 	}
-
-	void push(property_render_2d_for_3d& prf, creator& c);
-	void update(renderer_data& rd, stage_context& sc);
+	void update(creator& c, renderer_data& rd);
 };
 
-class material_transparent_render_2d_for_3d_64 :public  material_default
+class material_transparent_render_2d_for_3d_64 :public material_transparent_resource
 {
 public:
-	static std::type_index pipeline_id() { return typeid(pipeline_transparent_default); }
-	material_transparent_render_2d_for_3d_64(creator&) {}
-	static const char16_t* material_shader_patch_ps();
-	static const std::set<std::type_index>& material_requirement();
-	static bool material_update(stage_context& sc, property_interface& pi);
+	material_transparent_render_2d_for_3d_64(creator&);
+	const element_requirement& requirement() const;
 };
 
-class material_transparent_2d_for_3d_64_without_perlin :public material_default
+class material_transparent_2d_for_3d_64_without_perlin :public material_transparent_resource
 {
 public:
-	static std::type_index pipeline_id() { return typeid(pipeline_transparent_default); }
-	material_transparent_2d_for_3d_64_without_perlin(creator& c) {}
-	static const char16_t* material_shader_patch_ps();
-	static const std::set<std::type_index>& material_requirement();
-	static bool material_update(stage_context& sc, property_interface& pi);
+	material_transparent_2d_for_3d_64_without_perlin(creator& c);
+	const element_requirement& requirement() const;
 };

@@ -73,7 +73,7 @@ void new_plugin::init(defer_renderer_default& dr)
 		<< [&](property_output_tex2& pot) {
 		pot.set_texture(dr, worley, 2.0, { 256, 256, 16, 16 });
 	} << [&](property_perline_worley_noise_3d_point& pot) {
-		pot.set_seed({ 123, 456, 789 });
+		pot.set_seed(dr, { 123, 456, 789 });
 	};
 
 
@@ -94,7 +94,7 @@ void new_plugin::init(defer_renderer_default& dr)
 		prf.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
 	}
 		<< [&](property_local_transfer& tlt) {
-		tlt.set_local_to_world(ts1, ts1.inverse_float4x4());
+		tlt.set_local_to_world(dr, ts1, ts1.inverse_float4x4());
 	};
 
 	ts2.poi = float3(0.0, 0.0, 6.0f);
@@ -110,19 +110,24 @@ void new_plugin::init(defer_renderer_default& dr)
 
 	perlin_element << dr.ins.create_compute<compute_perlin_noise_for_2d_rbga_uint8>();
 	perlin_element << [&](property_output_texture_2d_simulate_3d& po) {
-		po.set_mark_blend(float4(0.0, 1.0, 0.0, 0.0), float4(1.0, 0.0, 1.0, 1.0));
-		po.set_texture(dr, perlin_out, uint32_t4{ 256,256, 16,16 });
+		po.set_output_texture_rgba_u8(
+			dr, perlin_out.cast_unordered_access_view_as_format(dr, DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UINT),
+			perlin_out.size(),
+			uint32_t4{ 256,256, 16,16 },
+			float4(0.0, 1.0, 0.0, 0.0),
+			float4(1.0, 0.0, 1.0, 1.0)
+		);
 	} << [&](property_random_point_f& purp) {
 		purp.create_uniform_point(dr, compute_perlin_noise_for_2d_rbga_uint8::max_count(), 1234563, 0.0, 1.0);
 	};
 
-	dr << perlin_element;
+	//dr << perlin_element;
 
 	back_ground << dr.ins.create_geometry<geometry_cube>()
 		<< dr.ins.create_placement<placement_static_viewport_static>()
 		<< dr.ins.create_material<material_opaque_tex2_viewer>()
 		<< [&](property_local_transfer& pt) {
-		pt.set_local_to_world(ts2, ts2.inverse_float4x4());
+		pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
 	} << [&](property_tex2& pt) {
 		pt.set_texture(dr, perlin_out.cast_shader_resource_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UNORM));
 	}
@@ -158,11 +163,11 @@ void new_plugin::tick(defer_renderer_default& dr, duration da)
 	if (count__ == 10)
 	{
 		CoInitialize(nullptr);
-		if(true)
+		if(false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.context.imp->ptr, perlin_out.ptr, SI);
-			if(true)
+			if(false)
 				if (!
 					SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"NEW_IMAGE.DDS"))
 					) __debugbreak();
@@ -191,7 +196,7 @@ void new_plugin::tick(defer_renderer_default& dr, duration da)
 		if (s.apply(da, ts1))
 		{
 			output_volume_cube << [&, this](property_local_transfer& pt) {
-				pt.set_local_to_world(ts1, ts1.inverse_float4x4());
+				pt.set_local_to_world(dr, ts1, ts1.inverse_float4x4());
 			};
 		}
 	}
@@ -200,7 +205,7 @@ void new_plugin::tick(defer_renderer_default& dr, duration da)
 		if (s.apply(da, ts2))
 		{
 			back_ground << [&](property_local_transfer& pt) {
-				pt.set_local_to_world(ts2, ts2.inverse_float4x4());
+				pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
 			};
 		}
 	}
@@ -209,6 +214,6 @@ void new_plugin::tick(defer_renderer_default& dr, duration da)
 		pt.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
 	};
 	
-	dr << back_ground;
-	dr << output_volume_cube;
+	//dr << back_ground;
+	//dr << output_volume_cube;
 }
