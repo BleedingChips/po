@@ -17,15 +17,9 @@
 
 using namespace PO;
 
-
-std::tuple<int, double> get() { return { 1, 2.0f }; }
-
 int main()
 {
-
-	auto[a, b] = get();
-	std::cout << a << b << std::endl;
-
+	std::cout << "============" << std::endl;
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");

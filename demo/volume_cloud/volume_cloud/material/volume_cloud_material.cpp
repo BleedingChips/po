@@ -32,7 +32,9 @@ const element_requirement& material_transparent_render_2d_for_3d_64::requirement
 }
 
 material_transparent_2d_for_3d_64_without_perlin::material_transparent_2d_for_3d_64_without_perlin(creator& c)
-	: material_transparent_resource(c, u"volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.cso")
+	: material_transparent_resource(c, u"volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.cso", blend_state::description{
+	FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
+})
 {}
 
 const element_requirement& material_transparent_2d_for_3d_64_without_perlin::requirement() const

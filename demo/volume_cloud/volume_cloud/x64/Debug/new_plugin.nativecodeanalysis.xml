@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DEFECTS>
+  <DEFECT>
+    <SFA>
+      <FILEPATH>d:\github\po\demo\volume_cloud\volume_cloud\</FILEPATH>
+      <FILENAME>new_plugin.cpp</FILENAME>
+      <LINE>170</LINE>
+      <COLUMN>14</COLUMN>
+    </SFA>
+    <DEFECTCODE>6031</DEFECTCODE>
+    <DESCRIPTION>返回值被忽略: “CoInitialize”。</DESCRIPTION>
+    <FUNCTION>new_plugin::tick</FUNCTION>
+    <DECORATED>?tick@new_plugin@@QEAAXAEAUdefer_renderer_default@Dx11@PO@@V?$duration@_JU?$ratio@$00$0DOI@@std@@@chrono@std@@@Z</DECORATED>
+    <FUNCLINE>164</FUNCLINE>
+    <PATH></PATH>
+  </DEFECT>
+</DEFECTS>

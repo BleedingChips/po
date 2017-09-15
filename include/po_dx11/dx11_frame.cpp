@@ -237,10 +237,10 @@ namespace PO
 			}
 		}
 		
-		// structured_buffer **************************************
-		shader_resource_view<structured_buffer> structured_buffer::cast_shader_resource_view(creator& c, std::optional<uint32_t2> range) const
+		// buffer_structured **************************************
+		shader_resource_view<buffer_structured> buffer_structured::cast_shader_resource_view(creator& c, std::optional<uint32_t2> range) const
 		{
-			shader_resource_view<structured_buffer> tem;
+			shader_resource_view<buffer_structured> tem;
 			D3D11_SHADER_RESOURCE_VIEW_DESC DSRVD{ DXGI_FORMAT::DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_BUFFER };
 			if (range)
 				DSRVD.Buffer = D3D11_BUFFER_SRV{ range->x, range->y };
@@ -254,9 +254,9 @@ namespace PO
 			throw re;
 		}
 
-		unordered_access_view<structured_buffer> structured_buffer::cast_unordered_access_view(creator& c, std::optional<uint32_t2> elemnt_start_and_count, std::optional<uint32_t> offset, bool is_append_or_consume) const
+		unordered_access_view<buffer_structured> buffer_structured::cast_unordered_access_view(creator& c, std::optional<uint32_t2> elemnt_start_and_count, std::optional<uint32_t> offset, bool is_append_or_consume) const
 		{
-			unordered_access_view<structured_buffer> tem;
+			unordered_access_view<buffer_structured> tem;
 			tem.offset = offset.value_or(-1);
 			D3D11_UNORDERED_ACCESS_VIEW_DESC DUAVD{ DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_BUFFER };
 			uint32_t2 element;
@@ -273,9 +273,9 @@ namespace PO
 			throw re;
 		}
 
-		// constant_buffer ***************************************
+		// buffer_constant ***************************************
 		static Tool::scope_lock<std::vector<char>> cbuffer_buffer;
-		bool constant_buffer::create_raw(creator& c, uint32_t width, const void* data)
+		bool buffer_constant::create_raw(creator& c, uint32_t width, const void* data)
 		{
 			uint32_t aligned_size = (width + 15) & ~(uint32_t{ 15 });
 			aligned_size = aligned_size >= 128 ? aligned_size : 128;
@@ -972,7 +972,7 @@ namespace PO
 				unbinding_implement(*cp, sample_count, nullptr_sampler_state, sample_f);
 			}
 
-			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, uint32_t solt,
+			void shader_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_constant& id, uint32_t solt,
 				void(__stdcall ID3D11DeviceContext::* cb_f)(uint32_t, uint32_t, ID3D11Buffer* const *)
 			)
 			{
@@ -1012,7 +1012,7 @@ namespace PO
 			static std::array<uint32_t, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> input_assember_context_zero_array = {};
 
 			/*****  input_assember_context_t   ******************************************************************************************/
-			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_buffer& vi, uint32_t solt)
+			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_vertex& vi, uint32_t solt)
 			{
 				if (vb_count <= solt)
 					vb_count = solt + 1;
@@ -1020,7 +1020,7 @@ namespace PO
 				uint32_t offset = 0;
 				cp->IASetVertexBuffers(solt, 1, buffer, &vi.stride, &offset);
 			}
-			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const index_buffer& iv)
+			void input_assember_context_t::bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_index& iv)
 			{
 				cp->IASetIndexBuffer(iv.ptr, iv.DF, 0);
 			}
@@ -1292,12 +1292,14 @@ namespace PO
 			}
 		}
 
+
 		void stage_context_implement::unbind() {
 			CS.unbind(ptr); IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
 			PS.unbind(ptr); OM.unbind(ptr);
 			call_require = {};
 		}
 
+		/*
 		void stage_context_implement::dispatch(uint32_t x, uint32_t y, uint32_t z) {
 			if (call_require && !call_require.able_cast<dispatch_call>()) {
 				IA.unbind(ptr); VS.unbind(ptr); RA.unbind(ptr);
@@ -1338,6 +1340,7 @@ namespace PO
 			call_require = index_instance_call{ index_pre_instance, instance_count, index_start, base_vertex, instance_start };
 			call();
 		}
+		*/
 
 		void stage_context_implement::clear() {
 			call_require = {};

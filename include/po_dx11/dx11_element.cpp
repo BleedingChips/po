@@ -37,7 +37,7 @@ namespace PO
 					for (auto& ite : swap_mapping)
 					{
 						ite.second->swap_to_renderer();
-						renderer_mapping.insert({ ite.second->associate_id(), ite.second });
+						renderer_mapping.insert(ite);
 					}
 					allready_update = true;
 				}
@@ -50,7 +50,7 @@ namespace PO
 			for (auto& ite : mapping)
 			{
 				ite.second->logic_to_swap(c);
-				inside_map->swap_mapping.insert(ite);
+				inside_map->swap_mapping.insert({ite.second->associate_id(), ite.second});
 			}
 			inside_map->allready_update = false;
 		}
@@ -61,7 +61,7 @@ namespace PO
 			for (auto& ite : mapping)
 			{
 				ite.second->logic_to_renderer(c);
-				inside_map->renderer_mapping.insert(ite);
+				inside_map->renderer_mapping.insert({ ite.second->associate_id(), ite.second });
 			}
 			inside_map->allready_update = true;
 		}
@@ -91,8 +91,11 @@ namespace PO
 		void compute_resource::apply(stage_context& sc) { sc << shader; }
 		compute_resource::compute_resource(creator& c, std::u16string cs_pacth): patch(std::move(cs_pacth))
 		{
-			if (!cs_pacth.empty())
+			if (!patch.empty())
+			{
 				shader = Implement::stage_load_cs(patch, c);
+				assert(shader);
+			}
 		}
 
 		void material_resource::apply(stage_context& sc)
@@ -102,8 +105,11 @@ namespace PO
 
 		material_resource::material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> des, const std::type_index& ti) : patch(std::move(ps_patch)), id_for_pipeline(ti)
 		{
-			if(!ps_patch.empty())
+			if (!patch.empty())
+			{
 				shader = Implement::stage_load_ps(patch, c);
+				assert(shader);
+			}
 			if (des)
 				bs.create(c, *des);
 		}
@@ -115,8 +121,11 @@ namespace PO
 
 		placement_resource::placement_resource(creator& c, std::u16string ps_patch) : patch(std::move(ps_patch))
 		{
-			if (!ps_patch.empty())
+			if (!patch.empty())
+			{
 				shader = Implement::stage_load_vs(patch, c);
+				assert(shader);
+			}
 		}
 
 		bool element_requirement::apply_property_implement(Implement::stage_resource& sr, stage_context& sc, const map_t::value_type& map_ite, Tool::stack_list<Implement::property_map>* sl)

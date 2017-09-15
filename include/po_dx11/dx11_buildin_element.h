@@ -9,11 +9,11 @@ namespace PO
 		
 		class property_local_transfer : public property_resource
 		{
-			constant_buffer transfer;
+			buffer_constant transfer;
 		public:
 			struct renderer_data
 			{
-				constant_buffer transfer;
+				buffer_constant transfer;
 			};
 			void set_local_to_world(PO::Dx11::creator& c, const float4x4& l_w, const float4x4& w_l);
 			void update(creator& c, renderer_data& rd);
@@ -30,7 +30,7 @@ namespace PO
 		public:
 			struct renderer_data
 			{
-				constant_buffer viewport;
+				buffer_constant viewport;
 			};
 			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat; need_update();}
 			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; need_update(); }
@@ -41,8 +41,8 @@ namespace PO
 
 		class geometry_screen : public geometry_resource
 		{
-			index_buffer index;
-			vertex_buffer vertex;
+			buffer_index index;
+			buffer_vertex vertex;
 		public:
 			geometry_screen(creator& c);
 			void apply(stage_context& sc);
@@ -62,8 +62,8 @@ namespace PO
 
 		class geometry_cube : public geometry_resource
 		{
-			index_buffer index;
-			vertex_buffer vertex;
+			buffer_index index;
+			buffer_vertex vertex;
 		public:
 			geometry_cube(creator& c);
 			void apply(stage_context& sc);
@@ -79,16 +79,16 @@ namespace PO
 		/*
 		class property_transfer : public property_interface
 		{
-			constant_buffer m_cb;
+			buffer_constant m_cb;
 		public:
-			const constant_buffer& cb() const { return m_cb; }
+			const buffer_constant& cb() const { return m_cb; }
 			void set_transfer(creator& c, const float4x4& local, const float4x4& world);
 			property_transfer();
 		};
 
 		class property_transfer_instance : public property_interface
 		{
-			structured_buffer transfer_sb;
+			buffer_structured transfer_sb;
 			shader_resource_view transfer_srv;
 			unordered_access_view transfer_uav;
 			size_t buffer_size = 0;
@@ -103,19 +103,19 @@ namespace PO
 
 		class property_screen_static : public property_interface
 		{
-			constant_buffer screen_cb;
+			buffer_constant screen_cb;
 		public:
-			const constant_buffer& cb() const { return screen_cb; }
+			const buffer_constant& cb() const { return screen_cb; }
 			void set(creator& c, const float4x4& projection, float near_plane, float far_plane, float xy_rate, float2 viewport_left_top, float2 viewport_right_button, float2 viewport_near_far);
 			property_screen_static();
 		};
 
 		class property_screen : public property_interface
 		{
-			constant_buffer screen_cb;
+			buffer_constant screen_cb;
 		public:
 			void set(creator& c, const float4x4& view, const float4x4& world_to_screen, const PO::Dx::float4x4& screen_to_world, float time);
-			const constant_buffer& cb() const { return screen_cb; }
+			const buffer_constant& cb() const { return screen_cb; }
 			property_screen();
 		};
 

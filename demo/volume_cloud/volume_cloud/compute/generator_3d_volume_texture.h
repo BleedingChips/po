@@ -14,7 +14,7 @@ namespace SelfProperty
 		PO::Dx::uint32_t3 size;
 
 		PO::Dx11::unordered_access_view output_texture;
-		PO::Dx11::constant_buffer cb;
+		PO::Dx11::buffer_constant cb;
 		
 		friend class generator_3d_volume_texture;
 

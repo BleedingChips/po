@@ -11,7 +11,7 @@ public:
 
 	struct renderer_data
 	{
-		constant_buffer cb;
+		buffer_constant cb;
 	};
 
 	void set_seed(uint32_t3 s) { seed = s; update = true; }
@@ -50,7 +50,7 @@ namespace Property_t
 		PO::Dx::uint32_t4 target_size;
 		float step = 1.0;
 
-		PO::Dx11::constant_buffer cb;
+		PO::Dx11::buffer_constant cb;
 		PO::Dx11::unordered_access_view uav;
 	public:
 		void set_texture(PO::Dx11::tex2);

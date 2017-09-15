@@ -7,8 +7,8 @@ using namespace PO::Dx11;
 
 class UE4_cube_static : public geometry_resource
 {
-	index_buffer index;
-	vertex_buffer vertex;
+	buffer_index index;
+	buffer_vertex vertex;
 public:
 	UE4_cube_static(creator& c);
 	void apply(stage_context& sc);

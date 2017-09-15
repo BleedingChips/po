@@ -31,11 +31,21 @@ struct property_random_point_f
     float4 parameter_2;
 };
 
-struct property_output_texture_2d_simulate_3d
+struct property_output_tex2_2d_simulate_3d
 {
     uint2 texture_size;
     uint4 simulate_size;
-    float4 mark;
-    float4 blend;
+};
+
+struct property_generate_worley_noise_float4_2d_simulate_3d
+{
+    float radius;
+    uint2 texture_size;
+    uint4 simulate_size;
+};
+
+struct property_merga_noise_float4_2d_simulate_3d
+{
+    uint2 texture_size;
 };
 #endif

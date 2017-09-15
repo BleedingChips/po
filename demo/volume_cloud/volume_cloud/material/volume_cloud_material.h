@@ -16,10 +16,8 @@ public:
 	{
 		shader_resource_view<tex2> m_srv;
 		sample_state m_ss;
-		constant_buffer m_cb;
+		buffer_constant m_cb;
 	};
-
-
 	void set_option(float3 min_width, float3 max_width, float3 light, float density) 
 	{
 		this->min_width = min_width;
@@ -28,9 +26,9 @@ public:
 		this->density = density;
 		need_update();
 	}
-	void set_texture(creator& c, const tex2& t, sample_state::description de = sample_state::default_description) 
+	void set_texture(shader_resource_view<tex2> srv,  sample_state ss) 
 	{ 
-		m_srv = t.cast_shader_resource_view(c); m_ss.create(c, de);;
+		m_srv = std::move(srv); m_ss = std::move(ss);
 		need_update();
 	}
 	void update(creator& c, renderer_data& rd);

@@ -21,6 +21,7 @@ namespace PO
 			void need_update() { m_need_update = true; }
 		public:
 			bool is_need_update() const { return m_need_update; }
+			void finished_update() { m_need_update = false; }
 		};
 
 		namespace Implement
@@ -121,7 +122,10 @@ namespace PO
 				{
 					need_update = direct_block.is_need_update();
 					if (need_update)
+					{
 						direct_block.update(c, swap_lock);
+						direct_block.finished_update();
+					}
 				}
 				virtual void swap_to_renderer()
 				{
@@ -135,7 +139,10 @@ namespace PO
 				{
 					need_update = false;
 					if (direct_block.is_need_update())
-						direct_block.update(c, swap_lock);
+					{
+						direct_block.update(c, renderer_lock);
+						direct_block.finished_update();
+					}
 				}
 			};
 

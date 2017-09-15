@@ -138,7 +138,19 @@
     <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_generate_perlin_noise_rgba_uint8.hlsl">
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_worley_noise_float4_2d_simulate_3d.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_merga_noise_float4_3d_simutale_3d.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_cube_mark_2d_simulate_3d.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_merga_4_f_to_u8_4.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_perlin_noise_uint8_4_2d_simulate_3d.hlsl">
       <Filter>compute\shader</Filter>
     </FxCompile>
   </ItemGroup>

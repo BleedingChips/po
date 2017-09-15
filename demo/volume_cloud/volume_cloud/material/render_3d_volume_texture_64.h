@@ -21,7 +21,7 @@ namespace Implement
 
 		sample_state ss;
 		shader_resource_view srv;
-		constant_buffer cb;
+		buffer_constant cb;
 
 		friend struct render_3d_volume_texture_64;
 

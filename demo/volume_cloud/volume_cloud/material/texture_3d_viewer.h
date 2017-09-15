@@ -12,7 +12,7 @@ public:
 
 		PO::Dx11::sample_state ss;
 		PO::Dx11::shader_resource_view srv;
-		PO::Dx11::constant_buffer cb;
+		PO::Dx11::buffer_constant cb;
 
 		PO::Dx11::tex3 t_buffer;
 

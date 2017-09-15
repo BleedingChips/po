@@ -92,7 +92,7 @@ namespace PO
 		};
 
 		template<typename T> struct unordered_access_view : unordered_access_view_interface {
-			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array, tex3, structured_buffer>::value, "only receive tex1, tex2, tex3, and structured buffer");
+			//static_assert(Tmp::is_one_of<T, tex1, tex1_array, tex2, tex2_array, tex_cube, tex_cube_array, tex2_ms, tex2_ms_array, tex3, buffer_structured>::value, "only receive tex1, tex2, tex3, and structured buffer");
 		};
 
 		struct tex1_source { 
@@ -184,7 +184,7 @@ namespace PO
 			};
 		}
 
-		class structured_buffer : Implement::buffer_interface
+		class buffer_structured : Implement::buffer_interface
 		{
 			using ViewType = Implement::AvalibleViewType;
 			ViewType av = ViewType::NONE;
@@ -202,11 +202,11 @@ namespace PO
 				av = ViewType::RT;
 				return result;
 			}
-			shader_resource_view<structured_buffer> cast_shader_resource_view(creator& c, std::optional<uint32_t2> range = {}) const;
-			unordered_access_view<structured_buffer> cast_unordered_access_view(creator& c, std::optional<uint32_t2> elemnt_start_and_count = {}, std::optional<uint32_t> offset = {}, bool is_append_or_consume = false) const;
+			shader_resource_view<buffer_structured> cast_shader_resource_view(creator& c, std::optional<uint32_t2> range = {}) const;
+			unordered_access_view<buffer_structured> cast_unordered_access_view(creator& c, std::optional<uint32_t2> elemnt_start_and_count = {}, std::optional<uint32_t> offset = {}, bool is_append_or_consume = false) const;
 		};
 
-		struct vertex_buffer : Implement::buffer_interface{
+		struct buffer_vertex : Implement::buffer_interface{
 			uint32_t stride;
 			bool create_vertex(creator& c, uint32_t size, uint32_t struct_byte, const void* data, bool write_able = false) {
 				bool result = !Implement::buffer_interface::create_implement(c, size, write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_VERTEX_BUFFER, 0, 0, data).has_value();
@@ -216,11 +216,11 @@ namespace PO
 			template<typename T, size_t count> bool create_vertex(creator& c, const std::array<T, count>& arr, bool write_able = false) {
 				return create_vertex(c, sizeof(T) * count, sizeof(T), arr.data(), write_able);
 			}
-			std::tuple<vertex_buffer, uint32_t> operator[](uint32_t i) && {return std::tuple<vertex_buffer, uint32_t>{std::move(*this), i}; }
-			std::tuple<const vertex_buffer&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const vertex_buffer&, uint32_t>{*this, i}; }
+			std::tuple<buffer_vertex, uint32_t> operator[](uint32_t i) && {return std::tuple<buffer_vertex, uint32_t>{std::move(*this), i}; }
+			std::tuple<const buffer_vertex&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const buffer_vertex&, uint32_t>{*this, i}; }
 		};
 
-		struct index_buffer : Implement::buffer_interface {
+		struct buffer_index : Implement::buffer_interface {
 			DXGI_FORMAT DF = DXGI_FORMAT_UNKNOWN;
 			bool create_index(creator& c, uint32_t count, const uint32_t* data, bool write_able = false) {
 				bool result = !Implement::buffer_interface::create_implement(c, count * sizeof(uint32_t), write_able ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_INDEX_BUFFER, 0, 0, data).has_value();
@@ -237,9 +237,9 @@ namespace PO
 			}
 		};
 
-		struct constant_buffer : Implement::buffer_interface{
-			std::tuple<constant_buffer, uint32_t> operator[](uint32_t i) && {return std::tuple<constant_buffer, uint32_t>{std::move(*this), i}; }
-			std::tuple<const constant_buffer&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const constant_buffer&, uint32_t>{*this, i}; }
+		struct buffer_constant : Implement::buffer_interface{
+			std::tuple<buffer_constant, uint32_t> operator[](uint32_t i) && {return std::tuple<buffer_constant, uint32_t>{std::move(*this), i}; }
+			std::tuple<const buffer_constant&, uint32_t> operator[](uint32_t i) const& { return std::tuple<const buffer_constant&, uint32_t>{*this, i}; }
 			bool create_raw(creator& c, uint32_t width, const void* data = nullptr);
 			template<typename T> bool create_pod(creator& c, const T& pod)
 			{
@@ -782,7 +782,7 @@ namespace PO
 					void (__stdcall ID3D11DeviceContext::* sample_f)(uint32_t, uint32_t, ID3D11SamplerState* const *)
 				);
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& id, uint32_t solt,
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_constant& id, uint32_t solt,
 					void(__stdcall ID3D11DeviceContext::* cb_f)(uint32_t, uint32_t, ID3D11Buffer* const *)
 				);
 
@@ -799,8 +799,8 @@ namespace PO
 			{
 				uint32_t vb_count = 0;
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, primitive_topology tp) { cp->IASetPrimitiveTopology(tp); }
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const vertex_buffer& vi, uint32_t solt);
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const index_buffer& iv);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_vertex& vi, uint32_t solt);
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_index& iv);
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const input_layout& id) { cp->IASetInputLayout(id.ptr); }
 				//void extract(Win32::com_ptr<ID3D11DeviceContext>& cp, input_layout& id);
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
@@ -816,7 +816,7 @@ namespace PO
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_constant& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetConstantBuffers); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetShaderResources); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::VSSetSamplers); }
 			};
@@ -843,7 +843,7 @@ namespace PO
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_constant& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetConstantBuffers); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetShaderResources); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::PSSetSamplers); }
 
@@ -874,7 +874,7 @@ namespace PO
 				void unbind(Win32::com_ptr<ID3D11DeviceContext>& cp);
 				void clear(Win32::com_ptr<ID3D11DeviceContext>& cp) { unbind(cp); }
 
-				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const constant_buffer& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetConstantBuffers); }
+				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const buffer_constant& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetConstantBuffers); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const shader_resource_view_interface& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetShaderResources); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const sample_state& cb, uint32_t solt) { shader_context_t::bind(cp, cb, solt, &ID3D11DeviceContext::CSSetSamplers); }
 				void bind(Win32::com_ptr<ID3D11DeviceContext>& cp, const unordered_access_view_interface& cb, uint32_t solt);
@@ -908,28 +908,21 @@ namespace PO
 			~stage_context_implement() { clear(); }
 			void clear();
 
-			enum DrawMode
-			{
-				PIPELINE,
-				COMPLUTE,
-				NONE
-			};
-
-			DrawMode last_mode = DrawMode::NONE;
-
+			/*
 			void dispatch(uint32_t x, uint32_t y, uint32_t z);
 
 			void draw_vertex(uint32_t count, uint32_t start);
 			void draw_index(uint32_t index_count, uint32_t index_start, uint32_t vertex_start);
 			void draw_vertex_instance(uint32_t vertex_pre_instance, uint32_t instance_count, uint32_t vertex_start, uint32_t instance_start);
 			void draw_index_instance(uint32_t index_pre_instance, uint32_t instance_count, uint32_t index_start, uint32_t base_vertex, uint32_t instance_start);
+			*/
 
 			void unbind();
 
 			stage_context_implement& bind(primitive_topology d) { IA.bind(ptr, d); return *this; }
 			stage_context_implement& bind(const input_layout& d) { IA.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const index_buffer& d) { IA.bind(ptr, d); return *this; }
-			stage_context_implement& bind(const vertex_buffer& vv, uint32_t solt) { IA.bind(ptr, vv, solt); return *this; }
+			stage_context_implement& bind(const buffer_index& d) { IA.bind(ptr, d); return *this; }
+			stage_context_implement& bind(const buffer_vertex& vv, uint32_t solt) { IA.bind(ptr, vv, solt); return *this; }
 			//stage_context_implement& bind(const vertex_resource& d) { VS.bind(ptr, d); return *this; }
 			stage_context_implement& bind(const shader_vertex& d) { VS.bind(ptr, d); return *this; }
 			//stage_context_implement& bind(const pixel_stage& d) { PS.bind(ptr, d); return *this; }
@@ -959,7 +952,7 @@ namespace PO
 			stage_context_implement& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { OM.clear_depth_stencil(ptr, omd, depth, ref); return *this;}
 
 			/*
-			template<typename T> bool write_constant_buffer(shader_resource& b, size_t o, T&& t)
+			template<typename T> bool write_buffer_constant(shader_resource& b, size_t o, T&& t)
 			{
 				if (b.cbuffer_array.size() <= o) return false;
 				D3D11_MAPPED_SUBRESOURCE DMS;
@@ -996,8 +989,8 @@ namespace PO
 			stage_reference<Implement::compute_stage_context_t> CS() { return stage_reference<decltype(imp->CS)> { imp->ptr, imp->CS}; }
 
 			template<typename T> stage_context& operator<<(const T& t) { imp->bind(t); return *this; }
-			stage_context& operator<<(const std::tuple<const vertex_buffer&, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
-			stage_context& operator<<(const std::tuple<vertex_buffer, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
+			stage_context& operator<<(const std::tuple<const buffer_vertex&, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
+			stage_context& operator<<(const std::tuple<buffer_vertex, uint32_t>& t) { imp->bind(std::get<0>(t), std::get<1>(t)); return *this; }
 			void unbind() { imp->unbind(); }
 			stage_context& clear_render_target(output_merge_stage& omd, uint32_t solt, const std::array<float, 4>& color) { imp->clear_render_target(omd, solt, color); return *this; }
 			stage_context& clear_render_target(output_merge_stage& omd, const std::array<float, 4>& color) { imp->clear_render_target(omd, color); return *this; }
@@ -1005,6 +998,7 @@ namespace PO
 			stage_context& clear_stencil(output_merge_stage& omd, uint8_t ref) { imp->clear_stencil(omd, ref); return *this; }
 			stage_context& clear_depth_stencil(output_merge_stage& omd, float depth, uint8_t ref) { imp->clear_depth_stencil(omd, depth, ref); return *this; }
 
+			/*
 			void draw_vertex(uint32_t count, uint32_t start) { imp->draw_vertex(count, start); }
 			void draw_index(uint32_t index_count, uint32_t index_start, uint32_t vertex_start) { imp->draw_index(index_count, index_start, vertex_start); }
 			void draw_vertex_instance(uint32_t vertex_pre_instance, uint32_t instance_count, uint32_t vertex_start, uint32_t instance_start) { imp->draw_vertex_instance (vertex_pre_instance, instance_count, vertex_start, instance_start); }
@@ -1012,6 +1006,7 @@ namespace PO
 				imp->draw_index_instance (index_pre_instance, instance_count, index_start, base_vertex, instance_start);
 			}
 			void dispatch(uint32_t x, uint32_t y, uint32_t z) { imp->dispatch(x, y, z); }
+			*/
 			void call() { imp->call(); }
 		};
 

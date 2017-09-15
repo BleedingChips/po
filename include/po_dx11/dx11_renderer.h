@@ -92,8 +92,8 @@ namespace PO
 				shader_resource_view<tex2> linear_z;
 				sample_state ss;
 			};
-			void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; need_update(); }
-			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = t.cast_shader_resource_view(c); ss.create(c); linear_z = linear.cast_shader_resource_view(c); }
+			void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; }
+			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = t.cast_shader_resource_view(c); ss.create(c); linear_z = linear.cast_shader_resource_view(c);  need_update();}
 		};
 
 
@@ -203,6 +203,7 @@ namespace PO
 			element_renderer_storage ers;
 			stage_instance ins;
 			depth_stencil_state dss;
+			duration total_time;
 
 
 			property_proxy_map mapping;

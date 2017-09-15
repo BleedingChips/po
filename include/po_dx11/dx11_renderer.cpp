@@ -65,7 +65,10 @@ namespace PO
 		void pipeline_compute_default::execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr)
 		{
 			for (auto& ite : storage.dispatch_request)
+			{
 				ite.dispatch(sc, ptr);
+				sc.unbind();
+			}
 		}
 
 		pipeline_opaque_default::pipeline_opaque_default() : pipeline_interface(typeid(decltype(*this))) {}
@@ -78,7 +81,11 @@ namespace PO
 			if (ite != storage.draw_request.end())
 			{
 				for (auto& ite2 : ite->second)
+				{
 					ite2.draw(sc, ptr);
+					sc.unbind();
+				}
+					
 			}
 			sc.unbind();
 		}
@@ -180,7 +187,7 @@ namespace PO
 
 		defer_renderer_default::defer_renderer_default(value_table& vt) :
 			creator(vt.get<creator>()),
-			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
+			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()), total_time(0),
 			/*instance(*this),*/ view(vt.get<tex2>().size_f()), ins(*this)
 		{
 			om << back_buffer.cast_render_target_view(*this);
@@ -216,7 +223,7 @@ namespace PO
 
 		void defer_renderer_default::pre_tick(duration da)
 		{
-
+			total_time += da;
 		}
 
 		void defer_renderer_default::pos_tick(duration da)
@@ -224,11 +231,18 @@ namespace PO
 			context << view;
 			els.logic_to_swap(esb, *this);
 			ers.swap_to_renderer(esb, context);
+
+			mapping << [&](property_viewport_transfer& pvt)
+			{
+				pvt.set_time(static_cast<float>(total_time.count()));
+			};
+
 			mapping.logic_to_renderer(*this);
 			Tool::stack_list<Implement::property_map> tem{ *mapping.map() };
 			compute_pipeline.execute(context, ers, &tem);
 			opaque_pipeline.execute(context, ers, &tem);
 			context.unbind();
+			post_mapping.logic_to_renderer(*this);
 			Tool::stack_list<Implement::property_map> tem2{ *post_mapping.map(), &tem };
 			Implement::element_dispatch_request temxx2{ linear_z.ptr->compute[0], linear_z.ptr->mapping.map() };
 			temxx2.dispatch(context, &tem2);
@@ -242,10 +256,6 @@ namespace PO
 
 			context << om << dss;
 
-			
-
-			
-			
 			Implement::element_draw_request temxx{ merga.ptr->placement, merga.ptr->geometry, merga.ptr->material[typeid(void)], merga.ptr->mapping.map() };
 			temxx.draw(context, &tem2);
 
@@ -266,35 +276,6 @@ namespace PO
 			}
 			);
 		}
-
-
-
-		/*
-		defer_render_pipeline_default::defer_render_pipeline_default() : Implement::pipeline_interface(typeid(decltype(*this))) {}
-		defer_render_pipeline_default::defer_render_pipeline_default(const std::type_index& ti) : Implement::pipeline_interface(ti) {}
-
-		void defer_render_pipeline_default::set_back_buffer_size(creator& p, tex2 t)
-		{
-			G_buffer = p.create_tex2_render_target(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, t);
-			depth_stencial = p.create_tex2_depth_stencil(DST_format::D24_UI8, t);
-			liner_z = p.create_tex2_unordered_access(DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, t);
-			oms << p.cast_render_target_view(G_buffer)[0] << p.cast_depth_setncil_view(depth_stencial);
-		}
-		*/
-
-
-
-
-
-
-		/*
-		proxy simple_renderer::mapping(std::type_index ti, adapter_interface& ai)
-		{
-			if (ti == typeid(simple_renderer))
-				return make_proxy<simple_renderer>(ai, *this);
-			return {};
-		}*/
-
 
 	}
 }

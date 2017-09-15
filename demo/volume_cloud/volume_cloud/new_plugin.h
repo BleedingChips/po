@@ -7,17 +7,22 @@ using namespace PO::Dx11;
 
 struct new_plugin
 {
+	tex2 worley_tex;
 	int swith_state = 0;
 	tex2 worley;
 	tex2 perlin_out;
-	element compute;
+	tex2 cube_mask_texture;
 	element output_volume_cube;
 	element back_ground;
-	element perlin_element;
+	element worley_generator;
 	//defer_element viewer;
 	transfer3D ts1;
 	transfer3D ts2;
 	showcase s;
+
+
+	int ÷«’œ;
+
 	float layer = 0.5;
 	float scale = 1.0;
 	float max_denstiy;

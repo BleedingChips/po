@@ -51,9 +51,9 @@ void texture_3d_viewer::input_property::update(PO::Dx11::pipeline& p)
 		}lt{layer, filter};
 
 		if (!cb)
-			cb = c.create_constant_buffer(&lt, true);
+			cb = c.create_buffer_constant(&lt, true);
 		else
-			p.write_constant_buffer(cb, [&, this](void* data) {
+			p.write_buffer_constant(cb, [&, this](void* data) {
 				*static_cast<layout_t*>(data) = lt;
 			});
 

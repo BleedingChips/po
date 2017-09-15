@@ -16,7 +16,7 @@ namespace Implement
 
 		if (!cb)
 		{
-			cb = c.create_constant_buffer(&bp, true);
+			cb = c.create_buffer_constant(&bp, true);
 			if (need_update)
 				need_update = false;
 		}
@@ -48,7 +48,7 @@ namespace Implement
 		if (need_update)
 		{
 			aligned_storage<float3, float, float3, float3> bp{ light, max_density, min_size, max_size };
-			p.write_constant_buffer(cb, [&](void *data) {
+			p.write_buffer_constant(cb, [&](void *data) {
 				*reinterpret_cast<std::decay_t<decltype(bp)>*> (data) = (bp);
 			});
 			need_update = false;

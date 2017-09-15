@@ -224,7 +224,11 @@ namespace PO
 
 		template<typename ...T> class alignas(16) shader_storage
 		{
-			alignas(16) char data[Implement::shader_storage_count_size<0, T...>::size];
+			static constexpr size_t size = Implement::shader_storage_count_size<0, T...>::size;
+			static constexpr size_t store_size = size > 128 ? size : 128;
+
+
+			alignas(16) char data[store_size];
 			template<size_t i> using selet_type_t = std::decay_t<decltype(std::get<i>(std::tuple<T...>{})) > ;
 			template<size_t i> friend struct shader_storage_get;
 		public:

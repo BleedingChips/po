@@ -7,7 +7,7 @@ cbuffer b0 : register(b0)
 
 cbuffer b1 : register(b1)
 {
-    property_output_texture_2d_simulate_3d tex;
+    property_output_tex2_2d_simulate_3d tex;
 }
 
 StructuredBuffer<float> noise_point : register(t0);
@@ -67,13 +67,24 @@ uint3 count_each(uint i)
     return uint3(i + 1, i + 1, i + 1);
 }
 
+static const uint layout1 = 5;
+static const uint layout2 = layout1 * 2;
+static const uint layout3 = layout2 * 2;
+static const uint layout4 = layout3 * 2;
+
+float cal_final(uint offset, uint3 loc, uint3 texture_size)
+{
+    return 0.0
+        + cal_perlin_noise(offset, loc, texture_size / float(layout1), count_each(layout1)) * 0.5
+        + cal_perlin_noise(count_all(layout1) + offset, loc, texture_size / float(layout2), count_each(layout2)) * 0.25
+        + cal_perlin_noise(count_all(layout1) + count_all(layout2) + offset, loc, texture_size / float(layout3), count_each(layout3)) * 0.125
+        + cal_perlin_noise(count_all(layout1) + count_all(layout2) + count_all(layout3) + offset, loc, texture_size / float(layout4), count_each(layout4)) * 0.125;
+        ;
+}
+
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    uint layout1 = 5;
-    uint layout2 = layout1 * 2;
-    uint layout3 = layout2 * 2;
-    uint layout4 = layout3 * 2;
     uint3 tex_size = uint3(tex.simulate_size.x, tex.simulate_size.y, tex.simulate_size.z * tex.simulate_size.w);
     if (ppn.count >= count_all(layout4) + count_all(layout2) + count_all(layout1) + count_all(layout3))
     {
@@ -83,15 +94,16 @@ void main( uint3 DTid : SV_DispatchThreadID )
         DTid.y / tex.simulate_size.y * tex.simulate_size.z + DTid.x / tex.simulate_size.x
         );
 
-        float result =
-        0.0
-        + cal_perlin_noise(0, loc, tex_size / float(layout1), count_each(layout1)) * 0.5
-        + cal_perlin_noise(count_all(layout1), loc, tex_size / float(layout2), count_each(layout2)) * 0.25
-        + cal_perlin_noise(count_all(layout1) + count_all(layout2), loc, tex_size / float(layout3), count_each(layout3)) * 0.125
-        + cal_perlin_noise(count_all(layout1) + count_all(layout2) + count_all(layout3), loc, tex_size / float(layout4), count_each(layout4)) * 0.125;
-        ;
-        uint4 target_value = output_texture[DTid.xy];
-        float4 final = result * tex.mark + (target_value / 255.0) * tex.blend;
-        output_texture[DTid.xy] = uint4(final * 255);
+        uint channel_size = count_all(layout1) + count_all(layout2) + count_all(layout3) + count_all(layout4);
+
+        float4 result = float4(
+        cal_final(0, loc, tex_size),
+        cal_final(channel_size, loc, tex_size),
+        cal_final(channel_size * 2, loc, tex_size),
+        cal_final(channel_size * 3, loc, tex_size)
+        );
+
+
+        output_texture[DTid.xy] = uint4(result * 255);
     }
 }

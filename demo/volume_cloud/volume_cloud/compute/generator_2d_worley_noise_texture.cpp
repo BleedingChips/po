@@ -31,7 +31,7 @@ namespace Property_t
 	void generator_2d_worley_noise_texture_property::push(PO::Dx11::creator& c)
 	{
 		aligned_storage<uint32_t4, float, aligned_array<float3, 300>> bp{ target_size, step, worley_noise_point };
-		cb = c.create_constant_buffer(&bp);
+		cb = c.create_buffer_constant(&bp);
 		uav = c.cast_unordered_access_view(texture);
 	}
 

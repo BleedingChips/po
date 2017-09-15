@@ -184,10 +184,10 @@ namespace PO
 		{
 			shader_storage<float4x4, float4x4> as{ local, world };
 			if (!m_cb)
-				m_cb = c.create_constant_buffer(&as, true);
+				m_cb = c.create_buffer_constant(&as, true);
 			else {
 				update_function = [as, this](pipeline& p) {
-					p.write_constant_buffer(m_cb, [&, this](void* data) {
+					p.write_buffer_constant(m_cb, [&, this](void* data) {
 						*static_cast<shader_storage<float4x4, float4x4>*>(data) = as;
 					});
 				};
@@ -199,7 +199,7 @@ namespace PO
 		{
 			if (!transfer_srv || v.size() > buffer_size)
 			{
-				transfer_sb = c.create_structured_buffer_unorder_access(v);
+				transfer_sb = c.create_buffer_structured_unorder_access(v);
 				transfer_srv = c.cast_shader_resource_view(transfer_sb);
 				transfer_uav = c.cast_unordered_access_view(transfer_sb);
 				count = static_cast<
@@ -208,7 +208,7 @@ namespace PO
 			}
 			else {
 				update_function = [v, this](pipeline& p) {
-					if (!p.write_structured_buffer(transfer_sb, [&, this](void* da) {
+					if (!p.write_buffer_structured(transfer_sb, [&, this](void* da) {
 						auto p = static_cast<std::pair<PO::Dx::float4x4, PO::Dx::float4x4>*>(da);
 						for (auto& io : v)
 							*(p++) = io;
@@ -222,7 +222,7 @@ namespace PO
 		{
 			using type = shader_storage<float4x4, float, float, float, float2, float2, float2>;
 			type temporary{ projection, near_plane, far_plane, xy_rate,viewport_left_top,viewport_right_button, viewport_near_far };
-			screen_cb = c.create_constant_buffer(&temporary);
+			screen_cb = c.create_buffer_constant(&temporary);
 		}
 
 		property_screen::property_screen() : property_interface(typeid(property_screen)) {}
@@ -231,10 +231,10 @@ namespace PO
 			using type = shader_storage<float4x4, float4x4, float4x4, float3, float>;
 			type temporary{ view, world_to_screen, screen_to_world, float3{ view._41, view._42, view._43 }, time };
 			if (!screen_cb)
-				screen_cb = c.create_constant_buffer(&temporary, true);
+				screen_cb = c.create_buffer_constant(&temporary, true);
 			else {
 				update_function = [temporary, this](pipeline& p) {
-					if (!p.write_constant_buffer(screen_cb, [&, this](void* data) {
+					if (!p.write_buffer_constant(screen_cb, [&, this](void* data) {
 						*static_cast<type*>(data) = temporary;
 					})) throw 1;
 				};

@@ -53,7 +53,7 @@ namespace SelfProperty
 		storage.get<0>() = size;
 		storage.get<1>() = wise_nosie_point;
 		storage.get<2>() = perlin_noise_factor;
-		cb = p.create_constant_buffer(&storage);
+		cb = p.create_buffer_constant(&storage);
 	}
 }
 
