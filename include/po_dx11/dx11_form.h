@@ -24,6 +24,13 @@ namespace PO
 			Win32::com_ptr<IDXGISwapChain> ptr;
 		};
 
+		struct dx11_renderer_initializer
+		{
+			creator dev;
+			stage_context dc;
+			Implement::tex2_interface back_buffer;
+		};
+
 		namespace Implement
 		{
 			class form_pre_construction : public Win32::win32_form
@@ -40,13 +47,14 @@ namespace PO
 		{
 			stage_context pipe;
 			creator creat;
-			tex2 back_buffer;
+			Implement::tex2_interface back_buffer;
 		public:
-			value_table mapping();
+
+			operator dx11_renderer_initializer() const { return dx11_renderer_initializer{ creat, pipe, back_buffer }; }
+
 			form_default(const initializer_form_default& = initializer_form_default{});
-			~form_default() { std::cout << "exit" << std::endl; };
+			~form_default() { };
 			void pre_tick(duration da) {
-				Win32::win32_form::pre_tick(da);
 				(swap.ptr)->Present(0, 0);
 			}
 		};

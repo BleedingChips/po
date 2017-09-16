@@ -33,15 +33,6 @@ namespace PO
 			}
 		}
 
-		value_table form_default::mapping() {
-			return {
-				make_value_table<stage_context>(pipe),
-				make_value_table<tex2>(back_buffer),
-				make_value_table<creator>(creat)
-				//make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
-			};
-		}
-
 		form_default::form_default(const initializer_form_default& di) : Implement::form_pre_construction(di),
 			pipe(std::make_shared<stage_context_implement>(Implement::form_pre_construction::dc), Implement::form_pre_construction::dev),
 			creat(Implement::form_pre_construction::dev)

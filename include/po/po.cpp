@@ -2,10 +2,10 @@
 namespace PO
 {
 
-	const char* value_table::value_not_exist::what() const { return "value not exist!"; }
-
 	namespace Implement 
 	{
+		form_interface::~form_interface() {}
+
 		void form_ptr::push_function(std::function<std::unique_ptr<form_interface>(void)> f) {
 			if (logic_form_thread.joinable())
 			{
