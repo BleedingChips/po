@@ -6,6 +6,7 @@ namespace PO
 {
 	namespace Dx11
 	{
+		/*
 		UINT translate_usage_to_cpu_flag(D3D11_USAGE DU)
 		{
 			switch (DU)
@@ -428,7 +429,7 @@ namespace PO
 			DV = D3D11_VIEWPORT{ w * top_left_x_rate, h * top_left_y_rate, w * x_rate, h * y_rate, min_depth, max_depth };
 		}
 
-		/*****  raterizer_s   *******************************************************************************************/
+		//*****  raterizer_s   *******************************************************************************************
 
 		raterizer_s::raterizer_s() :desc(D3D11_RASTERIZER_DESC{
 			D3D11_FILL_SOLID,
@@ -444,14 +445,14 @@ namespace PO
 			viewport_fill_texture(viewports[solt], t, min_depth, max_depth);
 		}
 
-		/*****  blend_s   ***********************************************************************************************/
+		//*****  blend_s   ***********************************************************************************************
 
 		blend_s::blend_s() : desc(D3D11_BLEND_DESC{
 			FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{FALSE, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL}
 		}), factor{ 1.0, 1.0, 1.0, 1.0 }, sample_mask(0xffffffff)
 		{}
 
-		/*****  depth_stencil_s   ****************************************************************************************/
+		//*****  depth_stencil_s   ****************************************************************************************
 
 		depth_stencil_s::depth_stencil_s() : desc(D3D11_DEPTH_STENCIL_DESC{
 			TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
@@ -459,21 +460,21 @@ namespace PO
 			D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
 		}), stencil_ref(0) {}
 
-		/*****  sample_s   ****************************************************************************************/
+		//*****  sample_s   ****************************************************************************************
 		sample_s::sample_s() : desc(D3D11_SAMPLER_DESC{
 			D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, 0.0f, 1,
 			D3D11_COMPARISON_NEVER, {1.0f,1.0f,1.0f,1.0f}, -FLT_MAX, FLT_MAX
 		}) {}
 
 
-		/*****  output_merge_d   ****************************************************************************************/
+		//*****  output_merge_d   ****************************************************************************************
 
 		void output_merge_d::set_RTV(size_t o, const RTV& rv)
 		{
 			render_array.set(o, rv.ptr);
 		}
 
-		/*****  shader_d   ***********************************************************************************************/
+		//*****  shader_d   ***********************************************************************************************
 
 		void shader_d::set_cbuffer(size_t solt, const cbuffer& c) { cbuffer_array.set(solt, c.ptr); }
 
@@ -481,7 +482,7 @@ namespace PO
 
 		void shader_d::set_sample(size_t solt, const sample_d& sd) { sample_array.set(solt, sd.ptr); }
 
-		/*****  input_assember_d   ******************************************************************************************/
+		//*****  input_assember_d   ******************************************************************************************
 
 		input_assember_d::input_assember_d(input_assember_d&& ia)
 			:vertex_array(std::move(ia.vertex_array)), offset_array(std::move(ia.offset_array)), element_array(std::move(ia.element_array)), input_element(std::move(ia.input_element)),
@@ -548,7 +549,7 @@ namespace PO
 			format = s.i_format;
 		}
 
-		/*****  compute_d   ******************************************************************************************/
+		//*****  compute_d   ******************************************************************************************
 
 		void compute_d::set_UAV(size_t solt, const UAV& up)
 		{
@@ -557,5 +558,6 @@ namespace PO
 				offset.insert(offset.end(), solt + 1 - offset.size(), 0);
 			offset[solt] = up.offset;
 		}
+		*/
 	}
 }

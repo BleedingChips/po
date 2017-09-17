@@ -44,7 +44,14 @@ namespace PO
 		using blend_state_ptr = CComPtr<ID3D11BlendState>;
 		using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
 
-		
+		struct Dx11_initializer
+		{
+			device_ptr dev;
+			context_ptr con;
+			DXGI::swap_chain swa;
+		};
+
+		/*
 		UINT translate_usage_to_cpu_flag(D3D11_USAGE DU);
 
 		HRESULT create_buffer(device_ptr& rp, buffer_ptr& ptr, D3D11_USAGE usage, UINT bind_flag, const void* data, size_t data_size, UINT misc_flag, size_t StructureByteStrides);
@@ -408,5 +415,6 @@ namespace PO
 			cshader_ptr ptr;
 			void set_UAV(size_t solt, const UAV& up);
 		};
+		*/
 	}
 }

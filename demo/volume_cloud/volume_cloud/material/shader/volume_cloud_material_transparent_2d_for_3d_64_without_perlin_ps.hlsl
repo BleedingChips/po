@@ -105,7 +105,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     {
         //获取屏幕UV
         float2 screen_uv = get_uv_screen(input.uv_screen, input.position_sv);
-        OpaqueDepth = linearize_z.Sample(ss, screen_uv);
+        OpaqueDepth = linearize_z.Sample(ss, screen_uv).x;
     }
 
     // 计算像素点的深度与不透明物体的深度的最小值，计算射线的开始点
@@ -125,7 +125,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
 
 
 
-
+    /*
     //世界坐标系下的射线向量，并单位化，升维
     float4 eye_ray_NOR = float4(normalize(input.position_world.xyz - property_viewport_transfer_eye_world_position(ps)), 0.0);
 
@@ -134,8 +134,9 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
 
     //局部坐标系下的射线向量，降维，此时由于立方体本身的变换矩阵，所以不是单位化的
     eye_ray_NOR = mul(mat.world_to_local, eye_ray_NOR);
+    */
 
-    output.color = float4(linearize_z.Sample(ss, screen_uv).x / 10.0, 0.0, 0.0, 1.0);
+    output.color = float4(1.0, 0.0, 0.0, 1.0);
     //float4(input.position_view.z / 10.0, 0.0, 0.0, 1.0);
     /*
     implement(

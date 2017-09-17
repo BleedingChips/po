@@ -37,21 +37,6 @@ namespace PO {
 		};
 	}
 
-	class form_constraint
-	{
-		std::atomic_bool virtual_function_ready;
-	public:
-		virtual Respond ask_for_respond_mt(event& e) = 0;
-		virtual Respond ask_for_respond(event& e) = 0;
-		virtual Respond respond(event& e) { return Respond::Pass; }
-		virtual bool available() const = 0;
-		bool ready() const { return virtual_function_ready; }
-		void end_construction() { virtual_function_ready = true; }
-		void start_destruction() { virtual_function_ready = false; }
-		form_constraint() : virtual_function_ready(false) {}
-		form_constraint(const form_constraint&) : virtual_function_ready(false) {}
-	};
-
 	namespace Implement {
 
 		template<typename form_t> struct have_avalible 

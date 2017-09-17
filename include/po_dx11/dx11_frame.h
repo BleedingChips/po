@@ -1,10 +1,11 @@
 #pragma once
 #include <d3d11_3.h>
-#include "../po_win32/win32_define.h"
+#include "dx11_define.h"
 #include <tuple>
 #include "../po/tool/auto_adapter.h"
 #include "../po_dx/dx_type.h"
 #include <optional>
+
 namespace PO
 {
 	namespace Dx11
@@ -1008,6 +1009,12 @@ namespace PO
 			void dispatch(uint32_t x, uint32_t y, uint32_t z) { imp->dispatch(x, y, z); }
 			*/
 			void call() { imp->call(); }
+		};
+
+		struct Dx11_frame_initializer : Dx11_initializer
+		{
+			creator cre;
+			stage_context sta;
 		};
 
 	}

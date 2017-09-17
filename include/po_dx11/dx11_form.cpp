@@ -11,7 +11,7 @@ namespace PO
 			{
 				D3D_FEATURE_LEVEL lel[] = { D3D_FEATURE_LEVEL_11_1 };
 				D3D_FEATURE_LEVEL lel2 = D3D_FEATURE_LEVEL_11_1;
-				PO::Platform::Dxgi::swap_chain_desc swc(raw_handle);
+				PO::DXGI::swap_chain_desc swc(raw_handle);
 				HRESULT re = D3D11CreateDeviceAndSwapChain(
 					nullptr,
 					D3D_DRIVER_TYPE_HARDWARE,

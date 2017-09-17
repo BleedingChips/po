@@ -32,38 +32,34 @@ namespace PO
 		};
 
 		struct form_interface {
-			virtual ~form_interface() = default;
+			virtual ~form_interface();
 			virtual void tick(duration da) = 0;
 			operator bool() const { return is_available(); }
 			virtual bool is_available() const = 0;
 		};
 
 		template<typename form_t>
-		struct form_packet : form_interface, form_t
+		struct form_packet : form_interface, viewer_interface, form_t
 		{
 			viewer v;
 			plugins plugin_packet;
 
 			template<typename ...AK>
-			form_packet(Tool::completeness_ref cr, AK&& ...ak) : form_t(std::forward<AK>(ak)...), plugin_packet(form_t::mapping()) {
-				have_end_construction<form_t>{}(*this);
-			}
+			form_packet(Tool::completeness_ref cr, AK&& ...ak) : form_t(std::forward<AK>(ak)...), plugin_packet(form_t::mapping()), v(*this)
+			{}
 
-			virtual bool is_available() const {
-				return form_t::available();
-			}
+			virtual bool is_available() const { return form_t::available(); }
 
-			~form_packet()
-			{
-				have_start_destruction<form_t>{}(*this);
-			}
-
-			virtual Respond ask_for_respond_mt(event& e) { return Respond::Pass; };
-			virtual Respond ask_for_respond(event& e) {
-				return plugin_packet.respond(e, v);
-			};
 			virtual void tick(duration da)
 			{
+				auto& ref = form_t::generate_event_tank();
+				for (auto& ite : ref)
+				{
+					form_t::pre_respond(ite) != Respond::Pass ||
+						plugin_packet.respond(ite,v) != Respond::Pass ||
+						form_t::pos_respond(ite) != Respond::Pass;
+				}
+
 				have_pre_tick<form_t>{}(*this, da);
 				plugin_packet.tick(v, da);
 				have_pos_tick<form_t>{}(*this, da);

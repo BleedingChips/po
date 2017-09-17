@@ -16,7 +16,7 @@ namespace PO
 		bool avalible = true;
 		Tool::completeness_ref ref;
 		std::function<void(self&, plugins&, viewer& v, duration da)> tick_f;
-		std::function<Respond(event&, self&, plugins&, viewer& v)> respond_f;
+		std::function<Respond(const event&, self&, plugins&, viewer& v)> respond_f;
 
 		friend struct Implement::plugin_interface;
 
@@ -29,7 +29,7 @@ namespace PO
 		void killmyself() { avalible = false; }
 		
 		template<typename T, typename ...AT> void auto_bind_tick(T&& t, AT&& ...at) { tick_f = Tool::auto_bind_function<void(self&, plugins&, viewer& v, duration da), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...); }
-		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&& ...at) { respond_f = Tool::auto_bind_function<Respond(event&, self&, plugins&, viewer& v), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...); }
+		template<typename T, typename ...AT> void auto_bind_respond(T&& t, AT&& ...at) { respond_f = Tool::auto_bind_function<Respond(const event&, self&, plugins&, viewer& v), Tool::unorder_adapt>(std::forward<T>(t), std::forward<AT>(at)...); }
 
 	};
 
@@ -43,7 +43,7 @@ namespace PO
 			plugin_interface(Tool::completeness_ref r) : self_ptr(std::make_shared<self>(std::move(r))) {}
 
 			void tick(plugins& p, viewer& v, duration da) { if (self_ptr->tick_f) self_ptr->tick_f(*self_ptr, p, v, da); }
-			Respond respond(event& e, plugins& p, viewer& v) { return self_ptr->respond_f ? self_ptr->respond_f(e, *self_ptr, p, v) : Respond::Pass; }
+			Respond respond(const event& e, plugins& p, viewer& v) { return self_ptr->respond_f ? self_ptr->respond_f(e, *self_ptr, p, v) : Respond::Pass; }
 			virtual ~plugin_interface() = default;
 		};
 
@@ -130,6 +130,6 @@ namespace PO
 		}
 
 		void tick(viewer& v, duration da);
-		Respond respond(event& ev, viewer& v);
+		Respond respond(const event& ev, viewer& v);
 	};
 }

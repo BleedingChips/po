@@ -21,7 +21,7 @@ namespace PO
 				key_mapping.erase(ite);
 		}
 
-		Respond showcase::respond(event& e)
+		Respond showcase::respond(const event& e)
 		{
 			if (e.is_key())
 			{

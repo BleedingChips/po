@@ -25,19 +25,23 @@ namespace PO
 			win32_form_style style = win32_form_style();
 		};
 
-		struct win32_form : PO::form_constraint
+		class win32_form
 		{
-			HWND raw_handle;
 			std::atomic_bool quit;
 			using tank = std::vector<event>;
 			Tool::scope_lock<tank> capture_event_tank;
 			tank event_tank;
+		protected:
+			HWND raw_handle;
+		public:
 			win32_form(const win32_initial& = win32_initial{});
 			~win32_form();
 			value_table mapping();
 			bool available() const { return !quit; }
-			Respond handle_event(event& e);
-			void pre_tick(duration da);
+			void WndProc_insert_event(const event& e);
+			Respond pre_respond(const event& e) { return Respond::Pass; }
+			Respond pos_respond(const event& e);
+			const tank& generate_event_tank();
 		};
 	}
 }

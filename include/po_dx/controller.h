@@ -30,7 +30,7 @@ namespace PO
 			void binding(KeyValue, State);
 			void binding(std::initializer_list<std::pair<KeyValue, State>>);
 			void remove_binding(KeyValue);
-			Respond respond(event& e);
+			Respond respond(const event& e);
 			void lose_focus();
 			bool apply(duration da, transfer3D& t3);
 		};

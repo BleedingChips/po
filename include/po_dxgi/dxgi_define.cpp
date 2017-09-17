@@ -97,56 +97,48 @@ namespace
 }
 
 
-namespace
-{
-	
-}
-
 
 
 namespace PO
 {
-	namespace Platform
+	namespace DXGI
 	{
-		namespace Dxgi
+		std::vector<adapter> factor1::adapters()
 		{
-			std::vector<adapter> factor1::adapters()
+			std::vector<adapter> all_adapter;
+			for (UINT i = 0; ; ++i)
 			{
-				std::vector<adapter> all_adapter;
+				CComPtr<IDXGIAdapter1> tem_ptr;
+				HRESULT hr = pFactory->EnumAdapters1(i, &tem_ptr);
+				if (hr == S_OK)
+				{
+					all_adapter.push_back(PO::DXGI::adapter{ tem_ptr });
+				}
+				else
+					break;
+			}
+			return all_adapter;
+		}
+
+		std::vector<output> adapter::outputs()
+		{
+			std::vector<output> all_output;
+			if (pAdapter != nullptr)
+			{
 				for (UINT i = 0; ; ++i)
 				{
-					CComPtr<IDXGIAdapter1> tem_ptr;
-					HRESULT hr = pFactory->EnumAdapters1(i, &tem_ptr);
+					CComPtr<IDXGIOutput> out;
+					HRESULT hr = pAdapter->EnumOutputs(i, &out);
 					if (hr == S_OK)
 					{
-						all_adapter.push_back(PO::Platform::Dxgi::adapter{ tem_ptr });
+						all_output.push_back(out);
 					}
 					else
 						break;
 				}
-				return all_adapter;
 			}
-
-			std::vector<output> adapter::outputs()
-			{
-				std::vector<output> all_output;
-				if (pAdapter != nullptr)
-				{
-					for (UINT i = 0; ; ++i)
-					{
-						CComPtr<IDXGIOutput> out;
-						HRESULT hr = pAdapter->EnumOutputs(i, &out);
-						if (hr == S_OK)
-						{
-							all_output.push_back(out);
-						}
-						else
-							break;
-					}
-				}
-				return all_output;
-			}
-
+			return all_output;
 		}
+
 	}
 }

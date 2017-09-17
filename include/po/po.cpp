@@ -6,6 +6,7 @@ namespace PO
 
 	namespace Implement 
 	{
+		form_interface::~form_interface() {}
 		void form_ptr::push_function(std::function<std::unique_ptr<form_interface>(void)> f) {
 			if (logic_form_thread.joinable())
 			{

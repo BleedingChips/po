@@ -19,11 +19,6 @@ namespace PO
 			operator const Win32::win32_initial& () const { return initial_win32; }
 		};
 
-		struct swap_chain
-		{
-			Win32::com_ptr<IDXGISwapChain> ptr;
-		};
-
 		namespace Implement
 		{
 			class form_pre_construction : public Win32::win32_form
@@ -31,7 +26,7 @@ namespace PO
 			protected:
 				Win32::com_ptr<ID3D11Device> dev;
 				Win32::com_ptr<ID3D11DeviceContext> dc;
-				swap_chain swap;
+				DXGI::swap_chain swap;
 				form_pre_construction(const initializer_form_default& = initializer_form_default{});
 			};
 		}
@@ -44,9 +39,8 @@ namespace PO
 		public:
 			value_table mapping();
 			form_default(const initializer_form_default& = initializer_form_default{});
-			~form_default() { std::cout << "exit" << std::endl; };
-			void pre_tick(duration da) {
-				Win32::win32_form::pre_tick(da);
+			~form_default() {  };
+			void pos_tick(duration da) {
 				(swap.ptr)->Present(0, 0);
 			}
 		};

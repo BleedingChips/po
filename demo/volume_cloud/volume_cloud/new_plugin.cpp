@@ -27,7 +27,7 @@ adapter_map new_plugin::mapping(self& sel)
 	s.set_translation_speed(10.0);
 }
 
-Respond new_plugin::respond(event& e)
+Respond new_plugin::respond(const event& e)
 {
 	Respond re = s.respond(e);
 	if (re == Respond::Pass)
@@ -79,7 +79,7 @@ void new_plugin::init(defer_renderer_default& dr)
 		} << [&](property_perline_worley_noise_3d_point& pot) {
 			pot.set_seed(dr, { 123, 456, 789 });
 		};
-		dr << worley_output;
+		//dr << worley_output;
 	}
 	
 
@@ -91,7 +91,7 @@ void new_plugin::init(defer_renderer_default& dr)
 				cgl.set_output_texture(perlin_out.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), perlin_out.size(), { 256, 256, 16, 16 });
 			} << [&](property_random_point_f& prp)
 			{
-				prp.create_uniform_point(dr, compute_generate_perlin_noise_uint8_4_2d_simulate_3d::max_count(), { 2234535 }, -0.2, 1.2);
+				prp.create_uniform_point(dr, compute_generate_perlin_noise_uint8_4_2d_simulate_3d::max_count(), { 2234535 }, -0.2f, 1.2f);
 			};
 		dr << perlin_execute;
 	}
@@ -104,7 +104,7 @@ void new_plugin::init(defer_renderer_default& dr)
 			p.set_output_texture_f(cube_mask_texture.cast_unordered_access_view(dr), cube_mask_texture.size(), { 64, 64, 8, 8 }, float3{ 0.3f,0.3f,0.0f }, float3{ 0.7f, 0.7f, 1.0f });
 		};
 
-		dr << mask_cube;
+		//dr << mask_cube;
 	}
 
 
@@ -119,9 +119,9 @@ void new_plugin::init(defer_renderer_default& dr)
 				2.0
 			);
 		} << [&](property_random_point_f& purp) {
-			purp.create_uniform_point(dr, compute_generate_worley_noise_float4_2d_simulate_3d::max_count(), 3456783, -0.2, 1.2);
+			purp.create_uniform_point(dr, compute_generate_worley_noise_float4_2d_simulate_3d::max_count(), 3456783, -0.2f, 1.2f);
 		};
-		dr << worley_generator;
+		//dr << worley_generator;
 	}
 
 	{
@@ -229,6 +229,5 @@ void new_plugin::tick(defer_renderer_default& dr, duration da)
 	};
 	
 	dr << back_ground;
-	//dr << worley_generator;
-	dr << output_volume_cube;
+	//dr << output_volume_cube;
 }

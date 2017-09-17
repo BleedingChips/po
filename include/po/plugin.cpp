@@ -44,7 +44,7 @@ namespace PO
 	plugins::~plugins() {
 	}
 
-	Respond plugins::respond(event& ev, viewer& v)
+	Respond plugins::respond(const event& ev, viewer& v)
 	{
 		Respond re = Respond::Pass;
 		for (auto& po : plugin_tank) {

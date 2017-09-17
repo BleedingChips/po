@@ -188,7 +188,7 @@ namespace
 			if (ite != handled_event_filter.end() && ite->second.translate_event && ite->second.responded_event)
 			{
 				auto ev = ite->second.translate_event(wParam, lParam);
-				ptr->handle_event(ev);
+				ptr->WndProc_insert_event(ev);
 			}
 		}
 		return DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -216,11 +216,12 @@ namespace
 
 	HRESULT create_window(
 		const PO::Win32::win32_initial& wi,
+		HWND& handle,
 		PO::Win32::win32_form* ptr
 	)
 	{
 		static static_class_init_struct scis;
-		ptr->raw_handle = CreateWindowExW(
+		handle = CreateWindowExW(
 			wi.style.ex_window_style,
 			(wchar_t*)(static_class_name),
 			(wchar_t*)(wi.title.c_str()),
@@ -231,12 +232,12 @@ namespace
 			GetModuleHandle(0),
 			NULL
 		);
-		if (ptr->raw_handle == nullptr)
+		if (handle == nullptr)
 		{
 			HRESULT ret = GetLastError();
 			return ret;
 		}
-		SetWindowLongPtrW(ptr->raw_handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ptr));
+		SetWindowLongPtrW(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ptr));
 		return S_OK;
 	}
 
@@ -285,6 +286,7 @@ namespace
 
 		HRESULT create(
 			const PO::Win32::win32_initial& wi,
+			HWND& handle,
 			PO::Win32::win32_form* ptr)
 		{
 			std::unique_lock<decltype(ref_mutex)> ul(ref_mutex);
@@ -302,7 +304,7 @@ namespace
 			auto fur = pro.get_future();
 			delegate_function = [&]()
 			{
-				pro.set_value(create_window(wi, ptr));
+				pro.set_value(create_window(wi, handle, ptr));
 			};
 			ul.unlock();
 			fur.wait();
@@ -371,7 +373,7 @@ namespace PO
 
 		win32_form::win32_form(const win32_initial& wi) : quit(false)
 		{
-			Error::fail_throw(manager.create(wi, this));
+			Error::fail_throw(manager.create(wi, raw_handle, this));
 		}
 
 		win32_form::~win32_form()
@@ -379,34 +381,30 @@ namespace PO
 			manager.destory(raw_handle);
 		}
 
-		Respond win32_form::handle_event(event& ev)
+		void win32_form::WndProc_insert_event(const event& ev)
 		{
-			Respond res = Respond::Pass;
-			if (ready())
-			{
-				if(ev.is_key() || ev.is_click() || ev.is_move())
-					capture_event_tank.lock([=](decltype(capture_event_tank)::type& i) {
-					i.push_back(ev);
-				});
-			}
-				//res = ask_for_respond_mt(ev);
-			if (res == Respond::Pass)
-			{
-				if (ev.is_quit())
-					quit = true;
-			}
-			return res;
+			capture_event_tank.lock([=](decltype(capture_event_tank)::type& i) {
+				i.push_back(ev);
+			});
 		}
 
-		void win32_form::pre_tick(duration da)
+		const win32_form::tank& win32_form::generate_event_tank()
 		{
 			capture_event_tank.lock([this](decltype(capture_event_tank)::type& i) {
+				event_tank.clear();
 				std::swap(i, event_tank);
 			});
+			return event_tank;
+		}
 
-			for (auto& i : event_tank)
-				ask_for_respond(i);
-			event_tank.clear();
+		Respond win32_form::pos_respond(const event& e)
+		{
+			if (e.is_quit())
+			{
+				quit = true;
+				return Respond::Return;
+			}
+			return Respond::Pass;
 		}
 
 		/*

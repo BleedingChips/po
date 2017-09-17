@@ -116,13 +116,13 @@ namespace PO
 		KeyValue key_value;
 		int16_t location_x;
 		int16_t location_y;
-		bool is_up() { return button_state == ButtonState::BS_UP; }
-		bool is_down() { return button_state == ButtonState::BS_DOWN; }
-		bool is_left() { return key_value == KeyValue::K_LBUTTON; }
-		bool is_middle() { return key_value == KeyValue::K_MBUTTON; }
-		bool is_right() { return key_value == KeyValue::K_RBUTTON; }
-		int16_t get_x() { return location_x; }
-		int16_t get_y() { return location_y; }
+		bool is_up() const  { return button_state == ButtonState::BS_UP; }
+		bool is_down() const { return button_state == ButtonState::BS_DOWN; }
+		bool is_left()const { return key_value == KeyValue::K_LBUTTON; }
+		bool is_middle()const { return key_value == KeyValue::K_MBUTTON; }
+		bool is_right() const { return key_value == KeyValue::K_RBUTTON; }
+		int16_t get_x()const { return location_x; }
+		int16_t get_y() const { return location_y; }
 	};
 
 	struct move_type
@@ -130,8 +130,8 @@ namespace PO
 		EventType type;
 		int16_t location_x;
 		int16_t location_y;
-		int16_t get_x() { return location_x; }
-		int16_t get_y() { return location_y; }
+		int16_t get_x() const { return location_x; }
+		int16_t get_y() const { return location_y; }
 	};
 
 	struct key_type
@@ -141,10 +141,10 @@ namespace PO
 		KeyValue value;
 		char asc_key;
 		//key_type(EventType et, ButtonState bs, KeyValue kv) : type(et), button_state(bs), value(kv), asc_key(kv) {}
-		bool is_up() { return button_state == ButtonState::BS_UP; }
-		bool is_down() { return button_state == ButtonState::BS_DOWN; }
-		KeyValue get_value() { return value; }
-		char get_asc() { return asc_key; }
+		bool is_up() const { return button_state == ButtonState::BS_UP; }
+		bool is_down() const { return button_state == ButtonState::BS_DOWN; }
+		KeyValue get_value() const { return value; }
+		char get_asc() const { return asc_key; }
 	};
 
 	union event_data
@@ -178,10 +178,10 @@ namespace PO
 		key_type key;
 		
 
-		bool is_quit() { return type == EventType::E_CLOSE; }
-		bool is_click() { return type == EventType::E_CLICK; }
-		bool is_move() { return type == EventType::E_MOVE; }
-		bool is_key() { return type == EventType::E_KEY; }
+		bool is_quit() const { return type == EventType::E_CLOSE; }
+		bool is_click() const { return type == EventType::E_CLICK; }
+		bool is_move() const { return type == EventType::E_MOVE; }
+		bool is_key() const { return type == EventType::E_KEY; }
 	};
 
 	enum class Respond
