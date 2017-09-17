@@ -79,25 +79,15 @@ namespace PO
 		static_assert(Implement::have_make_adapter_map<plugin_t>::value, "plugin should need an memeber function \'adapter_map mapping(self&)\'");
 	};
 
-	namespace Implement
-	{
-		class plugins_carry
-		{
-		public:
-			Tool::scope_lock<plugin_tank_t> depute_plugin_tank;
-			plugin_tank_t raw_plugin_tank;
-			plugin_tank_t plugin_tank;
-		};
-	}
-
-
-	template<typename form_t>
 	class plugins 
 	{
+		value_table om;
 
 		using plugin_tank_t = std::vector<std::unique_ptr<Implement::plugin_interface>>;
 
-		
+		Tool::scope_lock<plugin_tank_t> depute_plugin_tank;
+		plugin_tank_t raw_plugin_tank;
+		plugin_tank_t plugin_tank;
 
 		using renderer_tank_t = std::vector<std::unique_ptr<Implement::renderer_interface>>;
 

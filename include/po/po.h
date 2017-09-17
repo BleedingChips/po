@@ -5,37 +5,68 @@ namespace PO
 {
 	namespace Implement {
 
+		template<typename form_t> struct have_end_construction
+		{
+			template<typename P> static std::true_type func(decltype(((form_t*)(nullptr))->end_construction())*);
+			template<typename P> static std::false_type func(...);
+			void operator()(form_t& f) {
+				Tool::statement_if<decltype(func<form_t>(nullptr))::value>(
+					[](auto& f) {f.end_construction(); },
+					[](auto& f) {},
+					f
+					);
+			}
+		};
+
+		template<typename form_t> struct have_start_destruction
+		{
+			template<typename P> static std::true_type func(decltype(((form_t*)(nullptr))->start_destruction())*);
+			template<typename P> static std::false_type func(...);
+			void operator()(form_t& f) {
+				Tool::statement_if<decltype(func<form_t>(nullptr))::value>(
+					[](auto& f) {f.start_destruction(); },
+					[](auto& f) {},
+					f
+					);
+			}
+		};
+
 		struct form_interface {
-			virtual ~form_interface();
+			virtual ~form_interface() = default;
 			virtual void tick(duration da) = 0;
 			operator bool() const { return is_available(); }
 			virtual bool is_available() const = 0;
 		};
 
 		template<typename form_t>
-		struct form_packet : form_interface, Implement::viewer_interface, form_t
+		struct form_packet : form_interface, form_t
 		{
 			viewer v;
 			plugins plugin_packet;
 
 			template<typename ...AK>
-			form_packet(Tool::completeness_ref cr, AK&& ...ak) : v(cr, *this), form_t(std::forward<AK>(ak)...), plugin_packet(form_t::mapping()) {}
-			virtual bool is_available() const { eturn form_t::available(); }
+			form_packet(Tool::completeness_ref cr, AK&& ...ak) : form_t(std::forward<AK>(ak)...), plugin_packet(form_t::mapping()) {
+				have_end_construction<form_t>{}(*this);
+			}
 
+			virtual bool is_available() const {
+				return form_t::available();
+			}
+
+			~form_packet()
+			{
+				have_start_destruction<form_t>{}(*this);
+			}
+
+			virtual Respond ask_for_respond_mt(event& e) { return Respond::Pass; };
+			virtual Respond ask_for_respond(event& e) {
+				return plugin_packet.respond(e, v);
+			};
 			virtual void tick(duration da)
 			{
-				const auto& ref = form_t::generate_event_tank();
-				for (auto& ite : ref)
-				{
-					if (form_t::pre_respond(ite) == Respond::Pass)
-					{
-						if (plugin_packet.respond(ite, v) == Respond::Pass)
-							form_t::pos_respond(ite);
-					}
-				}
-				form_t::pre_tick(da);
+				have_pre_tick<form_t>{}(*this, da);
 				plugin_packet.tick(v, da);
-				form_t::pos_tick(da);
+				have_pos_tick<form_t>{}(*this, da);
 			}
 		};
 
