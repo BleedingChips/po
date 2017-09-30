@@ -21,33 +21,37 @@ namespace PO
 					1,
 					D3D11_SDK_VERSION,
 					&swc,
-					swap.ptr.adress(),
-					dev.adress(),
+					initializer.swa.adress(),
+					initializer.dev.adress(),
 					&lel2,
-					dc.adress()
+					initializer.con.adress()
 				);
 				Win32::Error::fail_throw(re);
-				//re = (swap)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
-				//if (!SUCCEEDED(re)) throw re;
+				re = (initializer.swa)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&initializer.bac.ptr);
+				if (!SUCCEEDED(re)) throw re;
 				//imp = std::make_shared<pipeline_implement>(dc);
 			}
 		}
 
 		value_table form_default::mapping() {
 			return {
-				make_value_table<stage_context>(pipe),
-				make_value_table<tex2>(back_buffer),
-				make_value_table<creator>(creat)
-				//make_value_table<Win32::com_ptr<IDXGISwapChain>>(swap),
+				make_value_table<Dx11_initializer>(Implement::form_pre_construction::initializer),
+				make_value_table<Dx11_frame_initializer>(frame_initializer)
 			};
 		}
 
 		form_default::form_default(const initializer_form_default& di) : Implement::form_pre_construction(di),
-			pipe(std::make_shared<stage_context_implement>(Implement::form_pre_construction::dc), Implement::form_pre_construction::dev),
-			creat(Implement::form_pre_construction::dev)
+			frame_initializer{
+			Implement::form_pre_construction::initializer.dev,
+			{std::make_shared<stage_context_implement>(Implement::form_pre_construction::initializer.con), Implement::form_pre_construction::initializer.dev},
+			Implement::form_pre_construction::initializer.swa
+		}
 		{
-			HRESULT re = (swap.ptr)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
-			if (!SUCCEEDED(re)) throw re;
+			frame_initializer.bac.ptr = Implement::form_pre_construction::initializer.bac;
+		}
+		//{
+			//HRESULT re = (swap.ptr)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer.ptr);
+			//if (!SUCCEEDED(re)) throw re;
 			/*
 			Win32::Error::fail_throw(swap->GetBuffer(0,
 				__uuidof(ID3D11Texture2D),
@@ -86,7 +90,7 @@ namespace PO
 
 			dc->RSSetViewports(1, &viewport);
 			*/
-		}
+		//}
 
 		/*
 		Dx11_ticker::Dx11_ticker(Dx11_form& Df) : swap(Df.swap), res(Df.dev), pipe(Df.dc)

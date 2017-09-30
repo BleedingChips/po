@@ -54,12 +54,6 @@ namespace PO
 			placement_direct(creator& c);
 		};
 
-		class material_testing: public material_resource
-		{
-		public:
-			material_testing(creator& c);
-		};
-
 		class geometry_cube : public geometry_resource
 		{
 			buffer_index index;
@@ -74,6 +68,40 @@ namespace PO
 		public:
 			placement_static_viewport_static(creator& c);
 			const element_requirement& requirement() const;
+		};
+
+		struct property_tex2 : public property_resource
+		{
+			shader_resource_view<tex2> srv;
+			sample_state ss;
+			struct renderer_data
+			{
+				shader_resource_view<tex2> srv;
+				sample_state ss;
+			};
+			void update(creator& c, renderer_data& rd)
+			{
+				rd.srv = srv;
+				rd.ss = ss;
+			}
+			void set_texture(shader_resource_view<tex2> t, sample_state state) {
+				srv = std::move(t);
+				ss = std::move(state);
+				need_update();
+			}
+		};
+
+		class material_tex2_viewer : public material_resource
+		{
+		public:
+			const element_requirement& requirement() const;
+			material_tex2_viewer(creator& v);
+		};
+
+		class material_testing : public material_resource
+		{
+		public:
+			material_testing(creator& c);
 		};
 
 		/*

@@ -1,35 +1,20 @@
 
-struct property
-{
-    uint2 texture_size;
-    uint4 simulate_size;
-    float3 cube_min;
-    float3 cube_max;
-};
-
 cbuffer B0 : register(b0)
 {
-    property pro;
+    uint3 textue_size;
 }
 
-RWTexture2D<float> Out : register(u0);
+RWTexture3D<float> Out : register(u0);
 
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    uint3 tex_size = uint3(pro.simulate_size.x, pro.simulate_size.y, pro.simulate_size.z * pro.simulate_size.w);
-    uint3 loc = uint3(
-        DTid.x % pro.simulate_size.x,
-        DTid.y % pro.simulate_size.y,
-        DTid.y / pro.simulate_size.y * pro.simulate_size.z + DTid.x / pro.simulate_size.x
-        );
-    float3 loc_f = loc / float3(tex_size - 1);
-    if (
-        loc_f.x > pro.cube_min.x && loc_f.x < pro.cube_max.x &&
-        loc_f.y > pro.cube_min.y && loc_f.y < pro.cube_max.y &&
-        loc_f.z > pro.cube_min.z && loc_f.z < pro.cube_max.z
-)
-        Out[DTid.xy] = 1.0;
-    else
-        Out[DTid.xy] = 0.0;
+    float3 poi = DTid / float3(textue_size - 1);
+    float3 EdgeDetect = abs(poi - 0.5);
+    float3 EdgeStep = step(0.3, EdgeDetect);
+    EdgeDetect = EdgeDetect * EdgeStep;
+    float3 EdgeTraget = 0.3 * EdgeStep;
+    float Value = distance(EdgeTraget, EdgeDetect);
+    float Factor = clamp(-5 * Value + 1, 0.0, 1.0);
+    Out[DTid] = Factor * Factor;
 }

@@ -5,32 +5,6 @@ namespace PO
 {
 	namespace Implement {
 
-		template<typename form_t> struct have_end_construction
-		{
-			template<typename P> static std::true_type func(decltype(((form_t*)(nullptr))->end_construction())*);
-			template<typename P> static std::false_type func(...);
-			void operator()(form_t& f) {
-				Tool::statement_if<decltype(func<form_t>(nullptr))::value>(
-					[](auto& f) {f.end_construction(); },
-					[](auto& f) {},
-					f
-					);
-			}
-		};
-
-		template<typename form_t> struct have_start_destruction
-		{
-			template<typename P> static std::true_type func(decltype(((form_t*)(nullptr))->start_destruction())*);
-			template<typename P> static std::false_type func(...);
-			void operator()(form_t& f) {
-				Tool::statement_if<decltype(func<form_t>(nullptr))::value>(
-					[](auto& f) {f.start_destruction(); },
-					[](auto& f) {},
-					f
-					);
-			}
-		};
-
 		struct form_interface {
 			virtual ~form_interface();
 			virtual void tick(duration da) = 0;
@@ -42,7 +16,7 @@ namespace PO
 		struct form_packet : form_interface, viewer_interface, form_t
 		{
 			viewer v;
-			plugins plugin_packet;
+			plugins_implement plugin_packet;
 
 			template<typename ...AK>
 			form_packet(Tool::completeness_ref cr, AK&& ...ak) : form_t(std::forward<AK>(ak)...), plugin_packet(form_t::mapping()), v(*this)
@@ -55,14 +29,24 @@ namespace PO
 				auto& ref = form_t::generate_event_tank();
 				for (auto& ite : ref)
 				{
-					form_t::pre_respond(ite) != Respond::Pass ||
-						plugin_packet.respond(ite,v) != Respond::Pass ||
-						form_t::pos_respond(ite) != Respond::Pass;
+					[&, this]() {
+						if constexpr (Tmp::able_instance_v<mf_pre_respond, form_t>)
+							return form_t::pre_respond(ite) != Respond::Pass;
+						else
+							return false; 
+					}() || plugin_packet.respond(ite, v) != Respond::Pass ||
+						[&, this]() {
+						if constexpr (Tmp::able_instance_v<mf_pos_respond, form_t>)
+							return form_t::pos_respond(ite) != Respond::Pass;
+						else
+							return false;
+					}();
 				}
-
-				have_pre_tick<form_t>{}(*this, da);
+				if constexpr(Tmp::able_instance_v<mf_pre_tick, form_t>)
+					form_t::pre_tick(da);
 				plugin_packet.tick(v, da);
-				have_pos_tick<form_t>{}(*this, da);
+				if constexpr(Tmp::able_instance_v<mf_pos_tick, form_t>)
+					form_t::pos_tick(da);
 			}
 		};
 
@@ -72,14 +56,15 @@ namespace PO
 	class out_viewer
 	{
 		viewer v;
-		plugins& plu;
+		plugins_implement& plu;
 	public:
 		viewer& get_viewer() { return v; }
-		out_viewer(viewer i, plugins& p) : v(i), plu(p) {}
+		out_viewer(viewer i, plugins_implement& p) : v(i), plu(p) {}
 		out_viewer(const out_viewer&) = default;
 		out_viewer(out_viewer&&) = default;
 		template<typename renderer_t, typename ...AK> void create(renderer<renderer_t> i, AK&& ...ak) { plu.create(i, std::forward<AK>(ak)...); }
 		template<typename plugin_t, typename ...AK> void create(plugin<plugin_t> i, AK&& ...ak) { plu.create(i, std::forward<AK>(ak)...); }
+		template<typename extension_t, typename ...AK> void create(extension<extension_t> i, AK&& ...ak) { plu.create(i, std::forward<AK>(ak)...); }
 	};
 
 	class out_viewer_packet 

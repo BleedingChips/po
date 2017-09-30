@@ -45,26 +45,11 @@
     <ClCompile Include="volum_cloud_main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="compute\generator_3d_volume_texture.cpp">
-      <Filter>compute</Filter>
-    </ClCompile>
-    <ClCompile Include="material\texture_3d_viewer.cpp">
-      <Filter>material</Filter>
-    </ClCompile>
     <ClCompile Include="placement\default_ui.cpp">
       <Filter>placement</Filter>
     </ClCompile>
     <ClCompile Include="new_plugin.cpp">
       <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="compute\generator_3d_shadow_texture_64.cpp">
-      <Filter>compute</Filter>
-    </ClCompile>
-    <ClCompile Include="material\render_3d_volume_texture_64.cpp">
-      <Filter>material</Filter>
-    </ClCompile>
-    <ClCompile Include="compute\generator_2d_worley_noise_texture.cpp">
-      <Filter>compute</Filter>
     </ClCompile>
     <ClCompile Include="compute\volume_cloud_compute.cpp">
       <Filter>compute</Filter>
@@ -80,26 +65,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="compute\generator_3d_volume_texture.h">
-      <Filter>compute</Filter>
-    </ClInclude>
-    <ClInclude Include="material\texture_3d_viewer.h">
-      <Filter>material</Filter>
-    </ClInclude>
     <ClInclude Include="placement\default_ui.h">
       <Filter>placement</Filter>
     </ClInclude>
     <ClInclude Include="new_plugin.h">
       <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="compute\generator_3d_shadow_texture_64.h">
-      <Filter>compute</Filter>
-    </ClInclude>
-    <ClInclude Include="material\render_3d_volume_texture_64.h">
-      <Filter>material</Filter>
-    </ClInclude>
-    <ClInclude Include="compute\generator_2d_worley_noise_texture.h">
-      <Filter>compute</Filter>
     </ClInclude>
     <ClInclude Include="compute\volume_cloud_compute.h">
       <Filter>compute</Filter>
@@ -126,31 +96,19 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="compute\shader\volume_cloud_compute_worley_noise_tex2_3d_cs.hlsl">
-      <Filter>compute\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="material\shader\volume_cloud_material_transparent_render_2d_for_3d_64_ps.hlsl">
-      <Filter>material\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_perlin_worley_noise_tex2_3d_cs.hlsl">
-      <Filter>compute\shader</Filter>
-    </FxCompile>
     <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl">
       <Filter>material\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_generate_worley_noise_float4_2d_simulate_3d.hlsl">
-      <Filter>compute\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_merga_noise_float4_3d_simutale_3d.hlsl">
-      <Filter>compute\shader</Filter>
     </FxCompile>
     <FxCompile Include="compute\shader\volume_cloud_compute_generate_cube_mark_2d_simulate_3d.hlsl">
       <Filter>compute\shader</Filter>
     </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_merga_4_f_to_u8_4.hlsl">
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_perlin_noise_tex3_3d_f1.hlsl">
       <Filter>compute\shader</Filter>
     </FxCompile>
-    <FxCompile Include="compute\shader\volume_cloud_compute_generate_perlin_noise_uint8_4_2d_simulate_3d.hlsl">
+    <FxCompile Include="compute\shader\volume_cloud_compute_generate_worley_noise_tex3_3d_f4.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\volume_cloud_compute_format_tex3_f4_to_2d_u8_4_cs.hlsl">
       <Filter>compute\shader</Filter>
     </FxCompile>
   </ItemGroup>

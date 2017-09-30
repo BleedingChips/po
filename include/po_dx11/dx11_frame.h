@@ -1011,10 +1011,12 @@ namespace PO
 			void call() { imp->call(); }
 		};
 
-		struct Dx11_frame_initializer : Dx11_initializer
+		struct Dx11_frame_initializer
 		{
 			creator cre;
 			stage_context sta;
+			swap_chain_ptr swa;
+			tex2 bac;
 		};
 
 	}

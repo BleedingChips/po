@@ -15,11 +15,13 @@
 #include "new_plugin.h"
 #include "translate_ue4_custion_node.h"
 
-using namespace PO;
+
+
 
 int main()
 {
-	std::cout << "============" << std::endl;
+
+
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
@@ -35,6 +37,7 @@ int main()
 	{
 		auto fo = con.create(form<form_default>{});
 		fo.lock([](decltype(fo)::type& ui) {
+			ui.create(extension<Dx11::stage_instance_extension>{});
 			ui.create(renderer<defer_renderer_default>{});
 			ui.create(plugin<new_plugin>{});
 		});

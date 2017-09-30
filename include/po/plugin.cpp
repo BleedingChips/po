@@ -1,30 +1,51 @@
 #include "plugin.h"
 namespace PO
 {
-	void plugins::tick(viewer& v, duration da)
+	void plugins_implement::tick(viewer& v, duration da)
 	{
 
-		depute_renderer_f_tank.lock([this](renderer_depute_tank_t& tank) {
-			if (!tank.empty())
+		depute_renderer_function.lock([&, this](renderer_depute_f& tank) {
+			if (tank)
 			{
-				renderer_tank.reserve(renderer_tank.size() + tank.size());
-				for (auto& f : tank)
-					renderer_tank.push_back(std::move(f(om)));
-				tank.clear();
+				//to-do call plugin to replace renderer
+				renderer_ptr = tank(om);
+				if(renderer_ptr)
+					for (auto& ite : raw_plugin_tank) {
+						auto ite22 = ite->mapping.find(renderer_ptr->id());
+						if (ite22 != ite->mapping.end())
+							renderer_ptr->insert(ite22->first, ite->self_ptr, ite22->second.init, ite22->second.tick, *this, v);
+					}
+				tank = {};
 			}
 		});
+
+		if (extension_delegate_function.lock([this](decltype(extension_delegate_function)::type& t) {
+			if (!t.empty()) return (std::swap(inside_extension_delegate_function, t), true);
+			return false;
+		}))
+		{
+			for (auto& ite : inside_extension_delegate_function)
+			{
+				if (ite)
+				{
+					auto ptr = ite(om);
+					auto id = ptr->id();
+					extension_map.insert({ id, std::move(ptr) });
+				}
+			}
+			inside_extension_delegate_function = {};
+		}
 
 		if (depute_plugin_tank.lock([this](plugin_tank_t& tank) {
 			if (!tank.empty()) return (std::swap(raw_plugin_tank, tank), true);
 			return false;
 		})) {
-			for (auto& ite : raw_plugin_tank) {
-				for (auto& ite2 : renderer_tank) {
-					auto ite22 = ite->mapping.find(ite2->id());
+			if (renderer_ptr)
+				for (auto& ite : raw_plugin_tank) {
+					auto ite22 = ite->mapping.find(renderer_ptr->id());
 					if (ite22 != ite->mapping.end())
-						ite2->insert(ite22->first, ite->self_ptr, ite22->second.init, ite22->second.tick, *this, v);
+						renderer_ptr->insert(ite22->first, ite->self_ptr, ite22->second.init, ite22->second.tick, *this, v);
 				}
-			}
 			plugin_tank.insert(plugin_tank.end(), std::make_move_iterator(raw_plugin_tank.begin()), std::make_move_iterator(raw_plugin_tank.end()));
 			raw_plugin_tank.clear();
 		}
@@ -35,18 +56,29 @@ namespace PO
 			return true;
 		}), plugin_tank.end());
 
-		std::for_each(renderer_tank.begin(), renderer_tank.end(), [&, this](std::unique_ptr<Implement::renderer_interface>& i) {
-			i->tick(*this, v, da);
-		});
+		if (renderer_ptr)
+			renderer_ptr->tick(*this, v, da);
+
+		for (auto& ite : extension_map)
+		{
+			ite.second->tick(da, v);
+		}
 
 	}
 
 	plugins::~plugins() {
 	}
 
-	Respond plugins::respond(const event& ev, viewer& v)
+	Respond plugins_implement::respond(const event& ev, viewer& v)
 	{
+		// to-do add renderer_respond
 		Respond re = Respond::Pass;
+
+		for (auto& ite : extension_map)
+		{
+			ite.second->handle_respond(ev, v);
+		}
+
 		for (auto& po : plugin_tank) {
 			if (*po) {
 				re = po->respond(ev, *this, v);

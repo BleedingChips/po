@@ -1,104 +1,7 @@
 #include "volume_cloud_compute.h"
 #include <random>
 
-void property_worley_noise_3d_point::set_seed(creator& c, uint32_t3 seed) 
-{ 
-	std::mt19937 mtx(seed.x);
-	std::mt19937 mty(seed.y);
-	std::mt19937 mtz(seed.z);
-	std::uniform_real_distribution<float> nd2(0.0f, 1.0f);
-	shader_storage<aligned_array<float3, 300>> as;
-	auto& ui = std::get<0>(as);
-	for (size_t i = 0; i < 300; ++i)
-	{
-		ui[i] = float3{ nd2(mtx), nd2(mty), nd2(mtz) };
-	}
-	m_cb.create_pod(c, as);
-	need_update();
-}
-
-void property_worley_noise_3d_point::update(creator& rd, renderer_data& sc)
-{
-	sc.m_cb = m_cb;
-}
-
-
-
-void property_output_tex2::set_texture(creator& c, const tex2& texture, float s, uint32_t4 simulate)
-{
-	m_uav = texture.cast_unordered_access_view(c);
-	tex_size = texture.size();
-	shader_storage<uint32_t4, uint32_t2, float> ss{ simulate , tex_size, s };
-	m_cb.create_pod(c, ss);
-	need_update();
-}
-
-
-compute_worley_noise_tex2_3d::compute_worley_noise_tex2_3d(creator& c) :
-	compute_resource(c, u"volume_cloud_compute_worley_noise_tex2_3d_cs.cso")
-{}
-const element_requirement& compute_worley_noise_tex2_3d::requirement() const
-{
-	return make_element_requirement(
-		[](stage_context& sc, property_output_tex2::renderer_data& pot) {
-		sc << dispatch_call{ pot.tex_size.x / 32, pot.tex_size.y / 32, 1 };
-		sc.CS() << pot.m_uav[0] << pot.m_cb[1];
-	},
-		[](stage_context& sc, property_worley_noise_3d_point::renderer_data& pwn) {
-		sc.CS() << pwn.m_cb[0];
-	}
-	);
-}
-
-void property_perline_worley_noise_3d_point::set_seed(creator& c, uint32_t3 seed)
-{
-	std::mt19937 mtx(seed.x);
-	std::mt19937 mty(seed.y);
-	std::mt19937 mtz(seed.z);
-	std::uniform_real_distribution<float> nd2(0.0f, 1.0f);
-	shader_storage<float3, float3, float3, float3, aligned_array<float3, 100>, aligned_array<float3, 200>, aligned_array<float3, 400>> as{
-		float3{ nd2(mtx), nd2(mty),nd2(mtz) },
-		float3{ nd2(mtx), nd2(mty),nd2(mtz) },
-		float3{ nd2(mtx), nd2(mty),nd2(mtz) },
-		float3{ nd2(mtx), nd2(mty),nd2(mtz) }
-	};
-	auto& ref = std::get<4>(as);
-	auto& ref2 = std::get<5>(as);
-	auto& ref3 = std::get<6>(as);
-	for (size_t i = 0; i < 100; ++i)
-	{
-		ref[i] = float3{ nd2(mtx), nd2(mty), nd2(mtz) };
-	}
-	for (size_t i = 0; i < 200; ++i)
-	{
-		ref2[i] = float3{ nd2(mtx), nd2(mty), nd2(mtz) };
-	}
-	for (size_t i = 0; i < 400; ++i)
-	{
-		ref3[i] = float3{ nd2(mtx), nd2(mty), nd2(mtz) };
-	}
-	m_cb.create_pod(c, as);
-	need_update();
-}
-
-compute_perlin_worley_noise_tex2_3d::compute_perlin_worley_noise_tex2_3d(creator& c) :
-	compute_resource(c, u"volume_cloud_compute_perlin_worley_noise_tex2_3d_cs.cso")
-{}
-
-const element_requirement& compute_perlin_worley_noise_tex2_3d::requirement() const
-{
-	return make_element_requirement(
-		[](stage_context& sc, property_perline_worley_noise_3d_point::renderer_data& p) {
-		sc.CS() << p.m_cb[0];
-	},
-		[](stage_context& sc, property_output_tex2::renderer_data& p) {
-		sc << dispatch_call{ p.tex_size.x, p.tex_size.y, 1 };
-		sc.CS() << p.m_uav[0] << p.m_cb[1];
-	}
-	);
-}
-
-
+// property_random_point_f ***********************************************************
 void property_random_point_f::create_uniform_point(creator& c, uint32_t count, uint32_t seed, float min, float max)
 {
 	random_vector.clear();
@@ -138,6 +41,7 @@ void property_random_point_f::update(creator& c, renderer_data& rd)
 	rd.cb.create_pod(c, ss);
 }
 
+// property_random_point_f3 ***********************************************************
 void property_random_point_f3::create_uniform_point(creator& c, uint32_t count, uint32_t3 seed, float min, float max)
 {
 	random_vector.clear();
@@ -181,89 +85,62 @@ void property_random_point_f3::update(creator& c, renderer_data& rd)
 	rd.cb.create_pod(c, ss);
 }
 
-void property_output_tex2_2d_simulate_3d::set_output_texture(unordered_access_view<tex2> output_texture, uint32_t2 texture_size, uint32_t4 simulate_size)
-{
-	output_texture_uav = std::move(output_texture);
-	this->texture_size = texture_size;
-	this->simulate_size = simulate_size;
-	need_update();
-}
-
-void property_output_tex2_2d_simulate_3d::update(creator& c, renderer_data& rd)
-{
-	rd.texture_size = texture_size;
-	rd.output_texture_uav = std::move(output_texture_uav);
-	shader_storage<uint32_t2, uint32_t4> ss{ texture_size , simulate_size };
-	rd.cb.create_pod(c, ss);
-}
-
-compute_generate_perlin_noise_uint8_4_2d_simulate_3d::compute_generate_perlin_noise_uint8_4_2d_simulate_3d(creator& c)
-	:compute_resource(c, u"volume_cloud_compute_generate_perlin_noise_uint8_4_2d_simulate_3d.cso")
+// compute_generate_perlin_noise_tex3_3d_f1 ***********************************************************
+compute_generate_perlin_noise_tex3_3d_f1::compute_generate_perlin_noise_tex3_3d_f1(creator& c)
+	:compute_resource(c, u"volume_cloud_compute_generate_perlin_noise_tex3_3d_f1.cso")
 {}
 
-const element_requirement& compute_generate_perlin_noise_uint8_4_2d_simulate_3d::requirement() const
+const element_requirement& compute_generate_perlin_noise_tex3_3d_f1::requirement() const
 {
 	return make_element_requirement(
 		[](stage_context& sc, property_random_point_f::renderer_data& rd) {
 		sc.CS() << rd.cb[0] << rd.srv[0];
 	},
-		[](stage_context& sc, property_output_tex2_2d_simulate_3d::renderer_data& rd) {
-		sc.CS() << rd.output_texture_uav[0] << rd.cb[1];
-		sc << dispatch_call{ rd.texture_size.x, rd.texture_size.y, 1 };
+		[](stage_context& sc, property::renderer_data& rd) {
+		sc.CS() << rd.output_texture[0] << rd.size_cb[1];
+		sc << dispatch_call{ rd.size.x, rd.size.y, rd.size.z };
 	}
 	);
 }
 
-uint count_all(uint i)
+uint32_t compute_generate_perlin_noise_tex3_3d_f1::max_count(uint32_t4 sample)
 {
-	return (i + 1) * (i + 1) * (i + 1);
+	auto count_all = [](uint32_t i)->uint32_t {return (i + 1) * (i + 1) * (i + 1); };
+	return count_all(sample.x) + count_all(sample.y) + count_all(sample.z) + count_all(sample.w);
 }
 
-uint32_t compute_generate_perlin_noise_uint8_4_2d_simulate_3d::max_count()
+// compute_generate_worley_noise_tex3_3d_f4 ***********************************************************
+uint32_t compute_generate_worley_noise_tex3_3d_f4::max_count() { return 400; }
+
+compute_generate_worley_noise_tex3_3d_f4::compute_generate_worley_noise_tex3_3d_f4(creator& c) :
+	compute_resource(c, u"volume_cloud_compute_generate_worley_noise_tex3_3d_f4.cso")
+{}
+
+const element_requirement& compute_generate_worley_noise_tex3_3d_f4::requirement() const
 {
-	uint32_t layout1 = 5;
-	uint32_t layout2 = layout1 * 2;
-	uint32_t layout3 = layout2 * 2;
-	uint32_t layout4 = layout3 * 2;
-	return (count_all(layout1) + count_all(layout2) + count_all(layout3) + count_all(layout4)) * 4;
+	return make_element_requirement(
+		[](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+		sc.CS() << rd.cb[0] << rd.srv[0];
+	},
+		[](stage_context& sc, property::renderer_data& rd) {
+		sc.CS() << rd.output_texture_uav[0] << rd.cb[1];
+		sc << dispatch_call{ rd.texture_size.x / 32 + ((rd.texture_size.x % 32) == 0 ? 0 : 1) , rd.texture_size.y / 32 + ((rd.texture_size.y % 32) == 0 ? 0 : 1), rd.texture_size.z };
+	}
+	);
 }
 
-void property_generate_worley_noise_float4_2d_simulate_3d::set_peorperty(unordered_access_view<tex2> output_texture, uint32_t2 texture_size, uint32_t4 simulate_size, float radio)
+void compute_generate_worley_noise_tex3_3d_f4::property::update(creator& c, renderer_data& rd)
 {
-	output_texture_uav = std::move(output_texture);
-	this->radius = radio;
-	this->texture_size = texture_size;
-	this->simulate_size = simulate_size;
-	need_update();
-}
-
-void property_generate_worley_noise_float4_2d_simulate_3d::update(creator& c, renderer_data& rd)
-{
-	rd.output_texture_uav = std::move(output_texture_uav);
+	rd.output_texture_uav = output_texture_uav;
 	rd.texture_size = texture_size;
-	shader_storage<float, uint32_t2, uint32_t4> ss{ radius,  texture_size ,simulate_size };
+	shader_storage<uint32_t3, float> ss{ texture_size, radius };
 	rd.cb.create_pod(c, ss);
 }
 
-uint32_t compute_generate_worley_noise_float4_2d_simulate_3d::max_count() { return 400 * 3; }
+// compute_generate_worley_noise_tex3_3d_f4 ***********************************************************
 
-compute_generate_worley_noise_float4_2d_simulate_3d::compute_generate_worley_noise_float4_2d_simulate_3d(creator& c) :
-	compute_resource(c, u"volume_cloud_compute_generate_worley_noise_float4_2d_simulate_3d.cso")
-{}
 
-const element_requirement& compute_generate_worley_noise_float4_2d_simulate_3d::requirement() const
-{
-	return make_element_requirement(
-		[](stage_context& sc, property_random_point_f::renderer_data& rd) {
-		sc.CS() << rd.cb[0] << rd.srv[0];
-	},
-		[](stage_context& sc, property_generate_worley_noise_float4_2d_simulate_3d::renderer_data& rd) {
-		sc.CS() << rd.output_texture_uav[0] << rd.cb[1];
-		sc << dispatch_call{ rd.texture_size.x / 32 + 1 , rd.texture_size.y / 32 + 1, 1 };
-	}
-	);
-}
-
+/*
 void property_merga_noise_float4_2d_simulate_3d::update(creator& c, renderer_data& rd)
 {
 	rd.texture_size = texture_size;
@@ -332,5 +209,5 @@ const element_requirement& compute_merga_4_f1_to_f4::requirement() const
 		c.CS() << rd.input1[0] << rd.input2[0] << rd.input3[0] << rd.input4[0] << rd.output[0] << rd.cb[0];
 		c << dispatch_call{ rd.texture_size.x , rd.texture_size.y, 1 };
 	});
-}
+}*/
 

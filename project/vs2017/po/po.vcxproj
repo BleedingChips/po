@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\include\po\extension.cpp" />
     <ClCompile Include="..\..\..\include\po\frame\adapter.cpp" />
     <ClCompile Include="..\..\..\include\po\frame\define.cpp" />
     <ClCompile Include="..\..\..\include\po\plugin.cpp" />
@@ -29,6 +30,7 @@
     <ClCompile Include="..\..\..\include\po\tool\utf_support.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\include\po\extension.h" />
     <ClInclude Include="..\..\..\include\po\form.h" />
     <ClInclude Include="..\..\..\include\po\frame\adapter.h" />
     <ClInclude Include="..\..\..\include\po\frame\define.h" />

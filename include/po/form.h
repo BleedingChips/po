@@ -38,32 +38,13 @@ namespace PO {
 	}
 
 	namespace Implement {
-
-		template<typename form_t> struct have_avalible 
-		{
-			template<typename P> static std::true_type func(
-				std::enable_if_t<
-					std::is_same<
-						decltype(((const form_t*)(nullptr))->available()),
-						bool
-					>::value
-				>*
-			);
-			template<typename P> static std::false_type func(...);
-			static constexpr bool value = decltype(func<form_t>(nullptr))::value;
-		};
-
-		template<typename form_t> struct have_make_value_table
-		{
-			template<typename P> static std::true_type func(std::enable_if_t<std::is_same<decltype(((form_t*)(nullptr))->mapping()), value_table>::value>*);
-			template<typename P> static std::false_type func(...);
-			static constexpr bool value = decltype(func<form_t>(nullptr))::value;
-		};
+		template<typename T> using form_mf_avalible = std::enable_if_t<std::is_same_v<decltype(std::declval<T>().available()), bool>>;
+		template<typename T> using form_mf_mapping = std::enable_if_t<std::is_same_v<decltype(std::declval<T>().mapping()), value_table>>;
 	}
 
 	template<typename form_t> struct form {
-		static_assert(Implement::have_avalible<form_t>::value, "form should need an memeber function \'bool available() const\'");
-		static_assert(Implement::have_make_value_table<form_t>::value, "form should need an memeber function \'value_table mapping()\'");
+		static_assert(Tmp::able_instance_v<Implement::form_mf_avalible, form_t>, "form should need an memeber function \'bool available() const\'");
+		static_assert(Tmp::able_instance_v<Implement::form_mf_mapping, form_t>, "form should need an memeber function \'value_table mapping()\'");
 	};
 
 }

@@ -144,8 +144,6 @@ namespace PO
 			u"build_in_placement_direct_vs.cso"
 		) {}
 
-		material_testing::material_testing(creator& c) : material_resource(c, u"material_test_ps.cso") {}
-
 
 
 		geometry_cube::geometry_cube(creator& c) : geometry_resource(
@@ -176,6 +174,23 @@ namespace PO
 			);
 		}
 
+		material_tex2_viewer::material_tex2_viewer(creator& c) :
+			material_resource(c, u"build_in_material_tex2_view.cso")
+		{}
+
+		const element_requirement& material_tex2_viewer::requirement() const
+		{
+			return make_element_requirement(
+				[](stage_context& sc, property_tex2::renderer_data& rd) {
+				sc.PS() << rd.srv[0] << rd.ss[0];
+			}
+			);
+		}
+
+		material_testing::material_testing(creator& c) : material_resource(c, u"buildin_material_testing_ps.cso")
+		{
+
+		}
 
 		/*
 

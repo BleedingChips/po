@@ -246,5 +246,16 @@ namespace PO
 		template<typename T> struct is_integer_sequence : std::false_type {};
 		template<typename T, T ...v> struct is_integer_sequence<std::integer_sequence<T, v...>> : std::true_type {};
 
+		namespace Implement
+		{
+			template<typename ...t> struct instance_list {};
+			template<template<typename ...> class instance_role, typename T, typename = void> struct able_instance_implement{};
+			template<template<typename ...> class instance_role, typename ...instance, typename Result> struct able_instance_implement<instance_role, instance_list<instance...>, Result> : std::false_type {};
+			template<template<typename ...> class instance_role, typename ...instance> struct able_instance_implement<instance_role, instance_list<instance...>, std::void_t<instance_role<instance...>>> : std::true_type {};
+		}
+
+		template<template<typename ...> class instance_role, typename ...instance> using able_instance = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>;
+		template<template<typename ...> class instance_role, typename ...instance> constexpr bool able_instance_v = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>::value;
+
 	}
 }

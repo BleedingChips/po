@@ -32,29 +32,10 @@ namespace PO
 			tick_proxy& operator=(tick_proxy&&) = default;
 		};
 
-		template<typename renderer_t> struct have_pre_tick {
-			template<typename P> static std::true_type func(decltype(std::declval<P>().pre_tick(duration()))*);
-			template<typename P> static std::false_type func(...);
-			void operator()(renderer_t& r, duration da) {
-				Tool::statement_if<decltype(func<renderer_t>(nullptr))::value>(
-					[da](auto& r) {r.pre_tick(da); },
-					[](auto& r) {},
-					r
-					);
-			}
-		};
-
-		template<typename renderer_t> struct have_pos_tick {
-			template<typename P> static std::true_type func(decltype(std::declval<P>().pos_tick(duration()))*);
-			template<typename P> static std::false_type func(...);
-			void operator()(renderer_t& r, duration da) {
-				Tool::statement_if<decltype(func<renderer_t>(nullptr))::value>(
-					[da](auto& r) {r.pos_tick(da); },
-					[](auto& r) {},
-					r
-					);
-			}
-		};
+		template<typename T> using mf_pre_tick = decltype(std::declval<T>().pre_tick(std::declval<duration>()));
+		template<typename T> using mf_pos_tick = decltype(std::declval<T>().pos_tick(std::declval<duration>()));
+		template<typename T, typename ...AT> using mf_pre_respond = std::enable_if<std::is_same_v<decltype(std::declval<T>().pre_respond(std::declval<const event&>(), std::declval<AT>()...)),Respond>>;
+		template<typename T, typename ...AT> using mf_pos_respond = std::enable_if<std::is_same_v<decltype(std::declval<T>().pos_respond(std::declval<const event&>(), std::declval<AT>()...)), Respond>>;
 
 		struct renderer_interface {
 			std::type_index ti;
@@ -85,10 +66,12 @@ namespace PO
 			renderer_expand_t(value_table& v, AK&& ...ak) :
 				renderer_expand_t(std::integral_constant<bool, std::is_constructible<renderer_t, value_table&, AK...>::value || true>{}, v, std::forward<AK>(ak)...) {}
 			void pre_tick(duration da) {
-				have_pre_tick<renderer_t>{}(*this, da);
+				if constexpr(Tmp::able_instance_v<mf_pre_tick, renderer_t>)
+					renderer_t::pre_tick(da);
 			}
 			void pos_tick(duration da) {
-				have_pos_tick<renderer_t>{}(*this, da);
+				if constexpr(Tmp::able_instance_v<mf_pos_tick, renderer_t>)
+					renderer_t::pos_tick(da);
 			}
 		};
 		template<typename renderer_t> using renderer_expand = renderer_expand_t<std::decay_t<renderer_t>>;

@@ -36,6 +36,9 @@
     <ClCompile Include="..\..\..\include\po\frame\adapter.cpp">
       <Filter>po\frame</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po\extension.cpp">
+      <Filter>po</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po\frame\viewer.h">
@@ -87,6 +90,9 @@
       <Filter>po</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\renderer.h">
+      <Filter>po</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\extension.h">
       <Filter>po</Filter>
     </ClInclude>
   </ItemGroup>

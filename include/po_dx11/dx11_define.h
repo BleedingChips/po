@@ -10,6 +10,7 @@
 #include <memory>
 #include <array>
 #include <map>
+#include "../po_win32/win32_define.h"
 #include "../po/frame/define.h"
 #include "../po_dx/dx_math.h"
 namespace PO
@@ -18,37 +19,38 @@ namespace PO
 	{
 		using namespace Dx;
 
-		using device_ptr = CComPtr<ID3D11Device>;
-		using context_ptr = CComPtr<ID3D11DeviceContext>;
-		using swapchain_ptr = CComPtr<IDXGISwapChain>;
-		using buffer_ptr = CComPtr<ID3D11Buffer>;
-		using vshader_ptr = CComPtr<ID3D11VertexShader>;
-		using pshader_ptr = CComPtr<ID3D11PixelShader>;
-		using layout_ptr = CComPtr<ID3D11InputLayout>;
-		using texture2D_ptr = CComPtr<ID3D11Texture2D>;
-		using texture1D_ptr = CComPtr<ID3D11Texture1D>;
-		using texture3D_ptr = CComPtr<ID3D11Texture3D>;
+		using device_ptr = Win32::com_ptr<ID3D11Device>;
+		using context_ptr = Win32::com_ptr<ID3D11DeviceContext>;
+		using swap_chain_ptr = Win32::com_ptr<IDXGISwapChain>;
+		using buffer_ptr = Win32::com_ptr<ID3D11Buffer>;
+		using vshader_ptr = Win32::com_ptr<ID3D11VertexShader>;
+		using pshader_ptr = Win32::com_ptr<ID3D11PixelShader>;
+		using layout_ptr = Win32::com_ptr<ID3D11InputLayout>;
+		using texture2D_ptr = Win32::com_ptr<ID3D11Texture2D>;
+		using texture1D_ptr = Win32::com_ptr<ID3D11Texture1D>;
+		using texture3D_ptr = Win32::com_ptr<ID3D11Texture3D>;
 
-		using UAV_ptr = CComPtr<ID3D11UnorderedAccessView>;
-		using RTV_ptr = CComPtr<ID3D11RenderTargetView>;
-		using DSV_ptr = CComPtr<ID3D11DepthStencilView>;
-		using SRV_ptr = CComPtr<ID3D11ShaderResourceView>;
+		using UAV_ptr = Win32::com_ptr<ID3D11UnorderedAccessView>;
+		using RTV_ptr = Win32::com_ptr<ID3D11RenderTargetView>;
+		using DSV_ptr = Win32::com_ptr<ID3D11DepthStencilView>;
+		using SRV_ptr = Win32::com_ptr<ID3D11ShaderResourceView>;
 
-		using sample_state_ptr = CComPtr<ID3D11SamplerState>;
+		using sample_state_ptr = Win32::com_ptr<ID3D11SamplerState>;
 
-		using cshader_ptr = CComPtr<ID3D11ComputeShader>;
-		using gshader_ptr = CComPtr<ID3D11GeometryShader>;
-		using dshader_ptr = CComPtr<ID3D11DomainShader>;
+		using cshader_ptr = Win32::com_ptr<ID3D11ComputeShader>;
+		using gshader_ptr = Win32::com_ptr<ID3D11GeometryShader>;
+		using dshader_ptr = Win32::com_ptr<ID3D11DomainShader>;
 
-		using raterizer_state_ptr = CComPtr<ID3D11RasterizerState>;
-		using blend_state_ptr = CComPtr<ID3D11BlendState>;
-		using depth_stencil_state_ptr = CComPtr<ID3D11DepthStencilState>;
+		using raterizer_state_ptr = Win32::com_ptr<ID3D11RasterizerState>;
+		using blend_state_ptr = Win32::com_ptr<ID3D11BlendState>;
+		using depth_stencil_state_ptr = Win32::com_ptr<ID3D11DepthStencilState>;
 
 		struct Dx11_initializer
 		{
 			device_ptr dev;
 			context_ptr con;
-			DXGI::swap_chain swa;
+			swap_chain_ptr swa;
+			texture2D_ptr bac;
 		};
 
 		/*

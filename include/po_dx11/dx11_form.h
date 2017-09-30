@@ -24,25 +24,18 @@ namespace PO
 			class form_pre_construction : public Win32::win32_form
 			{
 			protected:
-				Win32::com_ptr<ID3D11Device> dev;
-				Win32::com_ptr<ID3D11DeviceContext> dc;
-				DXGI::swap_chain swap;
+				Dx11_initializer initializer;
 				form_pre_construction(const initializer_form_default& = initializer_form_default{});
 			};
 		}
 
 		class form_default : public Implement::form_pre_construction
 		{
-			stage_context pipe;
-			creator creat;
-			tex2 back_buffer;
+			Dx11_frame_initializer frame_initializer;
 		public:
 			value_table mapping();
 			form_default(const initializer_form_default& = initializer_form_default{});
 			~form_default() {  };
-			void pos_tick(duration da) {
-				(swap.ptr)->Present(0, 0);
-			}
 		};
 	}
 }

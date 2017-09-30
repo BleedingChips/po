@@ -3,73 +3,6 @@
 using namespace PO::Dx;
 using namespace PO::Dx11;
 
-class property_worley_noise_3d_point : public property_resource
-{
-	buffer_constant m_cb;
-public:
-
-	struct renderer_data
-	{
-		buffer_constant m_cb;
-	};
-
-	void set_seed(creator& c, uint32_t3 s);
-	void update(creator& rd, renderer_data& sc);
-};
-
-class property_output_tex2 : public property_resource
-{
-	unordered_access_view<tex2> m_uav;
-	uint32_t2 tex_size;
-	buffer_constant m_cb;
-
-public:
-
-	struct renderer_data
-	{
-		unordered_access_view<tex2> m_uav;
-		uint32_t2 tex_size;
-		buffer_constant m_cb;
-	};
-
-	void set_texture(creator& c, const tex2& texture, float step, uint32_t4 simulate = uint32_t4{0, 0, 0, 0});
-	void update(creator& rd, renderer_data& sc)
-	{
-		sc.m_uav = m_uav;
-		sc.tex_size = tex_size;
-		sc.m_cb = m_cb;
-	}
-
-};
-
-class compute_worley_noise_tex2_3d : public compute_resource
-{
-public:
-	compute_worley_noise_tex2_3d(creator&);
-	const element_requirement& requirement() const;
-};
-
-class property_perline_worley_noise_3d_point : public property_resource
-{
-	buffer_constant m_cb;
-public:
-
-	struct renderer_data
-	{
-		buffer_constant m_cb;
-	};
-
-	void set_seed(creator& c, uint32_t3 seed);
-	void update(creator& c, renderer_data& rd) { rd.m_cb = m_cb; }
-};
-
-class compute_perlin_worley_noise_tex2_3d : public compute_resource
-{
-public:
-	compute_perlin_worley_noise_tex2_3d(creator& c);
-	const element_requirement& requirement() const;
-};
-
 struct property_random_point_f : public property_resource
 {
 	std::vector<float> random_vector;
@@ -114,53 +47,180 @@ struct property_random_point_f3 : public property_resource
 	void update(creator& c, renderer_data& rd);
 };
 
-struct property_output_tex2_2d_simulate_3d : public property_resource
-{
-	uint32_t2 texture_size;
-	uint32_t4 simulate_size;
-	unordered_access_view<tex2> output_texture_uav;
-	struct renderer_data
-	{
-		uint32_t2 texture_size;
-		unordered_access_view<tex2> output_texture_uav;
-		buffer_constant cb;
-	};
-	void set_output_texture(unordered_access_view<tex2> output_texture, uint32_t2 texture_size, uint32_t4 simulate_size);
-	void update(creator& c, renderer_data& rd);
-};
 
-class compute_generate_perlin_noise_uint8_4_2d_simulate_3d : public compute_resource
+
+class compute_generate_perlin_noise_tex3_3d_f1 : public compute_resource
 {
 public:
-	static uint32_t max_count();
-	compute_generate_perlin_noise_uint8_4_2d_simulate_3d(creator& c);
+
+	struct property : public property_resource
+	{
+		unordered_access_view<tex3> output_texture;
+		uint32_t3 size = {0, 0, 0};
+		uint32_t4 sample_scale;
+		float4 value_factor;
+		struct renderer_data
+		{
+			unordered_access_view<tex3> output_texture;
+			buffer_constant size_cb;
+			uint32_t3 size;
+		};
+		void set_output_f(unordered_access_view<tex3> output, uint32_t3 size, uint32_t4 scale, float4 factor)
+		{
+			output_texture = std::move(output);
+			this->size = size;
+			sample_scale = scale;
+			value_factor = factor;
+			need_update();
+		}
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.output_texture = output_texture;
+			rd.size = size;
+			shader_storage<uint32_t3, uint32_t4, float4> ss{size, sample_scale, value_factor};
+			rd.size_cb.create_pod(c, ss);
+		}
+	};
+
+	static uint32_t max_count(uint32_t4);
+	compute_generate_perlin_noise_tex3_3d_f1(creator& c);
 	const element_requirement& requirement() const;
 };
 
-class property_generate_worley_noise_float4_2d_simulate_3d : public property_resource
-{
-	unordered_access_view<tex2> output_texture_uav;
-	float radius = 0.01f;
-	uint32_t2 texture_size;
-	uint32_t4 simulate_size;
-public:
-	struct renderer_data
-	{
-		unordered_access_view<tex2> output_texture_uav;
-		buffer_constant cb;
-		uint32_t2 texture_size;
-	};
-	void set_peorperty(unordered_access_view<tex2> output_texture, uint32_t2 texture_size, uint32_t4 simulate_size, float radio = 1.0f);
-	void update(creator& c, renderer_data& rd);
-};
 
-class compute_generate_worley_noise_float4_2d_simulate_3d : public compute_resource
+
+
+class compute_generate_worley_noise_tex3_3d_f4 : public compute_resource
 {
 public:
+
+	class property : public property_resource
+	{
+		unordered_access_view<tex3> output_texture_uav;
+		float radius = 0.01f;
+		uint32_t3 texture_size = {0, 0, 0};
+	public:
+		struct renderer_data
+		{
+			unordered_access_view<tex3> output_texture_uav;
+			buffer_constant cb;
+			uint32_t3 texture_size;
+		};
+		void set_peorperty(unordered_access_view<tex3> output_texture, uint32_t3 texture_size, float radio = 1.0f)
+		{
+			output_texture_uav = std::move(output_texture);
+			radius = radio;
+			this->texture_size = texture_size;
+			need_update();
+		}
+		void update(creator& c, renderer_data& rd);
+	};
+
 	static uint32_t max_count();
-	compute_generate_worley_noise_float4_2d_simulate_3d(creator& c);
+	compute_generate_worley_noise_tex3_3d_f4(creator& c);
 	const element_requirement& requirement() const;
 };
+
+class compute_format_tex3_f4_to_2d_u8_4 : public compute_resource
+{
+public:
+	struct property : public property_resource
+	{
+		uint32_t2 texture_size = {0, 0};
+		uint32_t4 simulate_size = {0 , 0, 0, 0};
+		float4 value_factor = {0.0, 0.0, 0.0, 0.0};
+		sample_state ss;
+		shader_resource_view<tex3> srv;
+		unordered_access_view<tex2> output;
+		struct renderer_data
+		{
+			shader_resource_view<tex3> srv;
+			sample_state ss;
+			unordered_access_view<tex2> output;
+			uint32_t2 texture_size;
+			buffer_constant bc;
+		};
+		void set(shader_resource_view<tex3> input, sample_state input_ss, unordered_access_view<tex2> output, uint32_t2 size, uint32_t4 simulate, float4 factor)
+		{
+			srv = std::move(input);
+			ss = std::move(input_ss);
+			this->output = std::move(output);
+			texture_size = size;
+			simulate_size = simulate;
+			value_factor = factor;
+			need_update();
+		}
+		void update(creator& c, renderer_data& rd)
+		{
+			shader_storage<uint32_t2, uint32_t4, float4> ss_store(texture_size, simulate_size, value_factor);
+			rd.bc.create_pod(c, ss_store);
+			rd.ss = ss;
+			rd.output = output;
+			rd.srv = srv;
+			rd.texture_size = texture_size;
+		}
+	};
+	compute_format_tex3_f4_to_2d_u8_4(creator& c) : compute_resource(c, u"volume_cloud_compute_format_tex3_f4_to_2d_u8_4_cs.cso") {}
+	const element_requirement& requirement()
+	{
+		return make_element_requirement(
+			[](stage_context& sc, property::renderer_data& p) {
+			sc.CS() << p.bc[0] << p.output[0] << p.srv[0] << p.ss[0];
+			sc << dispatch_call{p.texture_size.x, p.texture_size.y, 1};
+		}
+		);
+	}
+};
+
+class compute_generate_cube_mask_tex3_f : public compute_resource
+{
+
+public:
+	struct property : public property_resource
+	{
+		unordered_access_view<tex3> output;
+		uint32_t3 texture_size = {0, 0,0};
+		struct renderer_data
+		{
+			unordered_access_view<tex3> output;
+			buffer_constant bc;
+			uint32_t3 texture_size;
+		};
+		void set(unordered_access_view<tex3> output_texture, uint32_t3 size)
+		{
+			output = std::move(output_texture);
+			texture_size = size;
+			need_update();
+		}
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.output = output;
+			rd.texture_size = texture_size;
+			shader_storage<uint32_t3> ss{ texture_size };
+			rd.bc.create_pod(c, ss);
+		}
+	};
+	compute_generate_cube_mask_tex3_f(creator& c) : compute_resource(c, u"volume_cloud_compute_generate_cube_mark_2d_simulate_3d.cso") {}
+	const element_requirement& requirement()
+	{
+		return make_element_requirement(
+			[](stage_context& sc, property::renderer_data& p) {
+			sc.CS() << p.bc[0] << p.output[0];
+			sc << dispatch_call{ p.texture_size.x, p.texture_size.y, p.texture_size.z };
+		}
+		);
+	}
+};
+
+
+
+
+
+
+
+
+
+/*
 
 struct property_merga_noise_float4_2d_simulate_3d : public property_resource
 {
@@ -180,6 +240,7 @@ struct property_merga_noise_float4_2d_simulate_3d : public property_resource
 	void set_input_noise(shader_resource_view<tex2> noise1, shader_resource_view<tex2> noise2) { this->noise_1 = std::move(noise1); this->noise_2 = std::move(noise2); need_update();}
 	void update(creator& c, renderer_data& rd);
 };
+
 
 class compute_merga_noise_float4_2d_simulate_3d : public compute_resource
 {
@@ -264,7 +325,7 @@ public:
 		}
 	};
 };
-
+*/
 //struct property_resource
 /*
 class compute_generate_perlin_noise_float_2d : public compute_resource

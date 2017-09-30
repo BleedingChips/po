@@ -132,9 +132,6 @@
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_placement_direct_vs.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
-    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\material_test_ps.hlsl">
-      <Filter>po_dx11\shader\implement</Filter>
-    </FxCompile>
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_compute_linearize_z_cs.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
@@ -157,6 +154,9 @@
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
     <FxCompile Include="..\..\..\include\po_dx11\shader\implement\build_in_material_tex2_view.hlsl">
+      <Filter>po_dx11\shader\implement</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\..\include\po_dx11\shader\implement\buildin_material_testing_ps.hlsl">
       <Filter>po_dx11\shader\implement</Filter>
     </FxCompile>
   </ItemGroup>

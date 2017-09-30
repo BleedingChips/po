@@ -3,6 +3,7 @@
 #include <typeindex>
 #include <set>
 #include <memory>
+#include "../po/extension.h"
 namespace PO
 {
 	namespace Dx11
@@ -182,7 +183,8 @@ namespace PO
 			};
 			template<typename T> using check_t = typename check<T>::true_type;
 
-			friend struct element_logic_storage;
+			friend struct element_compute_logic_storage;
+			friend struct element_draw_logic_storage;
 
 			std::shared_ptr<Implement::property_map> inside_map;
 
@@ -256,11 +258,10 @@ namespace PO
 			std::u16string patch;
 			shader_pixel shader;
 			blend_state bs;
-			std::type_index id_for_pipeline;
 		public:
+			const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state& dss) const { return dss; }
 			void apply(stage_context& sc);
-			const std::type_index& pipeline_id() const { return id_for_pipeline; }
-			material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> description = {}, const std::type_index& pipeline_id = typeid(void));
+			material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> description = {});
 		};
 
 		class placement_resource : public Implement::stage_resource
@@ -449,7 +450,7 @@ namespace PO
 			class material_ptr : public base_interface<material_implement>, public stage_ptr
 			{
 			public:
-				virtual const std::type_index& pipeline() const = 0;
+				virtual void apply_depth_stencil_state(stage_context& sc, const depth_stencil_state& dss) = 0;
 				using base_interface<material_implement>::base_interface;
 			};
 
@@ -457,8 +458,10 @@ namespace PO
 			class material_implement : public material_ptr, public material_t
 			{
 			public:
-
-				const std::type_index& pipeline() const override final { return material_t::pipeline_id(); }
+				virtual void apply_depth_stencil_state(stage_context& sc, const depth_stencil_state& dss) override
+				{
+					sc << material_t::replace_depth_stencil_state(dss);
+				}
 				virtual bool apply_property(stage_context& sc, Tool::stack_list<property_map>* sl) override final
 				{
 					const auto& ref = material_t::requirement();
@@ -482,7 +485,6 @@ namespace PO
 			std::map<std::type_index, std::shared_ptr<Implement::placement_ptr>> placement_map;
 			std::map<std::type_index, std::shared_ptr<Implement::geometry_ptr>> geometry_map;
 			creator tool;
-
 
 			template<typename T, template<typename ...> class Imp, typename map> std::shared_ptr<Imp<std::decay_t<T>>> create_implement(map& m)
 			{
@@ -521,44 +523,25 @@ namespace PO
 			}
 		};
 
-		struct element_block {};
-
 		namespace Implement
 		{
-			struct element_implement
+			struct element_draw_implement
 			{
-				element_block block;
-				std::vector<std::shared_ptr<compute_ptr>> compute;
 				std::shared_ptr<placement_ptr> placement;
 				std::shared_ptr<geometry_ptr> geometry;
-				std::map<std::type_index, std::shared_ptr<material_ptr>> material;
+				std::shared_ptr<material_ptr> material;
 				property_proxy_map mapping;
-
-				element_implement& operator<<(std::shared_ptr<compute_ptr> ptr) { if (ptr) compute.push_back(std::move(ptr)); return *this; }
-				element_implement& operator<<(std::shared_ptr<placement_ptr> ptr) { placement = std::move(ptr); return *this; }
-				element_implement& operator<<(std::shared_ptr<geometry_ptr> ptr) { geometry = std::move(ptr); return *this; }
-				element_implement& operator<<(std::shared_ptr<material_ptr> ptr) {
-					if (ptr) {
-						auto id = ptr->pipeline();
-						material.insert({ id, std::move(ptr) });
-					}
-					return *this;
-				}
+				element_draw_implement& operator<<(std::shared_ptr<placement_ptr> ptr) { placement = std::move(ptr); return *this; }
+				element_draw_implement& operator<<(std::shared_ptr<geometry_ptr> ptr) { geometry = std::move(ptr); return *this; }
+				element_draw_implement& operator<<(std::shared_ptr<material_ptr> ptr) { material = std::move(ptr); return *this; }
 			};
-		}
 
-		struct element
-		{
-			std::shared_ptr<Implement::element_implement> ptr;
-		public:
-			element() : ptr(std::make_shared<Implement::element_implement>()) {}
-			template<typename T> element operator<< (std::shared_ptr<T> t) { *ptr << std::move(t);  return *this; }
-			template<typename T> element operator<< (T&& t) { ptr->mapping << t;  return *this; }
-		};
-		
-
-		namespace Implement
-		{
+			struct element_compute_implment
+			{
+				std::shared_ptr<compute_ptr> compute;
+				property_proxy_map mapping;
+				element_compute_implment& operator<<(std::shared_ptr<compute_ptr> ptr) { compute = std::move(ptr); return *this; }
+			};
 
 			struct element_dispatch_request
 			{
@@ -575,46 +558,102 @@ namespace PO
 				std::shared_ptr<material_ptr> material;
 				std::shared_ptr<property_map> mapping;
 				void swap_to_renderer() { mapping->swap_to_renderer(); }
-				void draw(stage_context& sc, Tool::stack_list<property_map> * = nullptr);
+				//void draw(stage_context& sc, Tool::stack_list<property_map> * = nullptr);
+				void draw(stage_context& sc, const depth_stencil_state& ss = {}, Tool::stack_list<property_map> * = nullptr);
 			};
+
 		}
 
-		struct element_swap_block
+		struct element_draw
+		{
+			std::shared_ptr<Implement::element_draw_implement> ptr;
+		public:
+			element_draw() : ptr(std::make_shared<Implement::element_draw_implement>()) {}
+			template<typename T> element_draw& operator<< (std::shared_ptr<T> t) { *ptr << std::move(t);  return *this; }
+			template<typename T> element_draw& operator<< (T&& t) { ptr->mapping << t;  return *this; }
+		};
+
+		struct element_compute
+		{
+			std::shared_ptr<Implement::element_compute_implment> ptr;
+		public:
+			element_compute() : ptr(std::make_shared<Implement::element_compute_implment>()) {}
+			template<typename T> element_compute& operator<< (std::shared_ptr<T> t) { *ptr << std::move(t);  return *this; }
+			template<typename T> element_compute& operator<< (T&& t) { ptr->mapping << t;  return *this; }
+		};
+
+		struct element_compute_swap_block
 		{
 			std::mutex swap_lock;
 			std::vector<Implement::element_dispatch_request> dispatch_request;
-			std::unordered_map<std::type_index, std::vector<Implement::element_draw_request>> draw_request;
 		};
 
-		struct element_logic_storage
+		struct element_draw_swap_block
+		{
+			std::mutex swap_lock;
+			std::vector<Implement::element_draw_request> draw_request;
+		};
+
+		struct element_compute_logic_storage
 		{
 
 			std::mutex swap_mutex;
-			std::vector<std::shared_ptr<Implement::element_implement>> element_store;
-
-			element_logic_storage& operator<< (const element& ele) { if (ele.ptr) element_store.push_back(ele.ptr); return *this; }
-			void logic_to_swap (element_swap_block& esb, creator& c);
+			
+			std::vector<std::shared_ptr<Implement::element_compute_implment>> element_compute_store;
+			
+			element_compute_logic_storage& operator<< (const element_compute& ele) { if (ele.ptr) element_compute_store.push_back(ele.ptr); return *this; }
+			void logic_to_swap (element_compute_swap_block& esb, creator& c);
 		};
 
+		struct element_draw_logic_storage
+		{
+			std::mutex swap_mutex;
+			std::vector<std::shared_ptr<Implement::element_draw_implement>> element_draw_store;
+			element_draw_logic_storage& operator<< (const element_draw& ele) { if (ele.ptr) element_draw_store.push_back(ele.ptr); return *this; }
+			void logic_to_swap(element_draw_swap_block& esb, creator& c);
+		};
 
-		struct element_renderer_storage
+		struct element_compute_renderer_storage
 		{
 			std::vector<Implement::element_dispatch_request> dispatch_request;
-			std::unordered_map<std::type_index, std::vector<Implement::element_draw_request>> draw_request;
-			void swap_to_renderer(element_swap_block& esb, stage_context& sc);
+			void swap_to_renderer(element_compute_swap_block& esb, stage_context& sc);
 		};
 
-		class pipeline_interface
+		struct element_draw_renderer_storage
 		{
-			const std::type_index type_info;
+			std::vector<Implement::element_draw_request> draw_request;
+			void swap_to_renderer(element_draw_swap_block& esb, stage_context& sc);
+		};
+
+		struct element_draw_storage
+		{
+			element_draw_swap_block swap;
+			element_draw_logic_storage logic;
+			element_draw_renderer_storage renderer;
+			void logic_to_swap(creator& c) { logic.logic_to_swap(swap, c); }
+			void swap_to_renderer(stage_context& sc) { renderer.swap_to_renderer(swap, sc); }
+		};
+
+		struct element_compute_storage
+		{
+			element_compute_swap_block swap;
+			element_compute_logic_storage logic;
+			element_compute_renderer_storage renderer;
+			void logic_to_swap(creator& c) { logic.logic_to_swap(swap, c); }
+			void swap_to_renderer(stage_context& sc) { renderer.swap_to_renderer(swap, sc); }
+		};
+
+
+		class stage_instance_extension : public stage_instance
+		{
+			stage_instance_extension(Dx11_frame_initializer& DFi) : stage_instance(DFi.cre) {}
 		public:
-			property_proxy_map property_mapping;
-			pipeline_interface(const std::type_index& ti);
-			const std::type_index& id() const { return type_info; }
-			virtual ~pipeline_interface();
-			void execute(stage_context& sc, element_renderer_storage& ers, Tool::stack_list<Implement::property_map>* pml = nullptr);
-			virtual void execute_implement(stage_context& sc, element_renderer_storage& ers, Tool::stack_list<Implement::property_map>* pml = nullptr) = 0;
+			void tick(duration da, viewer& v) {}
+			void handle_respond(const event& e, viewer& v) {}
+			stage_instance_extension(value_table& vt) : stage_instance_extension(vt.get<Dx11_frame_initializer>()) {}
 		};
 
 	}
+
+	
 }

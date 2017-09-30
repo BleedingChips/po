@@ -34,11 +34,8 @@ namespace PO
 			DirectX::XMStoreFloat4x4(&eye, DirectX::XMMatrixIdentity());
 		}
 
-
-		renderer_default::renderer_default(value_table& vt) :
-			creator(vt.get<creator>()), 
-			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()),
-			/*instance(*this),*/ main_view(vt.get<tex2>().size_f()), ins(*this)
+		renderer_default::renderer_default(Dx11_frame_initializer& DFI)
+			: creator(DFI.cre), back_buffer(DFI.bac), m_context(DFI.sta), swap(DFI.swa), main_view(DFI.bac.size_f()) 
 		{
 			om << back_buffer.cast_render_target_view(*this);
 			view = viewport{ back_buffer.size_f() };
@@ -46,179 +43,79 @@ namespace PO
 
 		void renderer_default::pre_tick(duration da)
 		{
-			context << view << om;
+			context() << view << om;
 		}
+
 		void renderer_default::pos_tick(duration da)
 		{
-			els.logic_to_swap(esb, *this);
-			ers.swap_to_renderer(esb, *this);
+			compute_storage.logic_to_swap(*this);
+			compute_storage.swap_to_renderer(m_context);
+			for (auto& ite : compute_storage.renderer.dispatch_request)
+				ite.dispatch(m_context);
 
-			for (auto& ite : ers.draw_request)
-			{
-				for (auto& ite2 : ite.second)
-					ite2.draw(*this);
-			}
+			draw_storage.logic_to_swap(*this);
+			draw_storage.swap_to_renderer(m_context);
+			for (auto& ite : draw_storage.renderer.draw_request)
+				ite.draw(m_context);
+			swap->Present(0, 0);
 		}
 
 
-		pipeline_compute_default::pipeline_compute_default() : pipeline_interface(typeid(decltype(*this))) {}
-		void pipeline_compute_default::execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr)
+		defer_renderer_default::defer_renderer_default(Dx11_frame_initializer& DFi) : 
+			creator(DFi.cre), context(DFi.sta), swap(DFi.swa), 
+			view(DFi.bac.size_f()), final_back_buffer(DFi.bac), ins(*this), total_time(0)
 		{
-			for (auto& ite : storage.dispatch_request)
-			{
-				ite.dispatch(sc, ptr);
-				sc.unbind();
-			}
-		}
+			tex2 gbuffer_color;
+			gbuffer_color.create_render_target(*this, DXGI_FORMAT_R16G16B16A16_FLOAT, DFi.bac.size());
 
-		pipeline_opaque_default::pipeline_opaque_default() : pipeline_interface(typeid(decltype(*this))) {}
-		void pipeline_opaque_default::execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr)
-		{
-			sc.clear_render_target(om, { 0.0, 0.0, 0.0, 0.0 });
-			sc.clear_depth_stencil(om, 1.0, 0);
-			sc << om << dss << bs;
-			auto ite = storage.draw_request.find(typeid(decltype(*this)));
-			if (ite != storage.draw_request.end())
-			{
-				for (auto& ite2 : ite->second)
-				{
-					ite2.draw(sc, ptr);
-					sc.unbind();
-				}
-					
-			}
-			sc.unbind();
-		}
+			tex2 opaque_depth;
+			opaque_depth.create_depth_stencil(*this, DST_format::D24_UI8, DFi.bac.size());
 
-		void pipeline_opaque_default::set(creator& c, uint32_t2 size)
-		{
-			g_buffer.create_render_target(c, DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT, size);
-			depth.create_depth_stencil(c, DST_format::D24_UI8, size);
-			rtv = g_buffer.cast_render_target_view(c);
-			dsv = depth.cast_depth_stencil_view(c);
-			om.clear();
-			om << rtv << dsv;
+			opaque_output_merga << gbuffer_color.cast_render_target_view(*this) << opaque_depth.cast_depth_stencil_view(*this);
+
+			opaque_mapping >> view;
+
 			PO::Dx11::depth_stencil_state::description dss_defer_des = PO::Dx11::depth_stencil_state::description{
 				TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS },
 				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
 			};
-			dss.create(c, dss_defer_des);
+			opaque_depth_stencil_state.create(*this, dss_defer_des);
 			blend_state::description one_to_zero = blend_state::description{
 				FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
 			};
-			bs.create(c, one_to_zero);
-		}
+			qpaque_blend.create(*this, one_to_zero);
 
-		material_merga_gbuffer_default::material_merga_gbuffer_default(creator& c) :
-			material_resource(c, u"build_in_material_merge_gbuffer_ps.cso") {}
-
-		const element_requirement& material_merga_gbuffer_default::requirement() const
-		{
-			return make_element_requirement(
-				[](stage_context& sc, property_gbuffer_default::renderer_data& pgd) {
-				sc.PS() << pgd.srv[0] << pgd.ss[0];
-			}
-			);
-		}
-
-		material_opaque_testing::material_opaque_testing(creator& c) :
-			material_opaque_resource(c, u"material_test_ps.cso")
-		{}
-
-		material_qpaque_texture_coord::material_qpaque_texture_coord(creator& c) :
-			material_opaque_resource(c, u"build_in_material_defer_render_texcoord_ps.cso") {}
-		
-		void property_linearize_z::set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size) {
-			input_depth = std::move(input);
-			output_depth = std::move(output_f);
-			size = output_size;
-			need_update();
-		}
-
-		compute_linearize_z::compute_linearize_z(creator& c) :
-			compute_resource(c, u"build_in_compute_linearize_z_cs.cso")
-		{}
-
-		const element_requirement& compute_linearize_z::requirement() const
-		{
-			return make_element_requirement(
-				[](stage_context& sc, property_linearize_z::renderer_data& plz) {
-				sc.CS() << plz.input_depth[0] << plz.output_depth[0];
-				sc << dispatch_call{ plz.size.x, plz.size.y , 1 };
-			},
-				[](stage_context& sc, property_viewport_transfer::renderer_data& pvt) {
-				sc.CS() << pvt.viewport[0];
-			}
-			);
-		}
-
-		pipeline_transparent_default::pipeline_transparent_default(): pipeline_interface(typeid(decltype(*this))){}
-		void pipeline_transparent_default::set(creator& c)
-		{
-			blend_state::description s_alpha_to_inv_s_alpha = blend_state::description{
-				FALSE, FALSE, D3D11_RENDER_TARGET_BLEND_DESC{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_ONE, D3D11_BLEND_ZERO, D3D11_BLEND_OP_ADD, D3D11_COLOR_WRITE_ENABLE_ALL }
-			};
-			bs.create(c, s_alpha_to_inv_s_alpha);
-			PO::Dx11::depth_stencil_state::description dss_transparent_des = PO::Dx11::depth_stencil_state::description{
-				TRUE, D3D11_DEPTH_WRITE_MASK_ZERO, D3D11_COMPARISON_LESS, FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
-				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS },
-				D3D11_DEPTH_STENCILOP_DESC{ D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP , D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS }
-			}; 
-			dss.create(c, dss_transparent_des);
-		}
-		void pipeline_transparent_default::execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr)
-		{
-			sc << dss << bs;
-			auto find = storage.draw_request.find(typeid(decltype(*this)));
-			if (find != storage.draw_request.end())
+			tex2 linearize_z_tex;
+			linearize_z_tex.create_unordered_access(*this, DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, DFi.bac.size());
+			element_linear_z.compute = ins.create_compute<compute_linearize_z>();
+			linear_z_maping << [&](property_linearize_z_output& plz)
 			{
-				for (auto& ite : find->second)
-				{
-					ite.draw(sc, ptr);
-				}
-			}
-			sc.unbind();
-		}
-
-		material_transparent_testing::material_transparent_testing(creator& c)
-			: material_transparent_resource(c, u"material_test_ps.cso")
-		{}
-
-		defer_renderer_default::defer_renderer_default(value_table& vt) :
-			creator(vt.get<creator>()),
-			context(vt.get<stage_context>()), back_buffer(vt.get<tex2>()), total_time(0),
-			/*instance(*this),*/ view(vt.get<tex2>().size_f()), ins(*this)
-		{
-			om << back_buffer.cast_render_target_view(*this);
-			mapping >> view;
-			opaque_pipeline.set(*this, back_buffer.size());
-
-			linear_z_buffer.create_unordered_access(*this, DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT, back_buffer.size());
-
-			decltype(dss)::description des = decltype(dss)::default_description;
-			des.DepthEnable = false;
-			dss.create(*this, des);
-
-			merga << ins.create_geometry<geometry_screen>() << ins.create_placement<placement_direct>() << ins.create_material<material_merga_gbuffer_default>();
-			post_mapping << [this](property_gbuffer_default& pgd) {
-				pgd.set_gbuffer(*this, opaque_pipeline.g_buffer, linear_z_buffer);
+				plz.set_taregt_f(opaque_depth.cast_shader_resource_view(*this), linearize_z_tex.cast_unordered_access_view(*this), DFi.bac.size());
 			};
-			
-			//merga.ptr->mapping.logic_to_renderer(*this);
-			//merga.ptr->geometry->update_layout(*(merga.ptr->placement), *this);
+			linear_z_maping.logic_to_renderer(*this);
+			element_linear_z.mapping = linear_z_maping.map();
 
-			//post_mapping.logic_to_renderer(*this);
-
-			linear_z << ins.create_compute<compute_linearize_z>() << [&, this](property_linearize_z& plz) {
-				plz.set_taregt_f(
-					opaque_pipeline.depth.cast_shader_resource_view(*this), 
-					linear_z_buffer.cast_unordered_access_view(*this),
-					linear_z_buffer.size()
-				);
+			element_merga.placemenet = ins.create_placement<placement_direct>();
+			element_merga.geometry = ins.create_geometry<geometry_screen>();
+			element_merga.material = ins.create_material<material_merga_gbuffer>();
+			merga_map << [&](property_gbuffer& pg)
+			{
+				sample_state ss;
+				ss.create(*this);
+				pg.set_gbuffer(gbuffer_color.cast_shader_resource_view(*this), ss);
 			};
-			linear_z.ptr->mapping.logic_to_renderer(*this);
-			transparent_pipeline.set(*this);
+			merga_map.logic_to_renderer(*this);
+			element_merga.mapping = merga_map.map();
+
+			transparent_mapping << [&](property_linear_z& pl)
+			{
+				sample_state ss;
+				ss.create(*this);
+				pl.set_linear_z(linearize_z_tex.cast_shader_resource_view(*this), ss);
+			};
+			transparent_mapping.logic_to_renderer(*this);
+			final_output << final_back_buffer.cast_render_target_view(*this);
 		}
 
 		void defer_renderer_default::pre_tick(duration da)
@@ -228,51 +125,88 @@ namespace PO
 
 		void defer_renderer_default::pos_tick(duration da)
 		{
-			context << view;
-			els.logic_to_swap(esb, *this);
-			ers.swap_to_renderer(esb, context);
-
-			mapping << [&](property_viewport_transfer& pvt)
+			opaque_mapping << [this](property_viewport_transfer& pvt)
 			{
 				pvt.set_time(static_cast<float>(total_time.count()));
 			};
+			opaque_mapping.logic_to_renderer(*this);
+			Tool::stack_list<Implement::property_map> map_list{ *opaque_mapping.map() };
 
-			mapping.logic_to_renderer(*this);
-			Tool::stack_list<Implement::property_map> tem{ *mapping.map() };
-			compute_pipeline.execute(context, ers, &tem);
-			opaque_pipeline.execute(context, ers, &tem);
+			compute.logic_to_swap(*this);
+			compute.swap_to_renderer(context);
+			for (auto& ite : compute.renderer.dispatch_request)
+			{
+				ite.dispatch(context, &map_list);
+				context.unbind();
+			}
+				
+
+			context.clear_render_target(opaque_output_merga, { 0.0, 0.0, 1.0, 0.0 });
+			context.clear_depth_stencil(opaque_output_merga, 1.0, 0);
+			context << opaque_output_merga << view.view;
+
+			opaque.logic_to_swap(*this);
+			opaque.swap_to_renderer(context);
+			for (auto& ite : opaque.renderer.draw_request)
+			{
+				ite.draw(context, opaque_depth_stencil_state, &map_list);
+				context.unbind();
+			}
+
+			output_merge_stage om;
+			context << om;
+			element_linear_z.dispatch(*this, &map_list);
 			context.unbind();
-			post_mapping.logic_to_renderer(*this);
-			Tool::stack_list<Implement::property_map> tem2{ *post_mapping.map(), &tem };
-			Implement::element_dispatch_request temxx2{ linear_z.ptr->compute[0], linear_z.ptr->mapping.map() };
-			temxx2.dispatch(context, &tem2);
+
+			Tool::stack_list<Implement::property_map> transparent_map_list{ *transparent_mapping.map(), &map_list };
+
+			context << opaque_output_merga;
+			transparent.logic_to_swap(*this);
+			transparent.swap_to_renderer(context);
+			for (auto& ite : transparent.renderer.draw_request)
+			{
+				ite.draw(context, transparent_depth_stencil_state, &transparent_map_list);
+				context.unbind();
+			}
+
+			context << final_output;
+			element_merga.draw(context, {}, &transparent_map_list);
 			context.unbind();
-
-			output_merge_stage om_tem;
-			om_tem << opaque_pipeline.rtv << opaque_pipeline.dsv;
-			context << om_tem;
-
-			transparent_pipeline.execute(context, ers, &tem2);
-
-			context << om << dss;
-
-			Implement::element_draw_request temxx{ merga.ptr->placement, merga.ptr->geometry, merga.ptr->material[typeid(void)], merga.ptr->mapping.map() };
-			temxx.draw(context, &tem2);
-
-			context.unbind();
-
+			swap->Present(0, 0);
 		}
 
+		defer_renderer_default::material_merga_gbuffer::material_merga_gbuffer(creator& c) :
+			material_resource(c, u"build_in_material_merge_gbuffer_ps.cso") {}
 
-		material_opaque_tex2_viewer::material_opaque_tex2_viewer(creator& c) :
-			material_opaque_resource(c, u"build_in_material_tex2_view.cso")
-		{}
-
-		const element_requirement& material_opaque_tex2_viewer::requirement() const
+		const element_requirement& defer_renderer_default::material_merga_gbuffer::requirement() const
 		{
 			return make_element_requirement(
-				[](stage_context& sc, property_tex2::renderer_data& rd) {
-				sc.PS() << rd.srv[0] << rd.ss[0];
+				[](stage_context& sc, property_gbuffer::renderer_data& pgd) {
+				sc.PS() << pgd.srv[0] << pgd.ss[0];
+			}
+			);
+		}
+		
+		void defer_renderer_default::property_linearize_z_output::set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size) {
+			input_depth = std::move(input);
+			output_depth = std::move(output_f);
+			size = output_size;
+			need_update();
+		}
+
+		defer_renderer_default::compute_linearize_z::compute_linearize_z(creator& c) :
+			compute_resource(c, u"build_in_compute_linearize_z_cs.cso")
+		{}
+
+		const element_requirement& defer_renderer_default::compute_linearize_z::requirement() const
+		{
+			return make_element_requirement(
+				[](stage_context& sc, property_linearize_z_output::renderer_data& plz) {
+				sc.CS() << plz.input_depth[0] << plz.output_depth[0];
+				sc << dispatch_call{ plz.size.x, plz.size.y , 1 };
+			},
+				[](stage_context& sc, property_viewport_transfer::renderer_data& pvt) {
+				sc.CS() << pvt.viewport[0];
 			}
 			);
 		}

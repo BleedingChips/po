@@ -7,27 +7,33 @@ using namespace PO::Dx11;
 
 struct new_plugin
 {
-	tex2 worley_tex;
 	int swith_state = 0;
-	tex2 worley;
-	tex2 perlin_out;
-	tex2 cube_mask_texture;
-	element output_volume_cube;
-	element back_ground;
-	element worley_generator;
+
+	tex3 perlin_noise;
+	tex2 final_perlin_noise;
+
+	tex3 worley_noise;
+	tex2 final_worley_noise_1;
+	tex2 final_worley_noise_2;
+	tex2 final_worley_noise_3;
+	tex2 final_worley_noise_4;
+
+	tex3 cube_mask;
+	tex2 final_cube_mask;
+
+	element_draw back_ground;
+	element_draw output_volume_cube;
+
 	//defer_element viewer;
 	transfer3D ts1;
 	transfer3D ts2;
 	showcase s;
 
-
-	int ÷«’œ;
-
 	float layer = 0.5;
 	float scale = 1.0;
 	float max_denstiy;
 	adapter_map mapping(self& sel);
-	void init(defer_renderer_default& dr);
-	void tick(defer_renderer_default& dr, duration da);
+	void init(defer_renderer_default& dr, plugins& pl);
+	void tick(defer_renderer_default& dr, duration da, plugins& pl);
 	Respond respond(const event& e);
 };

@@ -43,219 +43,175 @@ namespace PO
 			sub_viewport_parallel(float2 d) {}
 		};
 
-		struct pipeline_compute_default : public pipeline_interface
-		{
-			void execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr) override;
-			pipeline_compute_default();
-		};
-
 		using namespace PO::Dx;
-		struct renderer_default : creator
+		class renderer_default : creator
 		{
 			tex2 back_buffer;
 			output_merge_stage om;
-			stage_context context;
+			stage_context m_context;
 			sub_viewport_parallel main_view;
 			viewport view;
 
-			element_logic_storage els;
-			element_swap_block esb;
-			element_renderer_storage ers;
-			stage_instance ins;
+			element_compute_storage compute_storage;
+			element_draw_storage draw_storage;
+			swap_chain_ptr swap;
 
-			operator stage_context& () { return context; }
+			renderer_default(Dx11_frame_initializer& DFI);
 
-			//element_instance instance;
+		public:
+
+			stage_context& context() { return m_context; }
 
 			template<typename T, typename ...AT> decltype(auto) create_if_no_exist(AT&& ...at) { return context.create_if_no_exist<T>(std::forward<AT>(at)...); }
 
-			void clear_back_buffer(const std::array<float, 4>& bc) { context.clear_render_target(om, bc); }
-			renderer_default(value_table& vt);
+			void clear_back_buffer(const std::array<float, 4>& bc) { m_context.clear_render_target(om, bc); }
+			renderer_default(value_table& vt) : renderer_default(vt.get<Dx11_frame_initializer>()) {}
 
 			void pre_tick(duration da);
 			void pos_tick(duration da);
 
-			renderer_default& operator << (const element& el) { els << el; return *this; }
-
+			renderer_default& operator << (const element_compute& el) { compute_storage.logic << el; return *this; }
+			renderer_default& operator << (const element_draw& el) { draw_storage.logic << el; return *this; }
 		};
 
-		
-		class property_gbuffer_default : public property_resource
+
+		struct defer_renderer_default : creator
 		{
-			shader_resource_view<tex2> srv;
-			shader_resource_view<tex2> linear_z;
-			sample_state ss;
-		public:
-			struct renderer_data
+			defer_renderer_default(value_table& vt) : defer_renderer_default(vt.get<Dx11_frame_initializer>()) {}
+			defer_renderer_default(Dx11_frame_initializer& DFi);
+
+			void pre_tick(duration da);
+			void pos_tick(duration da);
+
+			defer_renderer_default& operator << (const element_compute& el) { compute.logic << el; return *this; }
+
+			class property_gbuffer : public property_resource
 			{
 				shader_resource_view<tex2> srv;
-				shader_resource_view<tex2> linear_z;
 				sample_state ss;
+			public:
+				struct renderer_data
+				{
+					shader_resource_view<tex2> srv;
+					sample_state ss;
+				};
+				void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; }
+				void set_gbuffer(shader_resource_view<tex2> color, sample_state ss) 
+				{ 
+					srv = std::move(color); 
+					this->ss = std::move(ss);
+					need_update(); 
+				}
 			};
-			void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; rd.linear_z = linear_z; }
-			void set_gbuffer(creator& c, const tex2& t, const tex2& linear) { srv = t.cast_shader_resource_view(c); ss.create(c); linear_z = linear.cast_shader_resource_view(c);  need_update();}
-		};
 
+			class material_merga_gbuffer : public material_resource
+			{
+			public:
+				material_merga_gbuffer(creator& c);
+				const element_requirement& requirement() const;
+			};
 
-		class material_merga_gbuffer_default : public material_resource
-		{
-		public:
-			material_merga_gbuffer_default(creator& c);
-			const element_requirement& requirement() const;
-		};
+			class compute_linearize_z : public compute_resource
+			{
+			public:
+				compute_linearize_z(creator&);
+				const element_requirement& requirement() const;
+			};
 
-
-		struct pipeline_opaque_default : public pipeline_interface
-		{
-			tex2 g_buffer;
-			render_target_view<tex2> rtv;
-			tex2 depth;
-			depth_stencil_view<tex2> dsv;
-			depth_stencil_state dss;
-			blend_state bs;
-			output_merge_stage om;
-			void execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr) override;
-			void set(creator& c, uint32_t2 size);
-			pipeline_opaque_default();
-		};
-
-		struct material_opaque_resource : public material_resource
-		{
-			material_opaque_resource(creator& c, std::u16string patch) : material_resource(c, std::move(patch), {}, typeid(pipeline_opaque_default)) {}
-		};
-
-		class material_opaque_testing : public material_opaque_resource
-		{
-		public:
-			material_opaque_testing(creator&);
-		};
-
-
-		class material_qpaque_texture_coord : public material_opaque_resource
-		{
-		public:
-			material_qpaque_texture_coord(creator&);
-		};
-
-		class property_linearize_z : public property_resource
-		{
-			shader_resource_view<tex2> input_depth;
-			unordered_access_view<tex2> output_depth;
-			uint32_t2 size;
-		public:
-			struct renderer_data
+			class property_linearize_z_output : public property_resource
 			{
 				shader_resource_view<tex2> input_depth;
 				unordered_access_view<tex2> output_depth;
 				uint32_t2 size;
+			public:
+				struct renderer_data
+				{
+					shader_resource_view<tex2> input_depth;
+					unordered_access_view<tex2> output_depth;
+					uint32_t2 size;
+				};
+				void set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size);
+				void update(creator& c, renderer_data& rd)
+				{
+					rd.input_depth = input_depth;
+					rd.output_depth = output_depth;
+					rd.size = size;
+				}
 			};
-			void set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size);
-			void update(creator& c, renderer_data& rd)
+
+			class property_linear_z : public property_resource
 			{
-				rd.input_depth = input_depth;
-				rd.output_depth = output_depth;
-				rd.size = size;
-			}
-		};
+				shader_resource_view<tex2> z_buffer;
+				sample_state ss;
+			public:
+				struct renderer_data
+				{
+					shader_resource_view<tex2> z_buffer;
+					sample_state ss;
+				};
 
-		class compute_linearize_z : public compute_resource
-		{
-		public:
-			compute_linearize_z(creator&);
-			const element_requirement& requirement() const;
-		};
+				void update(creator&, renderer_data& rd)
+				{
+					rd.z_buffer = z_buffer;
+					rd.ss = ss;
+				}
 
-		class pipeline_transparent_default : public pipeline_interface
-		{
-			blend_state bs;
-			depth_stencil_state dss;
-		public:
-			void execute_implement(stage_context& sc, element_renderer_storage& storage, Tool::stack_list<Implement::property_map>* ptr) override;
-			void set(creator& c);
-			pipeline_transparent_default();
-		};
+				void set_linear_z(shader_resource_view<tex2> z, sample_state ss)
+				{
+					z_buffer = std::move(z);
+					this->ss = std::move(ss);
+					need_update();
+				}
+			};
 
-		struct material_transparent_resource : public material_resource
-		{
-			material_transparent_resource(creator& c, std::u16string patch, std::optional<blend_state::description> des = {}) :
-				material_resource(c, std::move(patch), des, typeid(pipeline_transparent_default)) {}
-		};
+			stage_context& get_context() { return context; }
+			
 
-		class material_transparent_testing : public material_transparent_resource
-		{
-		public:
-			material_transparent_testing(creator&);
-		};
+		private:
 
-		struct defer_renderer_default : creator
-		{
+			operator stage_context& () { return context; }
 
 			sub_viewport_perspective view;
 
-			tex2 back_buffer;
-
-			tex2 linear_z_buffer;
-			output_merge_stage om;
 			stage_context context;
 
-			element_logic_storage els;
-			element_swap_block esb;
-			element_renderer_storage ers;
+			element_compute_storage compute;
+
+			element_draw_storage opaque;
+			property_proxy_map opaque_mapping;
+			depth_stencil_state opaque_depth_stencil_state;
+			blend_state qpaque_blend;
+			output_merge_stage opaque_output_merga;
+
+			tex2 linear_z_buffer;
+			Implement::element_dispatch_request element_linear_z;
+			property_proxy_map linear_z_maping;
+
+			element_draw_storage transparent;
+			property_proxy_map transparent_mapping;
+			depth_stencil_state transparent_depth_stencil_state;
+
+			Implement::element_draw_request element_merga;
+			property_proxy_map merga_map;
+			tex2 final_back_buffer;
+			output_merge_stage final_output;
+
 			stage_instance ins;
-			depth_stencil_state dss;
+
 			duration total_time;
-
-
-			property_proxy_map mapping;
-			property_proxy_map post_mapping;
-			element merga;
-			element linear_z;
-
-			pipeline_compute_default compute_pipeline;
-			pipeline_opaque_default opaque_pipeline;
-			pipeline_transparent_default transparent_pipeline;
-			operator stage_context& () { return context; }
-
-			//element_instance instance;
-
-			template<typename T, typename ...AT> decltype(auto) create_if_no_exist(AT&& ...at) { return context.create_if_no_exist<T>(std::forward<AT>(at)...); }
-
-			void clear_back_buffer(const std::array<float, 4>& bc) { context.clear_render_target(om, bc); }
-			defer_renderer_default(value_table& vt);
-
-			void pre_tick(duration da);
-			void pos_tick(duration da);
-
-			defer_renderer_default& operator << (const element& el) { els << el; return *this; }
-		};
-
-		struct property_tex2 : public property_resource
-		{
-			shader_resource_view<tex2> srv;
-			sample_state ss;
-			struct renderer_data
-			{
-				shader_resource_view<tex2> srv;
-				sample_state ss;
-			};
-			void update(creator& c, renderer_data& rd)
-			{
-				rd.srv = srv;
-				rd.ss = ss;
-			}
-			void set_texture(creator& c, const shader_resource_view<tex2>& t, const sample_state::description& des = sample_state::default_description) {
-				srv = t; 
-				ss.create(c, des);
-				need_update();
-			}
-		};
-
-		class material_opaque_tex2_viewer : public material_opaque_resource
-		{
+			swap_chain_ptr swap;
 		public:
-			const element_requirement& requirement() const;
-			material_opaque_tex2_viewer(creator& v);
+			decltype(opaque.logic)& pipeline_opaque() { return opaque.logic; }
+			decltype(transparent.logic)& pipeline_transparent() { return transparent.logic; }
 		};
+
+	
+
+		
+
+		
+
+		
 
 
 

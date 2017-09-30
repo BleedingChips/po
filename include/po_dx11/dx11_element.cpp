@@ -103,7 +103,7 @@ namespace PO
 			sc << bs << shader;
 		}
 
-		material_resource::material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> des, const std::type_index& ti) : patch(std::move(ps_patch)), id_for_pipeline(ti)
+		material_resource::material_resource(creator& c, std::u16string ps_patch, std::optional<blend_state::description> des) : patch(std::move(ps_patch))
 		{
 			if (!patch.empty())
 			{
@@ -193,7 +193,7 @@ namespace PO
 				}
 			}
 
-			void element_draw_request::draw(stage_context& sc, Tool::stack_list<property_map> * sl)
+			void element_draw_request::draw(stage_context& sc, const depth_stencil_state& ss, Tool::stack_list<property_map> * sl)
 			{
 				Tool::stack_list<property_map> tem{ *mapping, sl };
 				if (placemenet->apply_property(sc, &tem) && geometry->apply_property(sc, &tem) && material->apply_property(sc, &tem))
@@ -202,65 +202,71 @@ namespace PO
 					geometry->apply_stage(sc);
 					geometry->apply_layout(sc, *placemenet);
 					material->apply_stage(sc);
+					material->apply_depth_stencil_state(sc, ss);
 					sc.call();
 				}
 			}
 		}
 
-		void element_logic_storage::logic_to_swap(element_swap_block& esb, creator& c)
+		void element_compute_logic_storage::logic_to_swap(element_compute_swap_block& esb, creator& c)
 		{
 			if (esb.swap_lock.try_lock())
 			{
 				esb.dispatch_request.clear();
-				for (auto& ite : esb.draw_request)
-					ite.second.clear();
-				
-				for (auto & ite : element_store)
+				for (auto& ite : element_compute_store)
 				{
-					ite->mapping.logic_to_swap(c);
-					auto map = ite->mapping.map();
-
-					for (auto& ite2 : ite->compute)
+					if (ite->compute)
 					{
-						esb.dispatch_request.emplace_back(Implement::element_dispatch_request{ ite2, map });
-					}
-
-					if (ite->placement && ite->geometry)
-					{
-						for (auto& ite2 : ite->material)
-						{
-							(esb.draw_request)[ite2.second->pipeline()].emplace_back(Implement::element_draw_request{ ite->placement, ite->geometry, ite2.second, map });
-						}
+						ite->mapping.logic_to_swap(c);
+						esb.dispatch_request.emplace_back(Implement::element_dispatch_request{ ite->compute, ite->mapping.map() });
 					}
 				}
 				esb.swap_lock.unlock();
-				element_store.clear();
+				element_compute_store.clear();
 			}
 		}
 
-		void element_renderer_storage::swap_to_renderer(element_swap_block& esb, stage_context& sc)
+		void element_draw_logic_storage::logic_to_swap(element_draw_swap_block& esb, creator& c)
+		{
+			if (esb.swap_lock.try_lock())
+			{
+				esb.draw_request.clear();
+
+				for (auto& ite : element_draw_store)
+				{
+					if (ite->geometry && ite->material && ite->placement)
+					{
+						ite->mapping.logic_to_swap(c);
+						esb.draw_request.emplace_back(Implement::element_draw_request{ ite->placement, ite->geometry, ite->material, ite->mapping.map() });
+					}
+				}
+				esb.swap_lock.unlock();
+				element_draw_store.clear();
+			}
+		}
+
+		void element_compute_renderer_storage::swap_to_renderer(element_compute_swap_block& esb, stage_context& sc)
 		{
 			{
 				std::lock_guard<decltype(esb.swap_lock)> lg(esb.swap_lock);
 				std::swap(dispatch_request, esb.dispatch_request);
+			}
+
+			for (auto& ite : dispatch_request)
+				ite.swap_to_renderer();
+		}
+
+
+
+		void element_draw_renderer_storage::swap_to_renderer(element_draw_swap_block& esb, stage_context& sc)
+		{
+			{
+				std::lock_guard<decltype(esb.swap_lock)> lg(esb.swap_lock);
 				std::swap(draw_request, esb.draw_request);
 			}
 			
-			for (auto& ite : dispatch_request)
-				ite.swap_to_renderer();
 			for (auto& ite : draw_request)
-				for (auto& ite2 : ite.second)
-					ite2.swap_to_renderer();
-		}
-
-		pipeline_interface::pipeline_interface(const std::type_index& ti) : type_info(ti) {}
-		pipeline_interface::~pipeline_interface() {}
-
-		void pipeline_interface::execute(stage_context& sc, element_renderer_storage& esb, Tool::stack_list<Implement::property_map>* pml)
-		{
-			property_mapping.logic_to_renderer(sc);
-			Tool::stack_list<Implement::property_map> tem{*(property_mapping.map()), pml };
-			execute_implement(sc, esb, &tem);
+				ite.swap_to_renderer();
 		}
 
 		/******************************************************************************************************/

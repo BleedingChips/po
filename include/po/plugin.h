@@ -2,7 +2,7 @@
 #include <functional>
 #include "frame/viewer.h"
 #include "tool/auto_adapter.h"
-#include "renderer.h"
+#include "extension.h"
 #include <future>
 namespace PO
 {
@@ -81,6 +81,16 @@ namespace PO
 
 	class plugins 
 	{
+
+		template<typename T>
+		struct check
+		{
+			using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
+			static_assert(funtype::size == 1, "only receive one parameter");
+			using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+		};
+
+	protected:
 		value_table om;
 
 		using plugin_tank_t = std::vector<std::unique_ptr<Implement::plugin_interface>>;
@@ -89,19 +99,37 @@ namespace PO
 		plugin_tank_t raw_plugin_tank;
 		plugin_tank_t plugin_tank;
 
-		using renderer_tank_t = std::vector<std::unique_ptr<Implement::renderer_interface>>;
-
-		renderer_tank_t renderer_tank;
-
+		std::unique_ptr<Implement::renderer_interface> renderer_ptr;
 		using renderer_depute_f = std::function<std::unique_ptr<Implement::renderer_interface>(value_table&)>;
-		using renderer_depute_tank_t = std::vector<renderer_depute_f>;
+		Tool::scope_lock<renderer_depute_f> depute_renderer_function;
 
-		Tool::scope_lock<renderer_depute_tank_t> depute_renderer_f_tank;
+		using extension_ptr = std::unique_ptr<Implement::extension_interface>;
+		using extension_f = std::function<extension_ptr(value_table&)>;
+
+		Tool::scope_lock<std::vector<extension_f>> extension_delegate_function;
+		std::vector<extension_f> inside_extension_delegate_function;
+
+		std::map<std::type_index, extension_ptr> extension_map;
 
 	public:
 
 		plugins(value_table o) : om(std::move(o)){}
 		~plugins();
+
+		template<typename function_t> bool find_extension(function_t&& t)
+		{
+			using type = typename check<function_t>::true_type;
+			auto ite = extension_map.find(typeid(type));
+			if (ite != extension_map.end())
+				return ite->second->cast(t);
+			return false;
+		}
+		
+	};
+
+	class plugins_implement : protected plugins
+	{
+	public:
 
 		template<typename plugin_t, typename ...AP>
 		void create(plugin<plugin_t> p, AP&& ...ap) {
@@ -111,25 +139,27 @@ namespace PO
 			});
 		}
 
-		/*
-		template<typename renderer_t, typename ...AP>
-		void create(renderer<renderer_t>, AP&& ...ap) {
-			std::unique_ptr<Implement::renderer_interface> ptr = std::make_unique<Implement::renderer_expand_t<renderer_t>>(om, std::forward<AP>(ap)...);
-			depute_renderer_tank.lock([&ptr](renderer_tank_t& tank) {
-				tank.push_back(std::move(ptr));
-			});
-		}*/
-
-		template<typename renderer_t, typename ...AP>
-		void create(renderer<renderer_t>, AP&& ...ap) {
-			depute_renderer_f_tank.lock([=](renderer_depute_tank_t& tabk) {
-				tabk.push_back([&ap...](value_table& vt) -> std::unique_ptr<Implement::renderer_interface> {  
-					return std::make_unique<Implement::renderer_expand_t<renderer_t>>(vt, std::forward<AP>(ap)...);
+		template<typename extension_t, typename ...AP>
+		void create(extension<extension_t>, AP&& ...ap) {
+			extension_delegate_function.lock([&](decltype(extension_delegate_function)::type& tabk) {
+				tabk.push_back([=](value_table& vt) -> std::unique_ptr<Implement::extension_interface> {
+					return std::make_unique<Implement::extension_implement<extension_t>>(vt, std::forward<AP>(ap)...);
 				});
 			});
 		}
 
+		template<typename renderer_t, typename ...AP>
+		void create(renderer<renderer_t>, AP&& ...ap) {
+			depute_renderer_function.lock([&](renderer_depute_f& tabk) {
+				tabk = [=](value_table& vt) -> std::unique_ptr<Implement::renderer_interface> {
+					return std::make_unique<Implement::renderer_expand_t<renderer_t>>(vt, std::forward<AP>(ap)...);
+				};
+			});
+		}
+
+		plugins_implement(value_table o) : plugins(std::move(o)) {}
 		void tick(viewer& v, duration da);
 		Respond respond(const event& ev, viewer& v);
+		operator plugins& () { return *this; }
 	};
 }
