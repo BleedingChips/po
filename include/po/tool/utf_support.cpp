@@ -17,7 +17,7 @@ namespace PO
 		return tem;
 	}
 
-	inline std::u16string asc_to_utf16(const std::string& data)
+	std::u16string asc_to_utf16(const std::string& data)
 	{
 		static thread_local std::vector<wchar_t>  translate_char_buffer;
 		if (data.size() > translate_char_buffer.size())

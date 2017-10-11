@@ -47,11 +47,6 @@ namespace PO
 	};
 
 
-
-
-
-
-
 	enum class EventType : std::int8_t
 	{
 		E_CLICK,

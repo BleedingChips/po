@@ -18,8 +18,10 @@
 
 
 
-int main()
+
+int main(int count, const char** parameter)
 {
+
 
 
 #ifdef DEBUG
@@ -39,7 +41,7 @@ int main()
 		fo.lock([](decltype(fo)::type& ui) {
 			ui.create(extension<Dx11::stage_instance_extension>{});
 			ui.create(renderer<defer_renderer_default>{});
-			ui.create(plugin<new_plugin>{});
+			//ui.create(plugin<new_plugin>{});
 		});
 	}
 	

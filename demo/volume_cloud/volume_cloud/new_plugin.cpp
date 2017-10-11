@@ -71,7 +71,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 
 	pl.find_extension([&, this](stage_instance_extension& sie) {
 		{
-			uint32_t4 sample_scale = { 10, 18, 34, 64 };
+			uint32_t4 sample_scale = { 20, 40, 80, 160 };
 			perlin_noise.create_unordered_access(dr, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, { 256, 256, 256 });
 			element_compute perlin_noise_output;
 			perlin_noise_output << sie.create_compute<compute_generate_perlin_noise_tex3_3d_f1>()

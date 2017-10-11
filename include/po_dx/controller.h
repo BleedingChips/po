@@ -34,5 +34,11 @@ namespace PO
 			void lose_focus();
 			bool apply(duration da, transfer3D& t3);
 		};
+
+		class aircraft
+		{
+			float3 Speed;
+		};
+
 	}
 }

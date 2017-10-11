@@ -2,6 +2,7 @@
 #include "renderer.h"
 namespace PO
 {
+
 	namespace Implement
 	{
 

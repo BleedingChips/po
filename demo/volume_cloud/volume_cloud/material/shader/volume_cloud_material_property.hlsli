@@ -141,30 +141,76 @@ float3 UnitMove_F3
 
     float DensityE = exp(-ResultDensity * Density_F * RayPathLength);
     return 1.0 - DensityE;
+}
 
-    /*
-    float3 ShiftSamplePoint = UnitPoint_F3 * BaseShapeScale_F3 + BaseShapeTransform_F3 + Time_F * UnitMove_F3;
+//必须是从后面采样到前面
+float2 RayMatchingWidth(
 
-    float3 MirroLocation = abs(1.0 - fmod(abs(ShiftSamplePoint + 1.0), 2.0));
+// 基本形状属性
+Texture2D BaseShape_T,
+SamplerState BaseShape_TSampler,
+float3 BaseShapeScale_F3,
+float3 BaseShapeTransform_F3,
+float2 BaseShapeValueFactor_F2,
+float4 BaseShapeSimulateSize_F4,
 
-    uint ZChannelCount = BaseShapeSimulateSize_U4.z * BaseShapeSimulateSize_U4.w;
-    uint ZCount = ZChannelCount * 4 - 1;
-    float ZChunk = MirroLocation.z * ZCount;
-    uint ZChunkLast = floor(ZChunk);
-    uint ZChunkMax = ZChunkLast + 1;
-    float rate = ZChunk - ZChunkLast;
-    ZChunkMax = step(ZChunkMax, ZCount) * (ZChunkMax);
-    static const float4 IndexFactor[4] =
+// 移动的挖空属性
+Texture2D MoveableMask_T,
+SamplerState MoveableMask_TSampler,
+float3 MoveableMaskSacle_F3,
+float3 MoveableMaskTransform_F3,
+float2 MoveableMaskValueFactor_F2,
+float4 MoveableMaskSimulateSize_F4,
+
+// 静止的挖空属性
+Texture2D Mask_T,
+SamplerState Mask_TSampler,
+float2 MaskValueFactor_F2,
+float4 MaskSimulateSize_F4,
+
+float3 UnitPoint_F3,
+float3 UnitRayPath_F3,
+float Density_F,
+float Time_F,
+float3 UnitMove_F3,
+float3 UnitLight_F3
+)
+{
+    uint4 MaskSimulateSize_U4 = MaskSimulateSize_F4;
+    uint4 MoveableMaskSimulateSize_U4 = MoveableMaskSimulateSize_F4;
+    uint4 BaseShapeSimulateSize_U4 = BaseShapeSimulateSize_F4;
+
+    const uint SampleCount = 32;
+    float RayPathLength = length(UnitRayPath_F3);
+    float3 UnitRayStep = UnitRayPath_F3 / SampleCount;
+
+    float ResultDensity = 0.0;
+    float LastDensity = 0.0;
+
+    float LightReflex = 0.0;
+
+    float3 SamplePoint = UnitPoint_F3;
+    uint count = 0;
+    for (count = 0; count < (SampleCount - 1); ++count)
     {
-        float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1)
-    };
-    return
-    float4(1.0 - DensityE, 1.0, 1.0, 1.0);
-    IndexFactor[ZChunkMax / ZChannelCount];
-*/
 
-    //float DensityE = exp(-ResultDensity * Density_F * RayPathLength);
-    //return 1.0 - DensityE;
+        float3 ShiftSamplePoint = SamplePoint * BaseShapeScale_F3 + BaseShapeTransform_F3 + Time_F * UnitMove_F3;
+        float BaseShape = dot(float2(Sample2D4ChannelSimulate3D1Channel(BaseShape_T, BaseShape_TSampler, ShiftSamplePoint, BaseShapeSimulateSize_U4), 1.0), BaseShapeValueFactor_F2);
+
+        ShiftSamplePoint = SamplePoint * MoveableMaskSacle_F3 + MoveableMaskTransform_F3 + Time_F * UnitMove_F3;
+        float MoveMask = dot(float2(Sample2D4ChannelSimulate3D1Channel(MoveableMask_T, MoveableMask_TSampler, ShiftSamplePoint, MoveableMaskSimulateSize_F4), 1.0), MoveableMaskValueFactor_F2);
+
+        float Mask = dot(float2(Sample2D4ChannelSimulate3D1Channel(Mask_T, Mask_TSampler, SamplePoint, MaskSimulateSize_F4), 1.0), MaskValueFactor_F2);
+
+        float FinalDensity = max(BaseShape - MoveMask, 0.0) * clamp(Mask, 0.0, 1.0);
+        ResultDensity = ResultDensity + FinalDensity;
+        (FinalDensity + LastDensity) / 2.0;
+        LastDensity = FinalDensity;
+        SamplePoint = SamplePoint + UnitRayStep;
+    }
+
+    float DensityE = exp(-ResultDensity * Density_F * RayPathLength);
+    return 1.0 - DensityE;
 }
 
 
