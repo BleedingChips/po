@@ -106,3 +106,16 @@ public:
 		return dss; 
 	}
 };
+
+struct in_time_material : public material_resource
+{
+	in_time_material(creator& c) : material_resource(c, u"colume_cloud_material_in_time_generator.cso") {}
+	const element_requirement& requirement() const
+	{
+		return make_element_requirement(
+			[](stage_context& sc,property_viewport_transfer::renderer_data& pvt) {
+			sc.PS() << pvt.viewport[0];
+		}
+		);
+	}
+};

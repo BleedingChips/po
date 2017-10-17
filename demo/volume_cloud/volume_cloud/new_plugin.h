@@ -9,17 +9,9 @@ struct new_plugin
 {
 	int swith_state = 0;
 
-	tex3 perlin_noise;
 	tex2 final_perlin_noise;
-
-	tex3 worley_noise;
-	tex2 final_worley_noise_1;
-	tex2 final_worley_noise_2;
-	tex2 final_worley_noise_3;
-	tex2 final_worley_noise_4;
-
-	tex3 cube_mask;
-	tex2 final_cube_mask;
+	tex2 final_worley_noise;
+	tex2 cube_mask;
 
 	element_draw back_ground;
 	element_draw output_volume_cube;

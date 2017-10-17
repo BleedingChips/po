@@ -57,13 +57,34 @@ std::array<cube_static_3d_t, 24> cube_static_3d2 =
 
 struct multy_50
 {
+	std::array<cube_static_3d_t, 24> data;
 	multy_50()
 	{
-		for (auto& ite : ::cube_static_3d2)
-			ite.position = ite.position * 50;
+		for (size_t i = 0; i < cube_static_3d2.size() && i < data.size(); ++i)
+		{
+			data[i].position = cube_static_3d2[i].position * 50;
+			data[i].texturecoord = cube_static_3d2[i].texturecoord;
+		}
+			
 	}
 };
 multy_50 staticl;
+
+struct multy_40_20_10
+{
+	std::array<cube_static_3d_t, 24> data;
+	multy_40_20_10()
+	{
+		for (size_t i = 0; i < cube_static_3d2.size() && i < data.size(); ++i)
+		{
+			float3 poi = cube_static_3d2[i].position;
+			data[i].position = float3(poi.x * 50, poi.y * 50, poi.z * 25);
+			data[i].texturecoord = cube_static_3d2[i].texturecoord;
+		}
+
+	}
+};
+multy_40_20_10 staticl_2;
 
 std::array<uint16_t, 36> cube_static_3d_index =
 {
@@ -107,11 +128,38 @@ false
 		)
 {
 	index.create_index(c, cube_static_3d_index);
-	vertex.create_vertex(c, cube_static_3d2);
+	vertex.create_vertex(c, ::staticl.data);
 }
 
 void UE4_cube_static::apply(stage_context& sc)
 {
 	geometry_resource::apply(sc);
 	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0};
+}
+
+UE4_cubiods_static::UE4_cubiods_static(creator& c) :
+	geometry_resource(
+		c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{},
+		raterizer_state::description{
+	D3D11_FILL_MODE::D3D11_FILL_SOLID,
+	D3D11_CULL_MODE::D3D11_CULL_FRONT,
+	FALSE,
+	0,
+	0.0f,
+	0.0f,
+	true,
+	false,
+	false,
+	false
+}
+)
+{
+	index.create_index(c, cube_static_3d_index);
+	vertex.create_vertex(c, ::staticl_2.data);
+}
+
+void UE4_cubiods_static::apply(stage_context& sc)
+{
+	geometry_resource::apply(sc);
+	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0 };
 }

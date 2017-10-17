@@ -14,8 +14,9 @@
 #include "po_dx\controller.h"
 #include "new_plugin.h"
 #include "translate_ue4_custion_node.h"
-
-
+#include "generator.h"
+#include "worley_test.h"
+#include "new_intime.h"
 
 
 
@@ -41,7 +42,17 @@ int main(int count, const char** parameter)
 		fo.lock([](decltype(fo)::type& ui) {
 			ui.create(extension<Dx11::stage_instance_extension>{});
 			ui.create(renderer<defer_renderer_default>{});
-			//ui.create(plugin<new_plugin>{});
+			if (false)
+				generator_worley_noise();
+			if (false)
+			{
+				ui.create(plugin<generator>{});
+				while (!generator::ready())
+					std::this_thread::sleep_for(duration(1));
+				ui.create(plugin<new_plugin>{});
+			}else
+				ui.create(plugin<new_plugin>{});
+			//ui.create(plugin<new_intime>{});
 		});
 	}
 	

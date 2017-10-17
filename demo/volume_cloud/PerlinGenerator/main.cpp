@@ -95,7 +95,7 @@ int main(int arg, const char** com)
 		}
 	}
 
-	if (check)
+	if (check && false)
 	{
 		std::vector<uint8_t> pixel;
 		uint32_t size[4] = { Data.simulate_size[0], Data.simulate_size[1], Data.simulate_size[2], Data.simulate_size[3] };
@@ -192,6 +192,19 @@ int main(int arg, const char** com)
 		return 0;
 	}
 	else {
+		std::array<uint8_t, 8192 * 4> data;
+
+		for (size_t i = 0; i < 8192; ++i)
+		{
+			data[i * 4] = static_cast<uint8_t>((float(i) / (8192 - 1)) * 255);
+			data[i * 4 + 1] = static_cast<uint8_t>((float(i) / (8192 - 1)) * 255);
+			data[i * 4 + 2] = 100;
+			data[i * 4 + 2] = 255;
+		}
+		std::cout << "finish" << std::endl;
+		DirectX::Image im{ 8192, 1, DXGI_FORMAT_R8G8B8A8_UNORM, 8192 * 4, 0, data.data() };
+		assert(SUCCEEDED(DirectX::SaveToTGAFile(im, L"FINAL_OUT.tga")));
+
 		return -1;
 	}
 }

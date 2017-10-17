@@ -63,6 +63,15 @@
     <ClCompile Include="geometry\ue4_geometry.cpp">
       <Filter>geometry</Filter>
     </ClCompile>
+    <ClCompile Include="generator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="worley_test.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="new_intime.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="placement\default_ui.h">
@@ -82,6 +91,15 @@
     </ClInclude>
     <ClInclude Include="geometry\ue4_geometry.h">
       <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="generator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="worley_test.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="new_intime.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -110,6 +128,12 @@
     </FxCompile>
     <FxCompile Include="compute\shader\volume_cloud_compute_format_tex3_f4_to_2d_u8_4_cs.hlsl">
       <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_land_cloud.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\colume_cloud_material_in_time_generator.hlsl">
+      <Filter>material\shader</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

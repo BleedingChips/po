@@ -52,7 +52,7 @@ SamplerState ss : register(s3);
 void main(in standard_ps_input input, out standard_ps_output_transparent output)
 {
 
-    const float3 WidthHeightDepth = float3(50, 50, 25);
+    const float3 WidthHeightDepth = float3(50, 50, 50);
 
     // 这个是不透明物体的深度，主要处理被不透明物体遮挡时候的问题
     float OpaqueDepth = 0.0;
@@ -102,14 +102,14 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     float RayResult = RayMatchingWidthNoLighting(
     BaseShapeTexture,
     BaseShapeTextureSamplerState,
-    float3(0.1, 0.1, 0.05),
+    float3(1.0, 1.0, 1.0),
     float3(0.0, 0.0, 0.0),
     float2(1.0, 0.0),
     float4(256, 256, 8, 8),
 
     MoveMaskTexture,
     MoveMaskTextureSamplerState,
-    float3(0.1, 0.1, 0.05),
+    float3(1.0, 1.0, 1.0),
     float3(0.0, 0.0, 0.0),
     float2(0.0, 0.0),
     float4(256, 256, 8, 8),
@@ -130,6 +130,3 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
 
     output.color = float4(1.0, 1.0, 1.0, RayResult);
 }
-
-
-

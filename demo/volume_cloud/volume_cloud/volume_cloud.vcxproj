@@ -20,20 +20,26 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="compute\volume_cloud_compute.cpp" />
+    <ClCompile Include="generator.cpp" />
     <ClCompile Include="geometry\ue4_geometry.cpp" />
     <ClCompile Include="material\volume_cloud_material.cpp" />
+    <ClCompile Include="new_intime.cpp" />
     <ClCompile Include="new_plugin.cpp" />
     <ClCompile Include="placement\default_ui.cpp" />
     <ClCompile Include="translate_ue4_custion_node.cpp" />
     <ClCompile Include="volum_cloud_main.cpp" />
+    <ClCompile Include="worley_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="compute\volume_cloud_compute.h" />
+    <ClInclude Include="generator.h" />
     <ClInclude Include="geometry\ue4_geometry.h" />
     <ClInclude Include="material\volume_cloud_material.h" />
+    <ClInclude Include="new_intime.h" />
     <ClInclude Include="new_plugin.h" />
     <ClInclude Include="placement\default_ui.h" />
     <ClInclude Include="translate_ue4_custion_node.h" />
+    <ClInclude Include="worley_test.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="compute\shader\volume_cloud_compute_property.hlsli" />
@@ -81,7 +87,27 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="material\shader\colume_cloud_material_in_time_generator.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="material\shader\volume_cloud_material_transparent_2d_for_3d_land_cloud.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
