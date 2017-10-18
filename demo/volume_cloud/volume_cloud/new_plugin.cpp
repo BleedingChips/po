@@ -69,6 +69,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 {
 	s.set_translation_speed(10.0);
 
+	if(false)
 	{
 		DirectX::ScratchImage SI;
 		assert(SUCCEEDED(DirectX::LoadFromTGAFile(L"final_perlin_out.tga", nullptr, SI)));
@@ -76,7 +77,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 		tex2_source tem{SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch)};
 		assert(final_perlin_noise.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
 	}
-	
+	if (false)
 	{
 		DirectX::ScratchImage SI;
 		assert(SUCCEEDED(DirectX::LoadFromTGAFile(L"final_worley_noise_4.tga", nullptr, SI)));
@@ -84,7 +85,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 		tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
 		assert(final_worley_noise.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
 	}
-
+	if (false)
 	{
 		DirectX::ScratchImage SI;
 		assert(SUCCEEDED(DirectX::LoadFromTGAFile(L"final_cube_mask.tga", nullptr, SI)));
@@ -105,7 +106,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 			} << [&](property_tex2& pt) {
 				sample_state ss;
 				ss.create(dr);
-				pt.set_texture(final_perlin_noise.cast_shader_resource_view(dr), ss);
+				//pt.set_texture(final_perlin_noise.cast_shader_resource_view(dr), ss);
 			};
 		}
 
@@ -123,7 +124,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				des.AddressV = decltype(des.AddressV)::D3D11_TEXTURE_ADDRESS_MIRROR;
 				sample_state ss;
 				ss.create(dr, des);
-				prf.set_texture(final_worley_noise.cast_shader_resource_view(dr), ss);
+				//prf.set_texture(final_worley_noise.cast_shader_resource_view(dr), ss);
 				prf.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
 			}
 				<< [&](property_local_transfer& tlt) {
@@ -132,9 +133,9 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				<< [&](property_volume_cloud_tex& pvct) {
 				sample_state ss;
 				ss.create(dr);
-				pvct.set_base_shape(final_perlin_noise.cast_shader_resource_view(dr), ss);
-				pvct.set_mask(cube_mask.cast_shader_resource_view(dr), ss);
-				pvct.set_move_mask(final_worley_noise.cast_shader_resource_view(dr), ss);
+				//pvct.set_base_shape(final_perlin_noise.cast_shader_resource_view(dr), ss);
+				//pvct.set_mask(cube_mask.cast_shader_resource_view(dr), ss);
+				//pvct.set_move_mask(final_worley_noise.cast_shader_resource_view(dr), ss);
 			};
 		}
 	});

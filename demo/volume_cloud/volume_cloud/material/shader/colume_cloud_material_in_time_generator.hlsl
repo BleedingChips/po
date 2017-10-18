@@ -22,18 +22,29 @@ vec2 r(vec2 n)
 {
     return vec2(r(n.x * 23.62 - 300.0 + n.y * 34.35), r(n.x * 45.13 + 256.0 + n.y * 38.89));
 }
-float worley(vec2 n, float s, float seed)
+
+float rand(float3 co)
+{
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 42.1897))) * 43758.5453);
+}
+
+float worley(float3 n, float s)
 {
     float dis = 2.0;
-    for (int x = -2; x <= 2; x++)
+    for (int x = -1; x <= 1; x++)
     {
-        for (int y = -2; y <= 2; y++)
+        for (int y = -1; y <= 1; y++)
         {
-            vec2 p = floor(n / s) + vec2(x, y);
-            float d = length(r(p + seed) + vec2(x, y) - frac(n / s));
-            if (dis > d)
+            for (int z = -1; z <= 1; ++z)
             {
-                dis = d;
+                float3 p = floor(n / s) + float3(x, y, z);
+                float rate = rand(p);
+                float3 pre_rate = rate + float3(x, y, z) - frac(n / s);
+                float d = length(pre_rate);
+                if (dis > d)
+                {
+                    dis = d;
+                }
             }
         }
     }
@@ -44,5 +55,7 @@ float worley(vec2 n, float s, float seed)
 
 float4 main(standard_ps_input spi) : SV_TARGET
 {
-    return float4(r(floor(spi.uv * 10.0 / 5.0)).x, 0.0, 0.0f, 1.0f);
+    return
+    float4(worley(float3(spi.uv, ps.time / 100000) * 100, 5.0), 0.0, 0.0f, 1.0f);
+   // float4(length(r(floor(spi.uv * 100.0 / 5.0)) /*- frac(spi.uv * 100.0 / 5)*/), 0.0, 0.0, 1.0);
 }
