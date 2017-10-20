@@ -47,6 +47,22 @@ Respond new_plugin::respond(const event& e)
 				max_denstiy += max_denstiy * 0.1f;
 				std::cout << "max_denstiy: " << max_denstiy << std::endl;
 				return Respond::Truncation;
+			case PO::KeyValue::K_H:
+				ss += 0.1;
+				std::cout << "ss:" << ss << std::endl;
+				return Respond::Truncation;
+			case PO::KeyValue::K_B:
+				multy += 0.1;
+				std::cout << "multy:" << multy << std::endl;
+				return Respond::Truncation;
+			case PO::KeyValue::K_J:
+				ss -= 0.1;
+				std::cout << "ss:" << ss << std::endl;
+				return Respond::Truncation;
+			case PO::KeyValue::K_N:
+				multy -= 0.1;
+				std::cout << "multy:" << multy << std::endl;
+				return Respond::Truncation;
 			}
 		}
 		else if (e.is_key() && e.key.is_up())
@@ -59,6 +75,7 @@ Respond new_plugin::respond(const event& e)
 			case PO::KeyValue::K_2:
 				swith_state = 1;
 				return Respond::Truncation;
+			
 			}
 		}
 	}
@@ -107,6 +124,8 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				sample_state ss;
 				ss.create(dr);
 				//pt.set_texture(final_perlin_noise.cast_shader_resource_view(dr), ss);
+			} << [&](in_time_material::data& d) {
+				d.set(ss, multy);
 			};
 		}
 
@@ -136,7 +155,8 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				//pvct.set_base_shape(final_perlin_noise.cast_shader_resource_view(dr), ss);
 				//pvct.set_mask(cube_mask.cast_shader_resource_view(dr), ss);
 				//pvct.set_move_mask(final_worley_noise.cast_shader_resource_view(dr), ss);
-			};
+			}
+			;
 		}
 	});
 	
@@ -173,6 +193,10 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			
 		}
 	}
+
+	back_ground << [&](in_time_material::data& d) {
+		d.set(ss, multy);
+	};
 	
 	output_volume_cube << [&, this](property_render_2d_for_3d& pt) {
 		pt.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);

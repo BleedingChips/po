@@ -21,6 +21,9 @@ struct new_plugin
 	transfer3D ts2;
 	showcase s;
 
+	float ss = 10.0;
+	float multy = 1.0;
+
 	float layer = 0.5;
 	float scale = 1.0;
 	float max_denstiy;

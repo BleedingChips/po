@@ -110,11 +110,31 @@ public:
 struct in_time_material : public material_resource
 {
 	in_time_material(creator& c) : material_resource(c, u"colume_cloud_material_in_time_generator.cso") {}
+
+	struct data : property_resource
+	{
+		float Scale;
+		float Multy;
+		struct renderer_data
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data& rd)
+		{
+			shader_storage<float, float> ss{ Scale, Multy };
+			rd.bc.create_pod(c, ss);
+		}
+		void set(float s, float m) { Scale = s; Multy = m; need_update(); }
+	};
+
+
 	const element_requirement& requirement() const
 	{
 		return make_element_requirement(
 			[](stage_context& sc,property_viewport_transfer::renderer_data& pvt) {
 			sc.PS() << pvt.viewport[0];
+		}, [](stage_context& sc, data::renderer_data& rd) {
+			sc.PS() << rd.bc[1];
 		}
 		);
 	}
