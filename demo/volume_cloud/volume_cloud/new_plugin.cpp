@@ -10,6 +10,7 @@ using namespace PO::Dx;
 
 adapter_map new_plugin::mapping(self& sel)
 {
+	Value = float4(0.5f, 0.02f, 18.0f, 0.2f);
 	max_denstiy = 0.5f;
 	s.binding({
 		{ KeyValue::K_D, showcase::State::Y_CW },
@@ -47,21 +48,29 @@ Respond new_plugin::respond(const event& e)
 				max_denstiy += max_denstiy * 0.1f;
 				std::cout << "max_denstiy: " << max_denstiy << std::endl;
 				return Respond::Truncation;
+			case PO::KeyValue::K_T:
+				Value.x += 0.1;
+				std::cout << "Value.x:" << Value << std::endl;
+				return Respond::Truncation;
+			case PO::KeyValue::K_Y:
+				Value.x -= 0.1;
+				std::cout << "Value.x:" << Value << std::endl;
+				return Respond::Truncation;
+			case PO::KeyValue::K_G:
+				Value.y += 0.01f;
+				std::cout << "Value.y:" << Value << std::endl;
+				return Respond::Truncation;
 			case PO::KeyValue::K_H:
-				ss += 0.1;
-				std::cout << "ss:" << ss << std::endl;
+				Value.y -= 0.01f;
+				std::cout << "Value.y:" << Value << std::endl;
 				return Respond::Truncation;
 			case PO::KeyValue::K_B:
-				multy += 0.1;
-				std::cout << "multy:" << multy << std::endl;
-				return Respond::Truncation;
-			case PO::KeyValue::K_J:
-				ss -= 0.1;
-				std::cout << "ss:" << ss << std::endl;
+				Value.z += 0.1;
+				std::cout << "Value.z:" << Value << std::endl;
 				return Respond::Truncation;
 			case PO::KeyValue::K_N:
-				multy -= 0.1;
-				std::cout << "multy:" << multy << std::endl;
+				Value.z -= 0.1;
+				std::cout << "Value.z:" << Value << std::endl;
 				return Respond::Truncation;
 			}
 		}
@@ -85,6 +94,33 @@ Respond new_plugin::respond(const event& e)
 void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 {
 	s.set_translation_speed(10.0);
+
+	if (true)
+	{
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"new_perlin1.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
+			assert(debug_tex.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+		}
+
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"new_perlin0.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
+			assert(debug_tex2.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+		}
+
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"new_perlin4.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
+			assert(debug_tex3.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+		}
+	}
 
 	if(false)
 	{
@@ -115,27 +151,36 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 
 		{
 			ts2.poi = float3(0.0, 0.0, 6.0f);
+			
 			back_ground << sie.create_geometry<geometry_cube>()
 				<< sie.create_placement<placement_static_viewport_static>()
-				<< sie.create_material<in_time_material>()
+				<< sie.create_material<material_testing>()
 				<< [&](property_local_transfer& pt) {
 				pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
 			} << [&](property_tex2& pt) {
 				sample_state ss;
 				ss.create(dr);
 				//pt.set_texture(final_perlin_noise.cast_shader_resource_view(dr), ss);
-			} << [&](in_time_material::data& d) {
-				d.set(ss, multy);
+			}  << [&](CubeSimpleX::property& p)
+			{
+				p.set_index(0);
 			};
+
 		}
 
 		{
+
 			ts1.poi = float3(0.0, 0.0, 5.0);
 			ts1.sca = float3(0.02f, 0.02f, 0.02f);
+
+			
+
+			
 			output_volume_cube << sie.create_geometry<UE4_cubiods_static>()
 				<< sie.create_placement<placement_static_viewport_static>()
+				<< sie.create_material<new_material>()
 				//<< sie.create_material<in_time_material>()
-				<< sie.create_material<material_transparent_2d_for_3d_64_without_perlin>()
+				//<< sie.create_material<material_transparent_2d_for_3d_64_without_perlin>()
 				<< [&](property_render_2d_for_3d& prf) {
 				sample_state::description des = sample_state::default_description;
 				des.Filter = decltype(des.Filter)::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
@@ -155,6 +200,15 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				//pvct.set_base_shape(final_perlin_noise.cast_shader_resource_view(dr), ss);
 				//pvct.set_mask(cube_mask.cast_shader_resource_view(dr), ss);
 				//pvct.set_move_mask(final_worley_noise.cast_shader_resource_view(dr), ss);
+			} << [&](new_material::property& d) {
+				d.set(max_denstiy);
+				sample_state::description dr2{
+					D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, 0.0f, 1,
+					//D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, 0.0f, 1,
+					D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX };
+				sample_state ss;
+				ss.create(dr, dr2);
+				d.set(debug_tex.cast_shader_resource_view(dr), debug_tex2.cast_shader_resource_view(dr), ss);
 			}
 			;
 		}
@@ -186,22 +240,21 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 	{
 		if (s.apply(da, ts2))
 		{
-			
+
 			back_ground << [&](property_local_transfer& pt) {
 				pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
 			};
 			
 		}
 	}
-
-	back_ground << [&](in_time_material::data& d) {
-		d.set(ss, multy);
-	};
 	
 	output_volume_cube << [&, this](property_render_2d_for_3d& pt) {
 		pt.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
+	} << [&](new_material::property& d) {
+		d.set(max_denstiy, Value);
 	};
-	
+	//dr.pipeline_opaque() << frame;
 	dr.pipeline_opaque() << back_ground;
-	//dr.pipeline_transparent() << output_volume_cube;
+	
+	dr.pipeline_transparent() << output_volume_cube;
 }

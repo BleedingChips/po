@@ -149,6 +149,7 @@ namespace PO
 			opaque.swap_to_renderer(context);
 			for (auto& ite : opaque.renderer.draw_request)
 			{
+				context << opaque_output_merga;
 				ite.draw(context, opaque_depth_stencil_state, &map_list);
 				context.unbind();
 			}

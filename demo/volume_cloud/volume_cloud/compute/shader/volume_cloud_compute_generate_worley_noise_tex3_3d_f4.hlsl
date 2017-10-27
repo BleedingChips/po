@@ -1,5 +1,5 @@
 #include "volume_cloud_compute_property.hlsli"
-
+#include "../../../../../include/po_dx11/shader/include/noise.hlsli"
 cbuffer b0 : register(b0)
 {
     property_random_point_f3 ppn;
@@ -40,11 +40,12 @@ float calculate_pre_mark(float4 mark, float4 reault)
 }
 
 
-[numthreads(32, 32, 1)]
+[numthreads(16, 16, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     if (DTid.x < size.x && DTid.y < size.y && DTid.z < size.z && ppn.count >= 400)
     {
+        /*
         float3 loc_f = DTid / float3(size - 1);
 
         float4 loca_array = float4(100.0, 100.0, 100.0, 100.0);
@@ -56,5 +57,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
             push(dis, loca_array);
         }
         output_texture[DTid] = clamp(loca_array * radius, 0.0, 1.0);
+        */
     }
 }

@@ -27,7 +27,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 			} << [&](property_random_point_f& pot) {
 				pot.create_uniform_point(dr, compute_generate_perlin_noise_tex3_3d_f1::max_count(sample_scale), { 3456 });
 			};
-			dr << perlin_noise_output;
+			//dr << perlin_noise_output;
 		}
 
 		{
@@ -40,7 +40,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(perlin_noise.cast_shader_resource_view(dr), ss, final_perlin_noise.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_perlin_noise.size(), { 256, 256, 8, 8 }, { 1.0f, 0.0, 0.0, 0.0 });
 			};
-			dr << final_perlin_noise_output;
+			//dr << final_perlin_noise_output;
 		}
 
 		{
@@ -53,7 +53,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				<< [&](property_random_point_f3& rpf) {
 				rpf.create_uniform_point(dr, compute_generate_worley_noise_tex3_3d_f4::max_count(), { 24567, 345653, 3455 }, -0.2, 1.2);
 			};
-			dr << perlin_noise_output;
+			//dr << perlin_noise_output;
 		}
 
 		{
@@ -66,7 +66,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(worley_noise.cast_shader_resource_view(dr), ss, final_worley_noise_1.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_worley_noise_1.size(), { 256, 256, 8, 8 }, { 1.0f, 0.0, 0.0, 0.0 });
 			};
-			dr << final_worley_noise_output;
+			//dr << final_worley_noise_output;
 		}
 
 		{
@@ -79,7 +79,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(worley_noise.cast_shader_resource_view(dr), ss, final_worley_noise_2.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_worley_noise_2.size(), { 256, 256, 8, 8 }, { 0.0f, 1.0, 0.0, 0.0 });
 			};
-			dr << final_worley_noise_output;
+			//dr << final_worley_noise_output;
 		}
 
 		{
@@ -92,7 +92,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(worley_noise.cast_shader_resource_view(dr), ss, final_worley_noise_3.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_worley_noise_3.size(), { 256, 256, 8, 8 }, { 0.0f, 0.0, 1.0, 0.0 });
 			};
-			dr << final_worley_noise_output;
+			//dr << final_worley_noise_output;
 		}
 
 		{
@@ -105,7 +105,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(worley_noise.cast_shader_resource_view(dr), ss, final_worley_noise_4.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_worley_noise_4.size(), { 256, 256, 8, 8 }, { 0.0f, 0.0, 0.0, 1.0 });
 			};
-			dr << final_worley_noise_output;
+			//dr << final_worley_noise_output;
 		}
 
 		{
@@ -115,7 +115,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				<< [&](compute_generate_cube_mask_tex3_f::property& p) {
 				p.set(cube_mask.cast_unordered_access_view(dr), { 64, 64, 64 });
 			};
-			dr << cube_mask_output;
+			//dr << cube_mask_output;
 		}
 
 		{
@@ -128,7 +128,27 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				ss.create(dr);
 				p.set(cube_mask.cast_shader_resource_view(dr), ss, final_cube_mask.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_cube_mask.size(), { 64, 64, 4, 4 }, { 1.0f, 0.0, 0.0, 0.0 });
 			};
-			dr << final_cube_mask_output;
+			//dr << final_cube_mask_output;
+		}
+
+		{
+			std::array<unordered_access_view<tex3>, 5> da;
+			for (size_t i = 0; i < 2; ++i)
+			{
+				new_perlin[i].create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 256, 256, 64 });
+				da[i] = new_perlin[i].cast_unordered_access_view(dr);
+			}
+			//helpText.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, {64, 64, 64});
+			//da[4] = helpText.cast_unordered_access_view(dr);
+			element_compute new_perlin_element;
+			new_perlin_element << sie.create_compute<compute_generator>()
+				<< [&, this](compute_generator::property& p)
+			{
+				p << da;
+			}/* << [&, this](property_random_point_f3& rd) {
+				//rd.craate_custom(dr, 800, { 123234,231254,6878 });
+			}*/;
+			dr << new_perlin_element;
 		}
 	});
 
@@ -145,12 +165,43 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 
 		if (true)
 		{
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[0].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin0.DDS")));
+			}
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[1].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin1.DDS")));
+			}
+			/*
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[2].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin2.DDS")));
+			}
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[3].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin3.DDS")));
+			}
+
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[4].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin4.DDS")));
+			}*/
+		}
+
+		if (false)
+		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, perlin_noise.ptr, SI);
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"perlin_noise.DDS")));
 		}
 
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_perlin_noise.ptr, SI);
@@ -159,14 +210,14 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_perlin_out.tga")));
 		}
 
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, worley_noise.ptr, SI);
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"worley_noise.DDS")));
 		}
 
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_worley_noise_1.ptr, SI);
@@ -174,7 +225,7 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"final_worley_noise_1.DDS")));
 			assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_worley_noise_1.tga")));
 		}
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_worley_noise_2.ptr, SI);
@@ -182,7 +233,7 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"final_worley_noise_2.DDS")));
 			assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_worley_noise_2.tga")));
 		}
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_worley_noise_3.ptr, SI);
@@ -190,7 +241,7 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"final_worley_noise_3.DDS")));
 			assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_worley_noise_3.tga")));
 		}
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_worley_noise_4.ptr, SI);
@@ -198,13 +249,13 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"final_worley_noise_4.DDS")));
 			assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_worley_noise_4.tga")));
 		}
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, cube_mask.ptr, SI);
 			assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"cube_mask.DDS")));
 		}
-		if (true)
+		if (false)
 		{
 			DirectX::ScratchImage SI;
 			DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_cube_mask.ptr, SI);

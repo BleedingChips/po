@@ -1,277 +1,121 @@
 #include "../../../../../include/po_dx11/shader/include/build_in_property_type.hlsli"
 #include "../../../../../include/po_dx11/shader/include/build_in_standard_input_type.hlsli"
+#include "../../../../../include/po_dx11/shader/include/noise.hlsli"
+#include "volume_cloud_material_property.hlsli"
 
-#define vec2 float2
-#define vec3 float3
-
-cbuffer b2 : register(b0)
+cbuffer b0 : register(b0)
+{
+    float Density;
+}
+cbuffer b1 : register(b1)
+{
+    property_local_transfer mat;
+}
+cbuffer b2 : register(b2)
 {
     property_viewport_transfer ps;
 }
 
-cbuffer b1 : register(b1)
+Texture2D linearize_z : register(t0);
+SamplerState ss : register(s0);
+float fbm_SimplexNoise(in float2 n, in float s, in uint octaves, in float frequency, in float lacunarity, in float gain);
+
+float2 RayMatchingBuildInNoise(float3 UnitPoint_F3, float Gap_F, float3 UnitRayPath_F3, float Density_F, float Time_F, float3 UnitMove_F3)
 {
-    float Scale;
-    float Multy;
-}
+    static const uint SampleCount = 64;
+    float RayPathLength = length(UnitRayPath_F3);
+    float3 UnitRayStep = UnitRayPath_F3 / SampleCount;
 
-
-
-float rand(float2 co)
-{
-    return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
-}
-
-float r(float n)
-{
-    return frac(cos(n * 89.42) * 343.42);
-}
-
-vec2 r(vec2 n)
-{
-    return vec2(r(n.x * 23.62 - 300.0 + n.y * 34.35), r(n.x * 45.13 + 256.0 + n.y * 38.89));
-}
-
-float rand(float3 co)
-{
-    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 42.1897))) * 43758.5453);
-}
-
-float worley(float3 n, float s, float multy)
-{
-    float dis = 2.0;
-    for (int x = -1; x <= 1; x++)
+    float ResultDensity = 0.0;
+    float LastDensity = 0.0;
+    float3 SamplePoint = UnitPoint_F3;
+    uint count = 0;
+    for (count = 0; count < (SampleCount - 1); ++count)
     {
-        for (int y = -1; y <= 1; y++)
-        {
-            for (int z = -1; z <= 1; ++z)
-            {
-                float3 p = floor(n / s) + float3(x, y, z);
-                float rate = rand(p);
-                float3 pre_rate = rate + float3(x, y, z) - frac(n / s);
-                float d = length(pre_rate) * multy;
-                if (dis > d)
-                {
-                    dis = d;
-                }
-            }   
-        }
+
+        float3 ShiftSamplePoint = SamplePoint + Time_F * UnitMove_F3;
+        //float FinalDensity = fbm_worley_noise(ShiftSamplePoint * 10, Gap_F, 3, 1.0, 1.8, 0.5);
+        float FinalDensity = fbm_SimplexNoise(ShiftSamplePoint, 3, 1.0, 1.8, 0.5);
+        ResultDensity = //ResultDensity + FinalDensity;
+        (FinalDensity + LastDensity) / 2.0;
+        LastDensity = FinalDensity;
+        SamplePoint = SamplePoint + UnitRayStep;
     }
-    return 1.0 - dis;
+
+    float DensityE = exp(-ResultDensity * Density_F * RayPathLength);
+    return 1.0 - DensityE;
+    return float2(1.0, 0.0);
 }
 
-float fbm_worley(in float3 n,in float s,in float multy, in uint octaves, in float frequency,in float lacunarity, in float gain)
+void main(in standard_ps_input input, out standard_ps_output_transparent output)
 {
-    float amplitude = gain;
-    float total = 0.0;
-    for (uint i = 0; i < octaves; ++i)
+
+    //output.color = fbm_worley_noise(input.position_world * 100, 1.0, 4, 1.0, 1.8, 0.5);
+    //return ;
+    //float4(1.0, 1.0, 1.0, RayResult);
+
+    const float3 WidthHeightDepth = float3(50, 50, 25);
+
+    // 这个是不透明物体的深度，主要处理被不透明物体遮挡时候的问题
+    float OpaqueDepth = 0.0;
     {
-        total += worley(n * frequency, s, multy) * amplitude;
-        frequency *= lacunarity;
-        amplitude *= gain;
+        //获取屏幕UV
+        float2 screen_uv = get_uv_screen(input.uv_screen, input.position_sv);
+        OpaqueDepth = linearize_z.Sample(ss, screen_uv).x;
     }
-    return total;
-}
 
-#define MOD3 vec3(.1031,.11369,.13787)
+    // 计算像素点的深度与不透明物体的深度的最小值，计算射线的开始点。
+    float PixelMinDepth = min(OpaqueDepth, input.position_view.z);
 
-vec3 hash33(vec3 p3)
-{
-    p3 = frac(p3 * MOD3);
-    p3 += dot(p3, p3.yxz + 19.19);
-    return -1.0 + 2.0 * frac(vec3((p3.x + p3.y) * p3.z, (p3.x + p3.z) * p3.y, (p3.y + p3.z) * p3.x));
-}
-float perlin_noise(vec3 p)
-{
-    vec3 pi = floor(p);
-    vec3 pf = p - pi;
-    
-    vec3 w = pf * pf * (3.0 - 2.0 * pf);
-    
-    return lerp(
-        		lerp(
-                	lerp(dot(pf - vec3(0, 0, 0), hash33(pi + vec3(0, 0, 0))),
-                        dot(pf - vec3(1, 0, 0), hash33(pi + vec3(1, 0, 0))),
-                       	w.x),
-                	lerp(dot(pf - vec3(0, 0, 1), hash33(pi + vec3(0, 0, 1))),
-                        dot(pf - vec3(1, 0, 1), hash33(pi + vec3(1, 0, 1))),
-                       	w.x),
-                	w.z),
-        		lerp(
-                    lerp(dot(pf - vec3(0, 1, 0), hash33(pi + vec3(0, 1, 0))),
-                        dot(pf - vec3(1, 1, 0), hash33(pi + vec3(1, 1, 0))),
-                       	w.x),
-                   	lerp(dot(pf - vec3(0, 1, 1), hash33(pi + vec3(0, 1, 1))),
-                        dot(pf - vec3(1, 1, 1), hash33(pi + vec3(1, 1, 1))),
-                       	w.x),
-                	w.z),
-    			w.y);
-}
+    // 计算视角射线向量
+    float3 EyeRay = input.position_world.xyz - property_viewport_transfer_eye_world_position(ps);
 
+    // 通过向量和深度比计算实际射线的实际开始点。
+    float3 StartWorldPosition = EyeRay * (PixelMinDepth / input.position_view.z) + property_viewport_transfer_eye_world_position(ps);
 
+    // 计算带长度信息的局部坐标下的光线向量
+    float3 LocalEyeRayWithLengthInformation = mul(mat.world_to_local, float4(normalize(EyeRay), 0.0)).xyz;
 
-float SimplexNoise(float2 poi, float s)
-{
-    static const float sqrt_3 = 1.7320508075688772f;
-    float2 Equal_Poi = float2(
-    dot(poi, float2(-(sqrt_3 - 1) / 2, (sqrt_3 + 1) / 2.0)),
-    dot(poi, float2((sqrt_3 + 1) / 2, -(sqrt_3 - 1) / 2.0))
-);
-    float2 poi2 = Equal_Poi / s;
-    float2 mark = floor(poi2);
-    float2 Rate = poi2 - mark;
-    uint step_index = step(1.0, Rate.x + Rate.y);
+    // 计算深度在世界坐标下变换成局部坐标系下的长度比
+    float RayLengthWorldToLocal = length(LocalEyeRayWithLengthInformation);
 
-    static const float2 grauid[2][3] =
+    // 计算开始点的局部坐标
+    float3 StartLocalPosition;
     {
-        {
-            float2(0, 0),
-            float2(1, 0),
-            float2(0, 1)
-        },
-        {
-            float2(1, 1),
-            float2(1, 0),
-            float2(0, 1)
-        }
-    };
+        float4 StartWorldPosition4 = float4(StartWorldPosition, 1.0);
+        StartWorldPosition4 = mul(mat.world_to_local, StartWorldPosition4);
+        StartLocalPosition = StartWorldPosition4.xyz / StartWorldPosition4.w;
+    }
 
-    float2 Range[3] =
+    // 计算反向光线的位移，实际上就是从起始点，通过反向光线移动到立方体边界的位移
+    float ReverseRayLenght = RayPatch(-LocalEyeRayWithLengthInformation, StartLocalPosition, WidthHeightDepth);
+
+    // 在世界坐标系下的最小深度
+    float FinalWorldDepth = min(ReverseRayLenght, PixelMinDepth);
+    
+    float3 UnitRayPath;
     {
-        grauid[step_index][0] - Rate,
-        grauid[step_index][1] - Rate,
-        grauid[step_index][2] - Rate
-    };
+        float3 LocalRayWidthDepth = FinalWorldDepth * LocalEyeRayWithLengthInformation;
+        UnitRayPath = -LocalRayWidthDepth / (2.0 * WidthHeightDepth);
+    }
 
-    float r = 1.0;
-
-    float3 RateFinal = float3(
-        (dot(Range[0], Range[0]) + Range[0].x * Range[0].y) * r,
-         (dot(Range[1], Range[1]) + Range[1].x * Range[1].y) * r,
-         (dot(Range[2], Range[2]) + Range[2].x * Range[2].y) * r
-    );
-
-    RateFinal = RateFinal;// * 3 / 2;
-
-    RateFinal = 1.0 - RateFinal;
-    RateFinal = RateFinal * RateFinal * RateFinal;
-
-    float3 RateP = max(0.0, RateFinal);
-    float3 RandomV = //float3(Equal_Poi, 0.0);
-    //float3(grauid[step_index][0], rand(mark + grauid[step_index][1]), rand(mark + grauid[step_index][2]));
+    float3 UnitPoint = (StartLocalPosition + WidthHeightDepth) / (2.0 * WidthHeightDepth);
     
-    float3(rand(mark + grauid[step_index][0]), rand(mark + grauid[step_index][1]), rand(mark + grauid[step_index][2]));
-    
-    return dot(RateP, RandomV);
-    //return RateP.x;
-    //return (RateP.x + RateP.y + RateP.z) / 2.0;
-    //return (rand(mark + grauid[step_index][0]) + rand(mark + grauid[step_index][1]) + rand(mark + grauid[step_index][2])) / 3;
+    float RayResult = RayMatchingBuildInNoise(
 
 
+    UnitPoint,
+    1.0,
+    UnitRayPath,
+    Density,
+    ps.time * 0.001,
+    //0.0,
+    float3(0.0, 0.0, 1.0)
+    ).y;
 
+
+    output.color = float4(1.0, 1.0, 1.0, RayResult);
 }
 
 
-float SimplexNoise(float3 poi, float s)
-{
-    static const float sqrt_3 = 1.7320508075688772f;
 
-    float3 Block = poi / s;
-    float3 Rate = poi - Block;
-    float3 GrauidBuffer[3] =
-    {
-        float3(1, 0, 0), float3(0, 1, 0), float3(0, 1, 0)
-    };
-
-    float3 Grauid = float3(step(max(Rate.y, Rate.z), Rate.x), step(max(Rate.x, Rate.z), Rate.y), step(max(Rate.y, Rate.x), Rate.z));
-
-
-
-
-    float3 grauid[5];
-    grauid[0] = float3(0, 0, 0);
-    grauid[1] = step(max(max(Rate.x, Rate.y), Rate.z), Rate);
-
-
-
-
-
-
-
-
-
-    float2 Equal_Poi = float2(
-    dot(poi, float2(-(sqrt_3 - 1) / 2, (sqrt_3 + 1) / 2.0)),
-    dot(poi, float2((sqrt_3 + 1) / 2, -(sqrt_3 - 1) / 2.0))
-);
-    float2 poi2 = Equal_Poi / s;
-    float2 mark = floor(poi2);
-    float2 Rate = poi2 - mark;
-    uint step_index = step(1.0, Rate.x + Rate.y);
-
-    static const float2 grauid[2][3] =
-    {
-        {
-            float2(0, 0),
-            float2(1, 0),
-            float2(0, 1)
-        },
-        {
-            float2(1, 1),
-            float2(1, 0),
-            float2(0, 1)
-        }
-    };
-
-    float2 Range[3] =
-    {
-        grauid[step_index][0] - Rate,
-        grauid[step_index][1] - Rate,
-        grauid[step_index][2] - Rate
-    };
-
-    float r = 2 / 3.0;
-
-    float3 RateFinal = float3(
-        (dot(Range[0], Range[0]) + Range[0].x * Range[0].y) * r,
-         (dot(Range[1], Range[1]) + Range[1].x * Range[1].y) * r,
-         (dot(Range[2], Range[2]) + Range[2].x * Range[2].y) * r
-    );
-
-    RateFinal = RateFinal * 3 / 2;
-
-    RateFinal = 1.0 - RateFinal;
-    RateFinal = RateFinal * RateFinal * RateFinal;
-
-    float3 RateP = max(0.0, RateFinal);
-    float3 RandomV = //float3(Equal_Poi, 0.0);
-    //float3(grauid[step_index][0], rand(mark + grauid[step_index][1]), rand(mark + grauid[step_index][2]));
-    
-    float3(rand(mark + grauid[step_index][0]), rand(mark + grauid[step_index][1]), rand(mark + grauid[step_index][2]));
-    
-    return dot(RateP, RandomV);
-    //return RateP.x;
-    //return (RateP.x + RateP.y + RateP.z) / 2.0;
-    //return (rand(mark + grauid[step_index][0]) + rand(mark + grauid[step_index][1]) + rand(mark + grauid[step_index][2])) / 3;
-
-
-
-}
-
-
-float4 main(standard_ps_input spi) : SV_TARGET
-{
-    float3 perlin_uv = float3(spi.uv, 0.0) * 10;
-    float3 uv = float3(spi.uv, ps.time / 1000.0) * 10;
-
-    return
-
-    float4(SimplexNoise(spi.uv * 100, Scale), 0.0, 0.0, 1.0);
-
-    //float4(hash33(uv), 1.0);
-    float4(perlin_noise(perlin_uv) /** 5 * fbm_worley(uv, Scale, Multy, 3, 0.8, 1.8, 0.5)*/, 0.0, 0.0, 1.0);
-
-
-    float4(fbm_worley(uv, Scale, Multy, 3, 0.8, 1.8, 0.5), 0.0, 0.0f, 1.0f);
-   // float4(length(r(floor(spi.uv * 100.0 / 5.0)) /*- frac(spi.uv * 100.0 / 5)*/), 0.0, 0.0, 1.0);
-}

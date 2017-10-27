@@ -13,7 +13,12 @@ struct new_plugin
 	tex2 final_worley_noise;
 	tex2 cube_mask;
 
+	tex3 debug_tex;
+	tex3 debug_tex2;
+	tex3 debug_tex3;
+
 	element_draw back_ground;
+	element_draw frame;
 	element_draw output_volume_cube;
 
 	//defer_element viewer;
@@ -21,8 +26,8 @@ struct new_plugin
 	transfer3D ts2;
 	showcase s;
 
-	float ss = 10.0;
-	float multy = 1.0;
+	size_t index = 0;
+	float4 Value;
 
 	float layer = 0.5;
 	float scale = 1.0;

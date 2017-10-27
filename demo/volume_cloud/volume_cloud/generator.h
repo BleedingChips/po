@@ -19,6 +19,9 @@ struct generator
 	tex3 cube_mask;
 	tex2 final_cube_mask;
 
+	tex3 new_perlin[4];
+	tex3 helpText;
+
 	static std::atomic_uint count;
 	static bool ready() { return count >= 2; }
 	adapter_map mapping(self& sel);

@@ -57,6 +57,22 @@ void property_random_point_f3::create_uniform_point(creator& c, uint32_t count, 
 	need_update();
 }
 
+void property_random_point_f3::craate_custom(creator& c, uint32_t count, uint32_t3 seed)
+{
+	random_vector.clear();
+	random_vector.reserve(count);
+	std::mt19937 mtx1(seed.x);
+	std::mt19937 mtx2(seed.y);
+	std::mt19937 mtx3(seed.z);
+	std::uniform_real_distribution<float> ndz(0.35, 0.65);
+	std::normal_distribution<float> ndx_y(0.5, 0.15);
+	for (uint32_t i = 0; i < count; ++i)
+		random_vector.push_back(float3{ ndx_y(mtx1), ndx_y(mtx2), ndz(mtx3) });
+	style = 1;
+	parameter1 = float4{ 0.5f, 0.01f, 0.0, 0.0 };
+	need_update();
+}
+
 void property_random_point_f3::create_normal_point(creator& c, uint32_t count, uint32_t3 seed, float mean, float stddev)
 {
 	random_vector.clear();

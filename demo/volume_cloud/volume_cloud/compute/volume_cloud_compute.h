@@ -43,6 +43,7 @@ struct property_random_point_f3 : public property_resource
 	};
 
 	void create_normal_point(creator& c, uint32_t count, uint32_t3 seed = { 0, 0, 0 }, float mean = 0.0, float stddev = 1.0);
+	void craate_custom(creator& c, uint32_t count, uint32_t3 seed = { 0, 0, 0 });
 	void create_uniform_point(creator& c, uint32_t count, uint32_t3 seed = { 0, 0, 0 }, float min = 0.0, float max = 1.0);
 	void update(creator& c, renderer_data& rd);
 };
@@ -212,7 +213,36 @@ public:
 	}
 };
 
+class compute_generator : public compute_resource
+{
+public:
 
+	struct property : public property_resource
+	{
+		std::array<unordered_access_view<tex3>, 5> output;
+		struct renderer_data
+		{
+			std::array<unordered_access_view<tex3>, 5> output;
+		};
+
+		property& operator<<(std::array<unordered_access_view<tex3>, 5> t) { output = std::move(t); property_resource::need_update(); return *this; }
+		void update(creator& sc, renderer_data& rd) { rd.output = output; }
+	};
+
+	compute_generator(creator& c) : compute_resource(c, u"volume_generator_tiling_3d_perlin_noise.cso") {}
+	const element_requirement& requirement()
+	{
+		return make_element_requirement(
+			[](stage_context& sc, property::renderer_data& p) {
+			for (size_t i = 0; i < 5; ++i)
+				sc.CS() << p.output[i][i];
+			sc << dispatch_call{ 8, 8, 64 };
+		}/*, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+			sc.CS() << rd.srv[0];
+		}*/
+		);
+	}
+};
 
 
 

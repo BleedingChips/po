@@ -20,10 +20,21 @@
 
 
 
+
 int main(int count, const char** parameter)
 {
+	DirectX::XMMATRIX mat{
+		5.0f / 6.0f, -1.0f / 6.0f, -1.0f / 6.0f, 0.0,
+		-1.0f / 6.0f, 5.0f / 6.0f, -1.0f / 6.0f, 0.0,
+		-1.0f / 6.0f, -1.0f / 6.0f, 5.0f / 6.0f, 0.0,
+		0.0, 0.0, 0.0, 1.0
+	};
 
+	auto inv_mat = DirectX::XMMatrixInverse(nullptr, mat);
+	float4x4 mat_4;
+	DirectX::XMStoreFloat4x4(&mat_4, inv_mat);
 
+	std::cout << mat_4 << std::endl;
 
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
@@ -47,9 +58,11 @@ int main(int count, const char** parameter)
 			if (false)
 			{
 				ui.create(plugin<generator>{});
+				/*
 				while (!generator::ready())
 					std::this_thread::sleep_for(duration(1));
 				ui.create(plugin<new_plugin>{});
+				*/
 			}else
 				ui.create(plugin<new_plugin>{});
 			//ui.create(plugin<new_intime>{});

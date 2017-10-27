@@ -135,5 +135,11 @@
     <FxCompile Include="material\shader\colume_cloud_material_in_time_generator.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
+    <FxCompile Include="compute\shader\volume_generator_tiling_3d_perlin_noise.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\new_material.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

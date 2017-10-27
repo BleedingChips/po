@@ -109,7 +109,7 @@ public:
 
 struct in_time_material : public material_resource
 {
-	in_time_material(creator& c) : material_resource(c, u"colume_cloud_material_in_time_generator.cso") {}
+	in_time_material(creator& c);
 
 	struct data : property_resource
 	{
@@ -126,16 +126,54 @@ struct in_time_material : public material_resource
 		}
 		void set(float s, float m) { Scale = s; Multy = m; need_update(); }
 	};
+	const element_requirement& requirement() const;
+};
 
+struct new_material : public material_resource
+{
+public:
 
-	const element_requirement& requirement() const
+	struct property : public property_resource
 	{
-		return make_element_requirement(
-			[](stage_context& sc,property_viewport_transfer::renderer_data& pvt) {
-			sc.PS() << pvt.viewport[0];
-		}, [](stage_context& sc, data::renderer_data& rd) {
-			sc.PS() << rd.bc[1];
+		shader_resource_view<tex3> BaseShapeTex;
+		shader_resource_view<tex3> BaseShapeTex2;
+		sample_state ss;
+		float Density = 1.0;
+		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
+		struct renderer_data
+		{
+			shader_resource_view<tex3> BaseShapeTex;
+			shader_resource_view<tex3> BaseShapeTex2;
+			sample_state ss;
+			buffer_constant b;
+		};
+		void set(shader_resource_view<tex3> t, shader_resource_view<tex3> t2, sample_state de = sample_state{}) {
+			if (false)
+			{
+				sample_state::description{
+					D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, 0.0f, 1,
+					D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX };
+			}
+			ss = de;
+			BaseShapeTex2 = std::move(t2);
+			BaseShapeTex = std::move(t); 
+			need_update(); 
 		}
-		);
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.BaseShapeTex = BaseShapeTex;
+			rd.BaseShapeTex2 = BaseShapeTex2;
+			rd.ss = ss;
+			shader_storage<float, float4> ss(Density, Value);
+			rd.b.create_pod(c, ss);
+		}
+	};
+
+	new_material(creator& c);
+	const element_requirement& requirement() const;
+	depth_stencil_state dss;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
 	}
 };
