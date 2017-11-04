@@ -54,3 +54,12 @@ public:
 	CubeFrame(creator& c);
 	void apply(stage_context& sc);
 };
+
+class UE4_cubiods_static_Frame : public geometry_resource
+{
+	buffer_index index;
+	buffer_vertex vertex;
+public:
+	UE4_cubiods_static_Frame(creator& c);
+	void apply(stage_context& sc);
+};

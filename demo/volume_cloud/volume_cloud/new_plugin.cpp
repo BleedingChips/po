@@ -10,8 +10,9 @@ using namespace PO::Dx;
 
 adapter_map new_plugin::mapping(self& sel)
 {
-	Value = float4(0.5f, 0.02f, 18.0f, 0.2f);
+	Value = float4(0.7f, 0.2f, 0.2f, 0.2f);
 	max_denstiy = 0.5f;
+	//s.set_translation_speed(0.1);
 	s.binding({
 		{ KeyValue::K_D, showcase::State::Y_CW },
 		{ KeyValue::K_A, showcase::State::Y_ACW },
@@ -26,7 +27,7 @@ adapter_map new_plugin::mapping(self& sel)
 	return {
 		make_member_adapter<defer_renderer_default>(this, &new_plugin::init, &new_plugin::tick)
 	};
-	s.set_translation_speed(10.0);
+	
 }
 
 Respond new_plugin::respond(const event& e)
@@ -93,9 +94,30 @@ Respond new_plugin::respond(const event& e)
 
 void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 {
-	s.set_translation_speed(10.0);
+	s.set_translation_speed(1);
 
 	if (true)
+	{
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"tiled_noise0.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
+			assert(TiledWorly.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
+		}
+		
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"tiled_noise2.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
+			assert(TiledWorly3D.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+		}
+
+	}
+
+
+	if (false)
 	{
 		{
 			DirectX::ScratchImage SI;
@@ -115,10 +137,18 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 
 		{
 			DirectX::ScratchImage SI;
-			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"new_perlin4.DDS", 0, nullptr, SI)));
+			assert(SUCCEEDED(DirectX::LoadFromTGAFile(L"final_perlin_out0.tga", nullptr, SI)));
 			DirectX::TexMetadata MetaData = SI.GetMetadata();
-			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
-			assert(debug_tex3.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+			tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
+			assert(final_tex0.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
+		}
+
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromTGAFile(L"final_perlin_out1.tga", nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
+			assert(final_tex1.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
 		}
 	}
 
@@ -172,13 +202,10 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 
 			ts1.poi = float3(0.0, 0.0, 5.0);
 			ts1.sca = float3(0.02f, 0.02f, 0.02f);
-
-			
-
 			
 			output_volume_cube << sie.create_geometry<UE4_cubiods_static>()
 				<< sie.create_placement<placement_static_viewport_static>()
-				<< sie.create_material<new_material>()
+				<< sie.create_material<new_new_new_material>()
 				//<< sie.create_material<in_time_material>()
 				//<< sie.create_material<material_transparent_2d_for_3d_64_without_perlin>()
 				<< [&](property_render_2d_for_3d& prf) {
@@ -200,7 +227,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				//pvct.set_base_shape(final_perlin_noise.cast_shader_resource_view(dr), ss);
 				//pvct.set_mask(cube_mask.cast_shader_resource_view(dr), ss);
 				//pvct.set_move_mask(final_worley_noise.cast_shader_resource_view(dr), ss);
-			} << [&](new_material::property& d) {
+			} /*<< [&](new_material::property& d) {
 				d.set(max_denstiy);
 				sample_state::description dr2{
 					D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, 0.0f, 1,
@@ -209,8 +236,28 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				sample_state ss;
 				ss.create(dr, dr2);
 				d.set(debug_tex.cast_shader_resource_view(dr), debug_tex2.cast_shader_resource_view(dr), ss);
+				d.set(final_tex0.cast_shader_resource_view(dr), final_tex1.cast_shader_resource_view(dr));
+			}*/
+				<< [&](new_new_new_material::property& d)
+			{
+				d.set(max_denstiy);
+				sample_state::description dr2{
+					D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP, 0.0f, 1,
+					//D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_MIRROR, 0.0f, 1,
+					D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX };
+				sample_state ss;
+				ss.create(dr, dr2);
+				d.set(TiledWorly.cast_shader_resource_view(dr), TiledWorly3D.cast_shader_resource_view(dr), ss);
+				d.set(max_denstiy, Value);
 			}
 			;
+		}
+
+		{
+			output_volume_cube_frame << sie.create_geometry<UE4_cubiods_static_Frame>()
+				<< sie.create_placement<placement_static_viewport_static>()
+				<< sie.create_material<material_testing>();
+			output_volume_cube.ptr->mapping.shared_property_to<property_local_transfer>(output_volume_cube_frame.ptr->mapping);
 		}
 	});
 	
@@ -250,11 +297,12 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 	
 	output_volume_cube << [&, this](property_render_2d_for_3d& pt) {
 		pt.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
-	} << [&](new_material::property& d) {
+	} << [&](new_new_new_material::property& d) {
 		d.set(max_denstiy, Value);
 	};
 	//dr.pipeline_opaque() << frame;
-	dr.pipeline_opaque() << back_ground;
+	//dr.pipeline_opaque() << back_ground;
 	
 	dr.pipeline_transparent() << output_volume_cube;
+	dr.pipeline_transparent() << output_volume_cube_frame;
 }

@@ -141,5 +141,17 @@
     <FxCompile Include="material\shader\new_material.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
+    <FxCompile Include="compute\shader\compute_2d_tiled.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\new_new_material.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\compute_3d_tiled.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\new_new_new_material.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

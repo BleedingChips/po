@@ -205,7 +205,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float3 Poi = DTid / float3(255, 255, 255);
     Poi.z += 0.475;
         //output[DTid] = SimplexNoiseN(Poi, 10);
-    output[DTid] = fbm_SimplexNoise(Poi * 50, 6, 0.8, 1.8, 0.5);// * fbm_TilessWorley(Poi, 9, 1.0, 4, 0.8, 1.8, 0.5);
+    output[DTid] =  fbm_SimplexNoise(Poi * 80 + 0.34325, 3, 0.75, 1.75, 0.5);// * fbm_TilessWorley(Poi, 9, 1.0, 4, 0.8, 1.8, 0.5);
         //output2[DTid] = TilessWorley(Poi, 5, 1.0);
     output2[DTid] = fbm_worley_noise(Poi * 40, 1.0, 6, 0.8, 1.8, 0.5);
     //output3[DTid] = fbm_TilessWorley(Poi, 8, 1.0, 4, 0.8, 1.8, 0.5);

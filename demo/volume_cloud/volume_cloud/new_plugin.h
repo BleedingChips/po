@@ -17,9 +17,14 @@ struct new_plugin
 	tex3 debug_tex2;
 	tex3 debug_tex3;
 
+	tex2 final_tex0;
+	tex2 final_tex1;
+	
+
 	element_draw back_ground;
 	element_draw frame;
 	element_draw output_volume_cube;
+	element_draw output_volume_cube_frame;
 
 	//defer_element viewer;
 	transfer3D ts1;
@@ -28,6 +33,9 @@ struct new_plugin
 
 	size_t index = 0;
 	float4 Value;
+
+	tex2 TiledWorly;
+	tex3 TiledWorly3D;
 
 	float layer = 0.5;
 	float scale = 1.0;

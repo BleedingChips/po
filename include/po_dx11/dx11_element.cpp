@@ -55,6 +55,18 @@ namespace PO
 			inside_map->allready_update = false;
 		}
 
+		bool property_proxy_map::shared_property_to(const std::type_index& id, property_proxy_map& ppm) const
+		{
+			auto ite = mapping.find(id);
+			if (ite != mapping.end())
+			{
+				auto ptr = ite->second;
+				ppm.mapping.insert_or_assign(id, ptr);
+				return true;
+			}
+			return false;
+		}
+
 		void property_proxy_map::logic_to_renderer(creator& c)
 		{
 			inside_map->renderer_mapping.clear();

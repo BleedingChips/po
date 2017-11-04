@@ -245,6 +245,67 @@ public:
 };
 
 
+class compute_2D_tiled : public compute_resource
+{
+public:
+	struct property : public property_resource
+	{
+		std::array<unordered_access_view<tex2>, 2> output;
+		unordered_access_view<tex3> output2;
+		struct renderer_data
+		{
+			std::array<unordered_access_view<tex2>, 2> output;
+			unordered_access_view<tex3> output2;
+		};
+		property& operator<<(std::array<unordered_access_view<tex2>, 2> t) { output = std::move(t); property_resource::need_update(); return *this; }
+		property& operator<<(unordered_access_view<tex3> t) { output2 = std::move(t); property_resource::need_update(); return *this; }
+		void update(creator& sc, renderer_data& rd) { rd.output = output; rd.output2 = output2; }
+	};
+	compute_2D_tiled(creator& c) : compute_resource(c, u"compute_2d_tiled.cso") {}
+	const element_requirement& requirement()
+	{
+		return make_element_requirement(
+			[](stage_context& sc, property::renderer_data& p) {
+			for (size_t i = 0; i < 2; ++i)
+				sc.CS() << p.output[i][i];
+			sc.CS() << p.output2[2];
+			sc << dispatch_call{ 8, 8, 1 };
+		}, [](stage_context& sc, property_random_point_f::renderer_data& rd) {
+		 sc.CS() << rd.srv[0];
+		 }, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+			 sc.CS() << rd.srv[1];
+		 }
+		 );
+	}
+};
+
+
+class compute_3D_tiled : public compute_resource
+{
+public:
+	struct property : public property_resource
+	{
+		unordered_access_view<tex3> output2;
+		struct renderer_data
+		{
+			unordered_access_view<tex3> output2;
+		};
+		property& operator<<(unordered_access_view<tex3> t) { output2 = std::move(t); property_resource::need_update(); return *this; }
+		void update(creator& sc, renderer_data& rd) { rd.output2 = output2; }
+	};
+	compute_3D_tiled(creator& c) : compute_resource(c, u"compute_3d_tiled.cso") {}
+	const element_requirement& requirement()
+	{
+		return make_element_requirement(
+			[](stage_context& sc, property::renderer_data& p) {
+			sc.CS() << p.output2[0];
+			sc << dispatch_call{ 1, 1, 32 };
+		}, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+			sc.CS() << rd.srv[0];
+		}
+		);
+	}
+};
 
 
 

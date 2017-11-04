@@ -25,6 +25,8 @@ namespace PO
 			void finished_update() { m_need_update = false; }
 		};
 
+		template<typename T, size_t i> struct indexed_property : T{};
+
 		namespace Implement
 		{
 
@@ -121,9 +123,9 @@ namespace PO
 
 				virtual void logic_to_swap(creator& c)
 				{
-					need_update = direct_block.is_need_update();
-					if (need_update)
+					if (direct_block.is_need_update())
 					{
+						need_update = true;
 						direct_block.update(c, swap_lock);
 						direct_block.finished_update();
 					}
@@ -190,6 +192,11 @@ namespace PO
 
 		public:
 			
+			template<typename T>
+			bool shared_property_to(property_proxy_map& ppm) { return shared_property_to(typeid(T), ppm); }
+
+			bool shared_property_to(const std::type_index& id, property_proxy_map& ppm) const;
+
 			std::shared_ptr<Implement::property_map> map() const { return inside_map; }
 
 			void logic_to_swap(creator& c);

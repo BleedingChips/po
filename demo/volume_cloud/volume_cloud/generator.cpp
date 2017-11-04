@@ -131,6 +131,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 			//dr << final_cube_mask_output;
 		}
 
+		if(false)
 		{
 			std::array<unordered_access_view<tex3>, 5> da;
 			for (size_t i = 0; i < 2; ++i)
@@ -149,7 +150,68 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 				//rd.craate_custom(dr, 800, { 123234,231254,6878 });
 			}*/;
 			dr << new_perlin_element;
+
+			for (size_t i = 0; i < 2; ++i)
+			{
+				final_perlin_output[i].create_unordered_access(dr, DXGI_FORMAT_R8G8B8A8_TYPELESS, { 256 * 4, 256 * 4 });
+				element_compute output;
+				output << sie.create_compute<compute_format_tex3_f4_to_2d_u8_4>()
+					<< [&](compute_format_tex3_f4_to_2d_u8_4::property& p)
+				{
+					sample_state ss;
+					ss.create(dr);
+					p.set(new_perlin[i].cast_shader_resource_view(dr), ss, final_perlin_output[i].cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT), final_perlin_output[i].size(), { 256, 256, 4, 4 }, { 1.0f, 0.0, 0.0, 0.0 });
+				};
+				dr << output;
+			}
 		}
+
+		if (true)
+		{
+			std::array<unordered_access_view<tex2>, 2> tex;
+			for (size_t i = 0; i < 2; ++i)
+			{
+				tiled_nose[i].create_unordered_access(dr, DXGI_FORMAT_R16G16_FLOAT, { 256, 256 });
+				tex[i] = tiled_nose[i].cast_unordered_access_view(dr);
+			}
+			element_compute ele;
+			ele << sie.create_compute<compute_2D_tiled>()
+				<< [&](compute_2D_tiled::property& p)
+			{
+				p << tex;
+			}
+				<< [&](property_random_point_f& p)
+			{
+				p.create_uniform_point(dr, 200, { 234 });
+			}
+				<< [&](property_random_point_f3& p)
+			{
+				p.create_uniform_point(dr, 200, { 435,62245,352351 });
+			}
+			;
+			dr << ele;
+
+			{
+
+			}
+
+			tiled_worley.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 32, 32, 32 });
+			{
+				element_compute ele;
+				ele << sie.create_compute<compute_3D_tiled>()
+					<< [&](compute_3D_tiled::property& p)
+				{
+					p << tiled_worley.cast_unordered_access_view(dr);
+				}
+					<< [&](property_random_point_f3& p)
+				{
+					p.create_uniform_point(dr, 200, { 435,62245,352351 });
+				}
+				;
+				dr << ele;
+			}
+		}
+
 	});
 
 }
@@ -167,6 +229,21 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 		{
 			{
 				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, tiled_nose[0].ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"tiled_noise0.DDS")));
+			}
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, tiled_worley.ptr, SI);
+				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"tiled_noise2.DDS")));
+			}
+		}
+
+
+		if (false)
+		{
+			{
+				DirectX::ScratchImage SI;
 				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[0].ptr, SI);
 				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin0.DDS")));
 			}
@@ -174,6 +251,19 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl)
 				DirectX::ScratchImage SI;
 				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, new_perlin[1].ptr, SI);
 				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"new_perlin1.DDS")));
+			}
+
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_perlin_output[0].ptr, SI);
+				assert(SI.OverrideFormat(DXGI_FORMAT_R8G8B8A8_UNORM));
+				assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_perlin_out0.tga")));
+			}
+			{
+				DirectX::ScratchImage SI;
+				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, final_perlin_output[1].ptr, SI);
+				assert(SI.OverrideFormat(DXGI_FORMAT_R8G8B8A8_UNORM));
+				assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"final_perlin_out1.tga")));
 			}
 			/*
 			{

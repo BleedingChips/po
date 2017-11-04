@@ -137,6 +137,8 @@ public:
 	{
 		shader_resource_view<tex3> BaseShapeTex;
 		shader_resource_view<tex3> BaseShapeTex2;
+		shader_resource_view<tex2> BaseShapeTex22;
+		shader_resource_view<tex2> BaseShapeTex222;
 		sample_state ss;
 		float Density = 1.0;
 		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -144,6 +146,8 @@ public:
 		{
 			shader_resource_view<tex3> BaseShapeTex;
 			shader_resource_view<tex3> BaseShapeTex2;
+			shader_resource_view<tex2> BaseShapeTex22;
+			shader_resource_view<tex2> BaseShapeTex222;
 			sample_state ss;
 			buffer_constant b;
 		};
@@ -159,6 +163,98 @@ public:
 			BaseShapeTex = std::move(t); 
 			need_update(); 
 		}
+
+		void set(shader_resource_view<tex2> t, shader_resource_view<tex2> t2) {
+			BaseShapeTex22 = std::move(t2);
+			BaseShapeTex222 = std::move(t);
+			need_update();
+		}
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.BaseShapeTex = BaseShapeTex;
+			rd.BaseShapeTex2 = BaseShapeTex2;
+			rd.BaseShapeTex22 = BaseShapeTex22;
+			rd.BaseShapeTex222 = BaseShapeTex222;
+			rd.ss = ss;
+			shader_storage<float, float4> ss(Density, Value);
+			rd.b.create_pod(c, ss);
+		}
+	};
+
+	new_material(creator& c);
+	const element_requirement& requirement() const;
+	depth_stencil_state dss;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
+	}
+};
+
+struct new_new_material : public material_resource
+{
+public:
+
+	struct property : public property_resource
+	{
+		shader_resource_view<tex2> BaseShapeTex;
+		sample_state ss;
+		float Density = 1.0;
+		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
+		struct renderer_data
+		{
+			shader_resource_view<tex2> BaseShapeTex;
+			sample_state ss;
+			buffer_constant b;
+		};
+		void set(shader_resource_view<tex2> t, sample_state de = sample_state{}) {
+			ss = std::move(de);
+			BaseShapeTex = std::move(t);
+			need_update();
+		}
+
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.BaseShapeTex = BaseShapeTex;
+			rd.ss = ss;
+			shader_storage<float, float4> ss(Density, Value);
+			rd.b.create_pod(c, ss);
+		}
+	};
+
+	new_new_material(creator& c);
+	const element_requirement& requirement() const;
+	depth_stencil_state dss;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
+	}
+};
+
+struct new_new_new_material : public material_resource
+{
+public:
+
+	struct property : public property_resource
+	{
+		shader_resource_view<tex2> BaseShapeTex;
+		shader_resource_view<tex3> BaseShapeTex2;
+		sample_state ss;
+		float Density = 1.0;
+		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
+		struct renderer_data
+		{
+			shader_resource_view<tex2> BaseShapeTex;
+			shader_resource_view<tex3> BaseShapeTex2;
+			sample_state ss;
+			buffer_constant b;
+		};
+		void set(shader_resource_view<tex2> t, shader_resource_view<tex3> t2, sample_state de = sample_state{}) {
+			ss = std::move(de);
+			BaseShapeTex = std::move(t);
+			BaseShapeTex2 = std::move(t2);
+			need_update();
+		}
+
 		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
 		void update(creator& c, renderer_data& rd)
 		{
@@ -170,7 +266,7 @@ public:
 		}
 	};
 
-	new_material(creator& c);
+	new_new_new_material(creator& c);
 	const element_requirement& requirement() const;
 	depth_stencil_state dss;
 	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {

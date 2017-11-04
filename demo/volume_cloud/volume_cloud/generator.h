@@ -20,7 +20,11 @@ struct generator
 	tex2 final_cube_mask;
 
 	tex3 new_perlin[4];
+	tex2 final_perlin_output[2];
 	tex3 helpText;
+
+	tex2 tiled_nose[2];
+	tex3 tiled_worley;
 
 	static std::atomic_uint count;
 	static bool ready() { return count >= 2; }

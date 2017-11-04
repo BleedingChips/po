@@ -143,7 +143,7 @@ namespace PO
 
 			context.clear_render_target(opaque_output_merga, { 0.0, 0.0, 1.0, 0.0 });
 			context.clear_depth_stencil(opaque_output_merga, 1.0, 0);
-			context << opaque_output_merga << view.view;
+			context << view.view;
 
 			opaque.logic_to_swap(*this);
 			opaque.swap_to_renderer(context);
@@ -161,11 +161,12 @@ namespace PO
 
 			Tool::stack_list<Implement::property_map> transparent_map_list{ *transparent_mapping.map(), &map_list };
 
-			context << opaque_output_merga;
+			//context << opaque_output_merga;
 			transparent.logic_to_swap(*this);
 			transparent.swap_to_renderer(context);
 			for (auto& ite : transparent.renderer.draw_request)
 			{
+				context << opaque_output_merga;
 				ite.draw(context, transparent_depth_stencil_state, &transparent_map_list);
 				context.unbind();
 			}
