@@ -5,7 +5,7 @@ using namespace PO::Dx;
 using namespace PO::Dx11;
 
 
-class property_volume_cloud_tex : public property_resource
+class property_volume_cloud_tex
 {
 	shader_resource_view<tex2> BaseShapeTex;
 	sample_state BaseShapeSampler;
@@ -34,21 +34,18 @@ public:
 	{
 		BaseShapeTex = std::move(tex);
 		BaseShapeSampler = std::move(sampler);
-		need_update();
 	}
 
 	void set_move_mask(shader_resource_view<tex2> tex, sample_state sampler)
 	{
 		MoveMaskTex = std::move(tex);
 		MoveMaskSampler = std::move(sampler);
-		need_update();
 	}
 
 	void set_mask(shader_resource_view<tex2> tex, sample_state sampler)
 	{
 		MaskTex = std::move(tex);
 		MaskSampler = std::move(sampler);
-		need_update();
 	}
 
 	void update(creator& c, renderer_data& rd)
@@ -65,7 +62,7 @@ public:
 
 
 
-class property_render_2d_for_3d : public property_resource
+class property_render_2d_for_3d
 {
 	float3 min_width, max_width, light;
 	float density;
@@ -86,12 +83,10 @@ public:
 		this->max_width = max_width;
 		this->light = light;
 		this->density = density;
-		need_update();
 	}
 	void set_texture(shader_resource_view<tex2> srv,  sample_state ss) 
 	{ 
 		m_srv = std::move(srv); m_ss = std::move(ss);
-		need_update();
 	}
 	void update(creator& c, renderer_data& rd);
 };
@@ -111,7 +106,7 @@ struct in_time_material : public material_resource
 {
 	in_time_material(creator& c);
 
-	struct data : property_resource
+	struct data 
 	{
 		float Scale;
 		float Multy;
@@ -124,7 +119,7 @@ struct in_time_material : public material_resource
 			shader_storage<float, float> ss{ Scale, Multy };
 			rd.bc.create_pod(c, ss);
 		}
-		void set(float s, float m) { Scale = s; Multy = m; need_update(); }
+		void set(float s, float m) { Scale = s; Multy = m; }
 	};
 	const element_requirement& requirement() const;
 };
@@ -133,7 +128,7 @@ struct new_material : public material_resource
 {
 public:
 
-	struct property : public property_resource
+	struct property 
 	{
 		shader_resource_view<tex3> BaseShapeTex;
 		shader_resource_view<tex3> BaseShapeTex2;
@@ -161,15 +156,13 @@ public:
 			ss = de;
 			BaseShapeTex2 = std::move(t2);
 			BaseShapeTex = std::move(t); 
-			need_update(); 
 		}
 
 		void set(shader_resource_view<tex2> t, shader_resource_view<tex2> t2) {
 			BaseShapeTex22 = std::move(t2);
 			BaseShapeTex222 = std::move(t);
-			need_update();
 		}
-		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; }
 		void update(creator& c, renderer_data& rd)
 		{
 			rd.BaseShapeTex = BaseShapeTex;
@@ -194,7 +187,7 @@ struct new_new_material : public material_resource
 {
 public:
 
-	struct property : public property_resource
+	struct property
 	{
 		shader_resource_view<tex2> BaseShapeTex;
 		sample_state ss;
@@ -209,10 +202,9 @@ public:
 		void set(shader_resource_view<tex2> t, sample_state de = sample_state{}) {
 			ss = std::move(de);
 			BaseShapeTex = std::move(t);
-			need_update();
 		}
 
-		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; }
 		void update(creator& c, renderer_data& rd)
 		{
 			rd.BaseShapeTex = BaseShapeTex;
@@ -234,28 +226,27 @@ struct new_new_new_material : public material_resource
 {
 public:
 
-	struct property : public property_resource
+	struct property
 	{
 		shader_resource_view<tex2> BaseShapeTex;
-		shader_resource_view<tex3> BaseShapeTex2;
+		shader_resource_view<tex2> BaseShapeTex2;
 		sample_state ss;
 		float Density = 1.0;
 		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
 		struct renderer_data
 		{
 			shader_resource_view<tex2> BaseShapeTex;
-			shader_resource_view<tex3> BaseShapeTex2;
+			shader_resource_view<tex2> BaseShapeTex2;
 			sample_state ss;
 			buffer_constant b;
 		};
-		void set(shader_resource_view<tex2> t, shader_resource_view<tex3> t2, sample_state de = sample_state{}) {
+		void set(shader_resource_view<tex2> t, shader_resource_view<tex2> t2, sample_state de = sample_state{}) {
 			ss = std::move(de);
 			BaseShapeTex = std::move(t);
 			BaseShapeTex2 = std::move(t2);
-			need_update();
 		}
 
-		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V; need_update(); }
+		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V;}
 		void update(creator& c, renderer_data& rd)
 		{
 			rd.BaseShapeTex = BaseShapeTex;
@@ -269,6 +260,33 @@ public:
 	new_new_new_material(creator& c);
 	const element_requirement& requirement() const;
 	depth_stencil_state dss;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
+	}
+};
+
+struct new_new_new_new_material : public material_resource
+{
+	depth_stencil_state dss;
+public:
+	struct property
+	{
+		shader_resource_view<tex2> tex;
+		sample_state::description ss = sample_state::default_description;
+		void update() {  }
+		struct renderer_data
+		{
+			shader_resource_view<tex2> tex;
+			sample_state ss;
+		};
+		void update(creator& c, renderer_data& rd)
+		{
+			rd.tex = tex;
+			rd.ss.create(c, ss);
+		}
+	};
+	new_new_new_new_material(creator& c);
+	const element_requirement& requirement() const;
 	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
 		return dss;
 	}

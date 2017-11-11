@@ -94,7 +94,10 @@ Respond new_plugin::respond(const event& e)
 
 void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 {
-	s.set_translation_speed(1);
+
+	CoInitialize(0);
+
+	s.set_translation_speed(10.0);
 
 	if (true)
 	{
@@ -112,6 +115,29 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 			DirectX::TexMetadata MetaData = SI.GetMetadata();
 			tex3_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch), static_cast<uint32_t>(SI.GetImages()->slicePitch) };
 			assert(TiledWorly3D.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height), static_cast<uint32_t>(MetaData.depth) }, 1, false, &tem));
+		}
+
+		{
+			DirectX::ScratchImage SI;
+			assert(SUCCEEDED(DirectX::LoadFromDDSFile(L"SDF.DDS", 0, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
+			assert(SDF.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
+		}
+
+		//if(false)
+		{
+			DirectX::ScratchImage SI;
+
+			HRESULT re = DirectX::LoadFromWICFile(L"edge.jpg", DirectX::WIC_FLAGS_NONE, nullptr, SI);
+			if (!SUCCEEDED(re))
+				__debugbreak();
+
+
+			//assert(SUCCEEDED(DirectX::LoadFromWICFile(L"edge.jpg", DirectX::WIC_FLAGS_NONE, nullptr, SI)));
+			DirectX::TexMetadata MetaData = SI.GetMetadata();
+			tex2_source tem{ SI.GetPixels(), static_cast<uint32_t>(SI.GetImages()->rowPitch) };
+			assert(Edge.create(dr, MetaData.format, { static_cast<uint32_t>(MetaData.width), static_cast<uint32_t>(MetaData.height) }, 1, false, &tem));
 		}
 
 	}
@@ -186,7 +212,8 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				<< sie.create_placement<placement_static_viewport_static>()
 				<< sie.create_material<material_testing>()
 				<< [&](property_local_transfer& pt) {
-				pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
+				pt.WorldToLocal = ts2;
+				pt.LocalToWorld = ts2.inverse_float4x4();
 			} << [&](property_tex2& pt) {
 				sample_state ss;
 				ss.create(dr);
@@ -205,7 +232,7 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 			
 			output_volume_cube << sie.create_geometry<UE4_cubiods_static>()
 				<< sie.create_placement<placement_static_viewport_static>()
-				<< sie.create_material<new_new_new_material>()
+				<< sie.create_material<new_new_new_new_material>()
 				//<< sie.create_material<in_time_material>()
 				//<< sie.create_material<material_transparent_2d_for_3d_64_without_perlin>()
 				<< [&](property_render_2d_for_3d& prf) {
@@ -219,7 +246,9 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				prf.set_option(float3{ -50.0, -50.0, -50.0 }, float3{ 50.0, 50.0, 50.0 }, float3{ 0.0, -1.0, 0.0 }, max_denstiy);
 			}
 				<< [&](property_local_transfer& tlt) {
-				tlt.set_local_to_world(dr, ts1, ts1.inverse_float4x4());
+				tlt.LocalToWorld = ts1;
+				tlt.WorldToLocal = ts1.inverse_float4x4();
+				//tlt.set_local_to_world(dr, ts1, ts1.inverse_float4x4());
 			} 
 				<< [&](property_volume_cloud_tex& pvct) {
 				sample_state ss;
@@ -247,8 +276,13 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 					D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX };
 				sample_state ss;
 				ss.create(dr, dr2);
-				d.set(TiledWorly.cast_shader_resource_view(dr), TiledWorly3D.cast_shader_resource_view(dr), ss);
+				d.set(TiledWorly.cast_shader_resource_view(dr), Edge.cast_shader_resource_view(dr), ss);
 				d.set(max_denstiy, Value);
+			}
+				<< [&](new_new_new_new_material::property& p)
+			{
+				p.tex = SDF.cast_shader_resource_view(dr);
+				p.update();
 			}
 			;
 		}
@@ -278,7 +312,8 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 		{
 			
 			output_volume_cube << [&, this](property_local_transfer& pt) {
-				pt.set_local_to_world(dr, ts1, ts1.inverse_float4x4());
+				pt.LocalToWorld = ts1;
+				pt.WorldToLocal = ts1.inverse_float4x4();
 			};
 			
 		}
@@ -289,7 +324,8 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 		{
 
 			back_ground << [&](property_local_transfer& pt) {
-				pt.set_local_to_world(dr, ts2, ts2.inverse_float4x4());
+				pt.LocalToWorld = ts2;
+				pt.WorldToLocal = ts2.inverse_float4x4();
 			};
 			
 		}

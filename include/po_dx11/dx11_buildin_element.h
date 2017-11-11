@@ -7,19 +7,18 @@ namespace PO
 	{
 		using namespace PO::Dx;
 		
-		class property_local_transfer : public property_resource
+		struct property_local_transfer
 		{
-			buffer_constant transfer;
-		public:
+			float4x4 LocalToWorld;
+			float4x4 WorldToLocal;
 			struct renderer_data
 			{
 				buffer_constant transfer;
 			};
-			void set_local_to_world(PO::Dx11::creator& c, const float4x4& l_w, const float4x4& w_l);
 			void update(creator& c, renderer_data& rd);
 		};
 
-		class property_viewport_transfer : public property_resource
+		struct property_viewport_transfer
 		{
 			float4x4 world_to_eye;
 			float4x4 eye_to_world;
@@ -27,15 +26,14 @@ namespace PO
 			float4x4 camera_to_world;
 			float near_surface, far_surface, view_near_surface, view_far_surface;
 			float time = 0.0;
-		public:
 			struct renderer_data
 			{
 				buffer_constant viewport;
 			};
-			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat; need_update();}
-			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; need_update(); }
-			void set_surface(float ns, float fs, float vns, float vfs) { near_surface = ns; far_surface = fs; view_near_surface = vns; view_far_surface = vfs; need_update(); }
-			void set_time(float f) { time = f; need_update(); }
+			void set_world_eye(const float4x4& mat, const float4x4& ins_mat) { world_to_eye = mat; eye_to_world = ins_mat;}
+			void set_world_camera(const float4x4& mat, const float4x4& ins_mat) { world_to_camera = mat; camera_to_world = ins_mat; }
+			void set_surface(float ns, float fs, float vns, float vfs) { near_surface = ns; far_surface = fs; view_near_surface = vns; view_far_surface = vfs;}
+			void set_time(float f) { time = f; }
 			void update(creator& c, renderer_data& rd);
 		};
 
@@ -70,10 +68,10 @@ namespace PO
 			const element_requirement& requirement() const;
 		};
 
-		struct property_tex2 : public property_resource
+		struct property_tex2
 		{
 			shader_resource_view<tex2> srv;
-			sample_state ss;
+			sample_state::description ss_des = sample_state::default_description;
 			struct renderer_data
 			{
 				shader_resource_view<tex2> srv;
@@ -82,12 +80,7 @@ namespace PO
 			void update(creator& c, renderer_data& rd)
 			{
 				rd.srv = srv;
-				rd.ss = ss;
-			}
-			void set_texture(shader_resource_view<tex2> t, sample_state state) {
-				srv = std::move(t);
-				ss = std::move(state);
-				need_update();
+				rd.ss.create(c, ss_des);
 			}
 		};
 

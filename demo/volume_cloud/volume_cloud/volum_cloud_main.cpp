@@ -23,19 +23,7 @@
 
 int main(int count, const char** parameter)
 {
-	DirectX::XMMATRIX mat{
-		5.0f / 6.0f, -1.0f / 6.0f, -1.0f / 6.0f, 0.0,
-		-1.0f / 6.0f, 5.0f / 6.0f, -1.0f / 6.0f, 0.0,
-		-1.0f / 6.0f, -1.0f / 6.0f, 5.0f / 6.0f, 0.0,
-		0.0, 0.0, 0.0, 1.0
-	};
-
-	auto inv_mat = DirectX::XMMatrixInverse(nullptr, mat);
-	float4x4 mat_4;
-	DirectX::XMStoreFloat4x4(&mat_4, inv_mat);
-
-	std::cout << mat_4 << std::endl;
-
+	std::cout << ~uint32_t(0) << endl;
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
@@ -55,7 +43,7 @@ int main(int count, const char** parameter)
 			ui.create(renderer<defer_renderer_default>{});
 			if (false)
 				generator_worley_noise();
-			if (false)
+			if (true)
 			{
 				ui.create(plugin<generator>{});
 				/*
@@ -63,6 +51,7 @@ int main(int count, const char** parameter)
 					std::this_thread::sleep_for(duration(1));
 				ui.create(plugin<new_plugin>{});
 				*/
+				//ui.create(plugin<new_plugin>{});
 			}else
 				ui.create(plugin<new_plugin>{});
 			//ui.create(plugin<new_intime>{});
@@ -70,6 +59,7 @@ int main(int count, const char** parameter)
 	}
 	
 	con.wait_all_form_close();
+	//system("pause");
 	//translate_ue4_node("..\\..\\volume_cloud\\material\\shader\\volume_cloud_material_transparent_2d_for_3d_64_without_perlin_ps.hlsl", "implement");
 	return 0;
 }

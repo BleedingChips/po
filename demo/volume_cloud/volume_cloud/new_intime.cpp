@@ -23,7 +23,8 @@ void new_intime::init(defer_renderer_default& dr, plugins& pl)
 			<< [&](property_local_transfer& plt) {
 			transfer3D ts;
 			ts.poi = float3(0.0, 0.0, 2.0);
-			plt.set_local_to_world(dr, ts, ts.inverse_float4x4());
+			plt.WorldToLocal = ts;
+			plt.LocalToWorld = ts.inverse_float4x4();
 		};
 	});
 }

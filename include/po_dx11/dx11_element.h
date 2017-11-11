@@ -4,6 +4,17 @@
 #include <set>
 #include <memory>
 #include "../po/extension.h"
+/*
+修复建议：
+1，xxx_resource 的继承限制应该被去除。
+2，render_data 和update()的实现的限制也应该被去除，应该设置成可选的。
+3，尝试使用ECS来实现element模型，既Element_Draw里边不再储存shader或者property的指针，转而储存ID。
+4,element_requirement的stage_context&的参数也应该去除，如果可能的话，转而将资源打包返回。
+*/
+
+
+
+
 namespace PO
 {
 	namespace Dx11
@@ -13,17 +24,6 @@ namespace PO
 		template<typename T> bool add_shader_path(const std::u16string& s) { return add_shader_path(typeid(T), s); }
 
 		class property_proxy_map;
-
-
-		class property_resource
-		{
-			bool m_need_update = true;
-		protected:
-			void need_update() { m_need_update = true; }
-		public:
-			bool is_need_update() const { return m_need_update; }
-			void finished_update() { m_need_update = false; }
-		};
 
 		template<typename T, size_t i> struct indexed_property : T{};
 
@@ -68,22 +68,21 @@ namespace PO
 			template<typename T> class property_implement;
 		}
 
-		class property_interface : public Implement::base_interface<Implement::property_implement>
-		{
-		public:
-			using Implement::base_interface<Implement::property_implement>::base_interface;
-			virtual ~property_interface();
-		};
-
 		namespace Implement
 		{
+			class property_interface : public Implement::base_interface<Implement::property_implement>
+			{
+			public:
+				using Implement::base_interface<Implement::property_implement>::base_interface;
+				virtual ~property_interface();
+			};
 
-			template<typename T> class property_implement : public property_interface, public T 
-			{ 
+			template<typename T> class property_implement : public property_interface, public T
+			{
 			public:
 				property_implement() : property_interface(typeid(T), typeid(decltype(*this))) {}
-				operator T& () { return *this; } 
-				operator const T&() const { return *this; } 
+				operator T& () { return *this; }
+				operator const T&() const { return *this; }
 			};
 
 			template<typename T> class property_proxy_implement;
@@ -99,52 +98,105 @@ namespace PO
 
 				friend struct property_map;
 				friend class property_proxy_map;
+
+				bool dirty = true;
+
+			protected:
+
+				bool is_dirty() const { return dirty; }
+				void finish_update() { dirty = false; }
+
 			public:
+
+				void need_update() { dirty = true; }
+
 				const std::type_index& associate_id() const { return associate_info; }
 				property_proxy_interface(const std::type_index& original, const std::type_index& real, const std::type_index& asso);
 				virtual ~property_proxy_interface();
 			};
 
-			template<typename T, typename = void> struct property_have_is_need_update :std::false_type{};
-			template<typename T> struct property_have_is_need_update<T, std::void_t<decltype(std::declval<T>().is_need_update())>> : std::true_type {};
+			template<typename T> using find_renderer_data = typename T::renderer_data;
+			template<typename T> using find_renderer_data_append = typename T::renderer_data_append;
 
+			template<typename T> struct property_with_renderer_data : public T::renderer_data
+			{
+			private:
+				friend class property_proxy_implement<T>;
+				void update_from(creator& c, T& t) { t.update(c, static_cast<typename T::renderer_data&>(*this)); }
+			};
+
+			template<typename T> struct property_with_renderer_data_append : public T, public T::renderer_data_append
+			{
+			private:
+				friend class property_proxy_implement<T>;
+				void update_from(creator& c, T& t) {
+					static_cast<T&>(*this) = t;
+					t.update(c, static_cast<typename T::renderer_data_append&>(*this));
+				}
+			};
+
+			template<typename T> struct property_with_nothing : public T
+			{
+			private:
+				friend class property_proxy_implement<T>;
+				void update_from(creator& c, T& t) {
+					static_cast<T&>(*this) = t;
+				}
+			};
+
+			template<typename T, bool rd, bool rda> struct property_wrapper_implement;
+			template<typename T, bool rda> struct property_wrapper_implement<T, true, rda> { using type = property_with_renderer_data<T>; };
+			template<typename T> struct property_wrapper_implement<T, false, true> { using type = property_with_renderer_data_append<T>; };
+			template<typename T> struct property_wrapper_implement<T, false, false> { using type = property_with_nothing<T>; };
+		}
+
+		template<typename T> using property_wrapper_t = typename Implement::property_wrapper_implement<T, 
+			Tmp::able_instance<Implement::find_renderer_data, T>::value, 
+			Tmp::able_instance<Implement::find_renderer_data_append, T>::value
+		>::type;
+
+		namespace Implement
+		{
+
+			template<typename T> struct property_proxy_wrapper_implement {}; 
+			template<typename T> struct property_proxy_wrapper {};
 
 			template<typename T> class property_proxy_implement : public property_proxy_interface
 			{
 				T direct_block;
-				typename T::renderer_data swap_lock;
-				property_implement<typename T::renderer_data> renderer_lock;
-				bool need_update = false;
+				property_wrapper_t<T> swap_lock;
+				property_implement<property_wrapper_t<T>> renderer_lock;
+				bool swap_ready = true;
 			public:
-				property_proxy_implement() : property_proxy_interface(typeid(T), typeid(decltype(*this)), typeid(typename T::renderer_data)) {}
+				property_proxy_implement() : property_proxy_interface(typeid(T), typeid(decltype(*this)), typeid(property_wrapper_t<T>)) {}
 				virtual property_interface& get_associate() { return renderer_lock; }
 				operator T& () { return direct_block; }
 				operator const T& () const { return direct_block; }
 
 				virtual void logic_to_swap(creator& c)
 				{
-					if (direct_block.is_need_update())
+					if (property_proxy_interface::is_dirty())
 					{
-						need_update = true;
-						direct_block.update(c, swap_lock);
-						direct_block.finished_update();
+						swap_ready = true;
+						swap_lock.update_from(c, direct_block);
+						property_proxy_interface::finish_update();
 					}
 				}
 				virtual void swap_to_renderer()
 				{
-					if (need_update)
+					if (swap_ready)
 					{
-						static_cast<T::renderer_data&>(renderer_lock) = swap_lock;
-						need_update = false;
+						static_cast<property_wrapper_t<T>&>(renderer_lock) = swap_lock;
+						swap_ready = false;
 					}
 				}
 				virtual void logic_to_renderer(creator& c)
 				{
-					need_update = false;
-					if (direct_block.is_need_update())
+					swap_ready = false;
+					if (property_proxy_interface::is_dirty())
 					{
-						direct_block.update(c, renderer_lock);
-						direct_block.finished_update();
+						renderer_lock.update_from(c, direct_block);
+						property_proxy_interface::finish_update();
 					}
 				}
 			};
@@ -181,7 +233,10 @@ namespace PO
 			{
 				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
 				static_assert(funtype::size == 1, "only receive one parameter");
-				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+				using parameter_type = typename funtype::template out<Tmp::itself>::type;
+				static_assert(std::is_reference_v<parameter_type>, "parameter should be a reference");
+				using true_type = std::decay_t<parameter_type>;
+				static constexpr bool is_const = std::is_const_v<parameter_type>;
 			};
 			template<typename T> using check_t = typename check<T>::true_type;
 
@@ -209,9 +264,19 @@ namespace PO
 				using type = check_t<F>;
 				auto ite = mapping.find(typeid(type));
 				if (ite != mapping.end())
-					f(ite->second->cast<type>());
+				{
+					if constexpr(check<F>::is_const)
+					{
+						f(ite->second->cast<type>());
+					}
+					else {
+						ite->second->need_update();
+						f(ite->second->cast<type>());
+					}
+				}
 				else {
 					auto ptr = std::make_shared<Implement::property_proxy_implement<type>>();
+					ptr->need_update();
 					mapping.insert({ typeid(type), ptr });
 					f(*ptr);
 				}
@@ -292,7 +357,7 @@ namespace PO
 					, "");
 				using type = std::conditional_t<std::is_same_v<stage_context, std::decay_t<T>>, std::decay_t<K>, std::decay_t<T>>;
 				using function_type = void(*)(T, K);
-				static bool update_requirement(stage_context& sc, property_interface& pi, void* data)
+				static bool update_requirement(stage_context& sc, Implement::property_interface& pi, void* data)
 				{
 					function_type fun_ptr = static_cast<function_type>(data);
 					if constexpr(std::is_same_v<stage_context, stage_context>)
@@ -306,7 +371,7 @@ namespace PO
 				}
 			};
 
-			using func_type = std::tuple<bool(*)(stage_context&, property_interface&, void*), void*>;
+			using func_type = std::tuple<bool(*)(stage_context&, Implement::property_interface&, void*), void*>;
 			using map_t = std::map<std::type_index, func_type>;
 
 			template<typename F> map_t::value_type make_mapping_pair(F&& f)

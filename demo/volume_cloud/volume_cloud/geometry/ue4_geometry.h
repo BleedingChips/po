@@ -29,14 +29,14 @@ class CubeSimpleX : public geometry_resource
 	buffer_index index[6];
 public:
 
-	struct property : property_resource
+	struct property
 	{
 		size_t index_count = 0;
 		struct renderer_data
 		{
 			buffer_index index;
 		};
-		void set_index(size_t i) { index_count = i; if (index_count > 5) index_count = 5; need_update(); }
+		void set_index(size_t i) { index_count = i; if (index_count > 5) index_count = 5; }
 		void update(creator& c, renderer_data& rd);
 	};
 

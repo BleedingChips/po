@@ -4,6 +4,12 @@
 RWTexture3D<float> OutputTexture3 : register(u0);
 StructuredBuffer<float3> Point : register(t0);
 
+cbuffer b0 : register(b0)
+{
+    uint3 output_size;
+    float Length;
+    uint count;
+}
 
 float TilessWorleyPoint3(float3 uv, float Length, uint start, uint total_count)
 {
@@ -12,12 +18,9 @@ float TilessWorleyPoint3(float3 uv, float Length, uint start, uint total_count)
     for (uint count = 0; count < total_count; ++count)
     {
         float3 PointPoi = Point[start + count];
-        for (uint count2 = 0; count2 < 27; ++count2)
-        {
-            float3 Shift = float3((count2 / 9) % 3, (count2 / 3) % 3, count2 % 3) -1.0;
-            float Distance = distance(uv, PointPoi + Shift) * Length;
-            Dis = min(Distance, Dis);
-        }
+        float3 Dir = abs(uv - PointPoi);
+        Dir = min(Dir, 1.0 - Dir);
+        Dis = min(Dis, length(Dir) * Length);
     }
     return 1.0 - Dis;
 }
@@ -27,12 +30,13 @@ float TilessWorleyPoint3(float3 uv, float Length, uint start, uint total_count)
 [numthreads(32, 32, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    float3 Poi = DTid / float3(31, 31, 31);
+    float3 Poi = DTid / float3(output_size - 1);
 
     OutputTexture3[DTid] =
     
-    TilessWorleyPoint3(Poi, 5.0, 0, 50) * 0.6
-    + TilessWorleyPoint3(frac(Poi * 2.0), 5.0, 0, 50) * 0.4;
+    TilessWorleyPoint3(Poi, Length, 0, count) * 0.5
+    + TilessWorleyPoint3(frac(Poi * 2.0), Length, 0, count) * 0.25
+    + TilessWorleyPoint3(frac(Poi * 4.0), Length, 0, count) * 0.125;
     /*
     TilessWorley(Poi + 0.23423, 5, 1.0) * 0.5;
    0.0 + TilessWorley(Poi + 0.2323, 12, 1.0) * 0.5 * 0.5

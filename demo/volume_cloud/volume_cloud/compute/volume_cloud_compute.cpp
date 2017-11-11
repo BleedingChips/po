@@ -12,7 +12,6 @@ void property_random_point_f::create_uniform_point(creator& c, uint32_t count, u
 		random_vector.push_back(nd2(mtx));
 	style = 1;
 	parameter1 = float4{ min, max, 0.0, 0.0 };
-	need_update();
 }
 
 void property_random_point_f::create_normal_point(creator& c, uint32_t count, uint32_t seed, float mean, float stddev)
@@ -25,7 +24,6 @@ void property_random_point_f::create_normal_point(creator& c, uint32_t count, ui
 		random_vector.push_back(nd(mtx));
 	style = 2;
 	parameter1 = float4{ mean, stddev, 0.0, 0.0 };
-	need_update();
 }
 
 void property_random_point_f::update(creator& c, renderer_data& rd)
@@ -54,7 +52,6 @@ void property_random_point_f3::create_uniform_point(creator& c, uint32_t count, 
 		random_vector.push_back(float3{ nd(mtx1), nd(mtx2), nd(mtx3) });
 	style = 1;
 	parameter1 = float4{ min, max, 0.0, 0.0 };
-	need_update();
 }
 
 void property_random_point_f3::craate_custom(creator& c, uint32_t count, uint32_t3 seed)
@@ -70,7 +67,6 @@ void property_random_point_f3::craate_custom(creator& c, uint32_t count, uint32_
 		random_vector.push_back(float3{ ndx_y(mtx1), ndx_y(mtx2), ndz(mtx3) });
 	style = 1;
 	parameter1 = float4{ 0.5f, 0.01f, 0.0, 0.0 };
-	need_update();
 }
 
 void property_random_point_f3::create_normal_point(creator& c, uint32_t count, uint32_t3 seed, float mean, float stddev)
@@ -85,7 +81,6 @@ void property_random_point_f3::create_normal_point(creator& c, uint32_t count, u
 		random_vector.push_back(float3{ nd(mtx1), nd(mtx2), nd(mtx3) });
 	style = 2;
 	parameter1 = float4{ mean, stddev, 0.0, 0.0 };
-	need_update();
 }
 
 void property_random_point_f3::update(creator& c, renderer_data& rd)
@@ -109,10 +104,10 @@ compute_generate_perlin_noise_tex3_3d_f1::compute_generate_perlin_noise_tex3_3d_
 const element_requirement& compute_generate_perlin_noise_tex3_3d_f1::requirement() const
 {
 	return make_element_requirement(
-		[](stage_context& sc, property_random_point_f::renderer_data& rd) {
+		[](stage_context& sc, property_wrapper_t<property_random_point_f>& rd) {
 		sc.CS() << rd.cb[0] << rd.srv[0];
 	},
-		[](stage_context& sc, property::renderer_data& rd) {
+		[](stage_context& sc, property_wrapper_t<property>& rd) {
 		sc.CS() << rd.output_texture[0] << rd.size_cb[1];
 		sc << dispatch_call{ rd.size.x, rd.size.y, rd.size.z };
 	}
@@ -135,10 +130,10 @@ compute_generate_worley_noise_tex3_3d_f4::compute_generate_worley_noise_tex3_3d_
 const element_requirement& compute_generate_worley_noise_tex3_3d_f4::requirement() const
 {
 	return make_element_requirement(
-		[](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+		[](stage_context& sc, property_wrapper_t<property_random_point_f3>& rd) {
 		sc.CS() << rd.cb[0] << rd.srv[0];
 	},
-		[](stage_context& sc, property::renderer_data& rd) {
+		[](stage_context& sc, property_wrapper_t<property>& rd) {
 		sc.CS() << rd.output_texture_uav[0] << rd.cb[1];
 		sc << dispatch_call{ rd.texture_size.x / 32 + ((rd.texture_size.x % 32) == 0 ? 0 : 1) , rd.texture_size.y / 32 + ((rd.texture_size.y % 32) == 0 ? 0 : 1), rd.texture_size.z };
 	}
@@ -152,6 +147,38 @@ void compute_generate_worley_noise_tex3_3d_f4::property::update(creator& c, rend
 	shader_storage<uint32_t3, float> ss{ texture_size, radius };
 	rd.cb.create_pod(c, ss);
 }
+
+
+SDF_2dGenerator::SDF_2dGenerator(creator& c) : compute_resource(c, u"sdf_2d_generator.cso") {
+
+}
+
+const element_requirement& SDF_2dGenerator::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sg, property_wrapper_t<property>& rd) {
+		sg.CS() << rd.s1[0] << rd.t1[0] << rd.ss[0] << rd.bc[0];
+		sg << dispatch_call{ rd.size.x / 32 + (rd.size.x % 32 == 0 ? 0 : 1), rd.size.y / 32 + (rd.size.y % 32 == 0 ? 0 : 1), 1 };
+	}
+	);
+}
+
+
+SDF_3dGenerator::SDF_3dGenerator(creator& c) : compute_resource(c, u"sdf_3d_generator.cso") {}
+
+const element_requirement& SDF_3dGenerator::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& re) {
+		sc.CS() << re.bc[0] << re.Input[0] << re.Output[0];
+		sc << dispatch_call{ re.output_size.x / 32 + (re.output_size.x % 32 == 0 ? 0 : 1), re.output_size.y / 32 + (re.output_size.y % 32 == 0 ? 0 : 1), 1 };
+	}
+	);
+}
+
+
+
+
 
 // compute_generate_worley_noise_tex3_3d_f4 ***********************************************************
 

@@ -21,9 +21,10 @@ namespace PO
 				return t.add_path(ti, path);
 			});
 		}
-		property_interface::~property_interface() {}
+		
 		namespace Implement
 		{
+			property_interface::~property_interface() {}
 			
 			property_proxy_interface::property_proxy_interface(const std::type_index& original, const std::type_index& real, const std::type_index& asso)
 				: base_interface<property_proxy_implement>(original, real), associate_info(asso){}
@@ -145,7 +146,7 @@ namespace PO
 			if (sl != nullptr)
 			{
 				bool result = false;
-				return apply_property_implement(sr, sc, map_ite, sl->front) || (sl->type_ref.find_associate(map_ite.first, [&](property_interface& pi) {
+				return apply_property_implement(sr, sc, map_ite, sl->front) || (sl->type_ref.find_associate(map_ite.first, [&](Implement::property_interface& pi) {
 					auto& ref = (map_ite.second);
 					result = (*std::get<0>(ref))(sc, pi, std::get<1>(ref)) && sr.apply_property(sc, pi);
 				}) && result);
@@ -156,7 +157,10 @@ namespace PO
 		bool element_requirement::apply_property(Implement::stage_resource& sr, stage_context& sc, Tool::stack_list<Implement::property_map>* sl) const
 		{
 			for (auto& ite : mapping)
-				if (!apply_property_implement(sr, sc, ite, sl)) return false;
+				if (!apply_property_implement(sr, sc, ite, sl))
+				{
+					return false;
+				}
 			return true;
 		}
 

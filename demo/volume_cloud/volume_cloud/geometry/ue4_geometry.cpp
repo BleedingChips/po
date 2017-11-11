@@ -78,7 +78,7 @@ struct multy_40_20_10
 		for (size_t i = 0; i < cube_static_3d2.size() && i < data.size(); ++i)
 		{
 			float3 poi = cube_static_3d2[i].position;
-			data[i].position = float3(poi.x * 60, poi.y * 60, poi.z * 10);
+			data[i].position = float3(poi.x * 80, poi.y * 80, poi.z * 10);
 			data[i].texturecoord = cube_static_3d2[i].texturecoord;
 		}
 
@@ -201,7 +201,7 @@ CubeSimpleX::CubeSimpleX(creator& c) : geometry_resource(c, layout_type<buffer_l
 
 const element_requirement& CubeSimpleX::requirement() const
 {
-	return make_element_requirement([](stage_context& sc, property::renderer_data& rd) {
+	return make_element_requirement([](stage_context& sc, property_wrapper_t<property>& rd) {
 		sc << rd.index;
 	});
 }

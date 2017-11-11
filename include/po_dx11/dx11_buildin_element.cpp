@@ -104,16 +104,11 @@ namespace PO
 {
 	namespace Dx11
 	{
-		void property_local_transfer::set_local_to_world(creator& c, const float4x4& l_w, const float4x4& w_l)
-		{
-			shader_storage<float4x4, float4x4> ss{l_w, w_l};
-			transfer.create_pod(c, ss);
-			need_update();
-		}
 
 		void property_local_transfer::update(creator& c, renderer_data& rd)
 		{
-			rd.transfer = transfer;
+			shader_storage<float4x4, float4x4> ss{ LocalToWorld, WorldToLocal };
+			rd.transfer.create_pod(c, ss);
 		}
 
 		void property_viewport_transfer::update(creator& c, renderer_data& rd)
@@ -165,10 +160,10 @@ namespace PO
 		const element_requirement& placement_static_viewport_static::requirement() const
 		{
 			return make_element_requirement(
-				[](stage_context& sc, property_local_transfer::renderer_data& rd) {
+				[](stage_context& sc, property_wrapper_t<property_local_transfer>& rd) {
 				sc.VS() << rd.transfer[1];
 			},
-				[](stage_context& sc, property_viewport_transfer::renderer_data& rd) {
+				[](stage_context& sc, property_wrapper_t<property_viewport_transfer>& rd) {
 				sc.VS() << rd.viewport[0];
 			}
 			);
@@ -181,7 +176,7 @@ namespace PO
 		const element_requirement& material_tex2_viewer::requirement() const
 		{
 			return make_element_requirement(
-				[](stage_context& sc, property_tex2::renderer_data& rd) {
+				[](stage_context& sc, property_wrapper_t<property_tex2>& rd) {
 				sc.PS() << rd.srv[0] << rd.ss[0];
 			}
 			);

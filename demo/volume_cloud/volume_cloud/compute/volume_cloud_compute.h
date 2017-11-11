@@ -3,7 +3,7 @@
 using namespace PO::Dx;
 using namespace PO::Dx11;
 
-struct property_random_point_f : public property_resource
+struct property_random_point_f
 {
 	std::vector<float> random_vector;
 	uint32_t style = 0;
@@ -25,7 +25,7 @@ struct property_random_point_f : public property_resource
 	void update(creator& c, renderer_data& rd);
 };
 
-struct property_random_point_f3 : public property_resource
+struct property_random_point_f3
 {
 	std::vector<float3> random_vector;
 	uint32_t style = 0;
@@ -54,7 +54,7 @@ class compute_generate_perlin_noise_tex3_3d_f1 : public compute_resource
 {
 public:
 
-	struct property : public property_resource
+	struct property
 	{
 		unordered_access_view<tex3> output_texture;
 		uint32_t3 size = {0, 0, 0};
@@ -72,7 +72,6 @@ public:
 			this->size = size;
 			sample_scale = scale;
 			value_factor = factor;
-			need_update();
 		}
 		void update(creator& c, renderer_data& rd)
 		{
@@ -95,7 +94,7 @@ class compute_generate_worley_noise_tex3_3d_f4 : public compute_resource
 {
 public:
 
-	class property : public property_resource
+	class property
 	{
 		unordered_access_view<tex3> output_texture_uav;
 		float radius = 0.01f;
@@ -112,7 +111,6 @@ public:
 			output_texture_uav = std::move(output_texture);
 			radius = radio;
 			this->texture_size = texture_size;
-			need_update();
 		}
 		void update(creator& c, renderer_data& rd);
 	};
@@ -125,7 +123,7 @@ public:
 class compute_format_tex3_f4_to_2d_u8_4 : public compute_resource
 {
 public:
-	struct property : public property_resource
+	struct property
 	{
 		uint32_t2 texture_size = {0, 0};
 		uint32_t4 simulate_size = {0 , 0, 0, 0};
@@ -149,7 +147,6 @@ public:
 			texture_size = size;
 			simulate_size = simulate;
 			value_factor = factor;
-			need_update();
 		}
 		void update(creator& c, renderer_data& rd)
 		{
@@ -165,7 +162,7 @@ public:
 	const element_requirement& requirement()
 	{
 		return make_element_requirement(
-			[](stage_context& sc, property::renderer_data& p) {
+			[](stage_context& sc, property_wrapper_t<property>& p) {
 			sc.CS() << p.bc[0] << p.output[0] << p.srv[0] << p.ss[0];
 			sc << dispatch_call{p.texture_size.x, p.texture_size.y, 1};
 		}
@@ -177,7 +174,7 @@ class compute_generate_cube_mask_tex3_f : public compute_resource
 {
 
 public:
-	struct property : public property_resource
+	struct property
 	{
 		unordered_access_view<tex3> output;
 		uint32_t3 texture_size = {0, 0,0};
@@ -191,7 +188,6 @@ public:
 		{
 			output = std::move(output_texture);
 			texture_size = size;
-			need_update();
 		}
 		void update(creator& c, renderer_data& rd)
 		{
@@ -205,7 +201,7 @@ public:
 	const element_requirement& requirement()
 	{
 		return make_element_requirement(
-			[](stage_context& sc, property::renderer_data& p) {
+			[](stage_context& sc, property_wrapper_t<property>& p) {
 			sc.CS() << p.bc[0] << p.output[0];
 			sc << dispatch_call{ p.texture_size.x, p.texture_size.y, p.texture_size.z };
 		}
@@ -217,7 +213,7 @@ class compute_generator : public compute_resource
 {
 public:
 
-	struct property : public property_resource
+	struct property
 	{
 		std::array<unordered_access_view<tex3>, 5> output;
 		struct renderer_data
@@ -225,7 +221,7 @@ public:
 			std::array<unordered_access_view<tex3>, 5> output;
 		};
 
-		property& operator<<(std::array<unordered_access_view<tex3>, 5> t) { output = std::move(t); property_resource::need_update(); return *this; }
+		property& operator<<(std::array<unordered_access_view<tex3>, 5> t) { output = std::move(t); return *this; }
 		void update(creator& sc, renderer_data& rd) { rd.output = output; }
 	};
 
@@ -233,13 +229,11 @@ public:
 	const element_requirement& requirement()
 	{
 		return make_element_requirement(
-			[](stage_context& sc, property::renderer_data& p) {
+			[](stage_context& sc, property_wrapper_t<property>& p) {
 			for (size_t i = 0; i < 5; ++i)
 				sc.CS() << p.output[i][i];
 			sc << dispatch_call{ 8, 8, 64 };
-		}/*, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
-			sc.CS() << rd.srv[0];
-		}*/
+		}
 		);
 	}
 };
@@ -248,7 +242,7 @@ public:
 class compute_2D_tiled : public compute_resource
 {
 public:
-	struct property : public property_resource
+	struct property
 	{
 		std::array<unordered_access_view<tex2>, 2> output;
 		unordered_access_view<tex3> output2;
@@ -257,22 +251,22 @@ public:
 			std::array<unordered_access_view<tex2>, 2> output;
 			unordered_access_view<tex3> output2;
 		};
-		property& operator<<(std::array<unordered_access_view<tex2>, 2> t) { output = std::move(t); property_resource::need_update(); return *this; }
-		property& operator<<(unordered_access_view<tex3> t) { output2 = std::move(t); property_resource::need_update(); return *this; }
+		property& operator<<(std::array<unordered_access_view<tex2>, 2> t) { output = std::move(t); return *this; }
+		property& operator<<(unordered_access_view<tex3> t) { output2 = std::move(t);  return *this; }
 		void update(creator& sc, renderer_data& rd) { rd.output = output; rd.output2 = output2; }
 	};
 	compute_2D_tiled(creator& c) : compute_resource(c, u"compute_2d_tiled.cso") {}
 	const element_requirement& requirement()
 	{
 		return make_element_requirement(
-			[](stage_context& sc, property::renderer_data& p) {
+			[](stage_context& sc, property_wrapper_t<property>& p) {
 			for (size_t i = 0; i < 2; ++i)
 				sc.CS() << p.output[i][i];
 			sc.CS() << p.output2[2];
 			sc << dispatch_call{ 8, 8, 1 };
-		}, [](stage_context& sc, property_random_point_f::renderer_data& rd) {
+		}, [](stage_context& sc, property_wrapper_t<property_random_point_f>& rd) {
 		 sc.CS() << rd.srv[0];
-		 }, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+		 }, [](stage_context& sc, property_wrapper_t<property_random_point_f3>& rd) {
 			 sc.CS() << rd.srv[1];
 		 }
 		 );
@@ -283,30 +277,90 @@ public:
 class compute_3D_tiled : public compute_resource
 {
 public:
-	struct property : public property_resource
+	struct property
 	{
-		unordered_access_view<tex3> output2;
-		struct renderer_data
+		unordered_access_view<tex3> output;
+		uint32_t3 output_size = { 0, 0, 0 };
+		float Lenght = 10.0f;
+		uint32_t count = 100;
+		struct renderer_data_append
 		{
-			unordered_access_view<tex3> output2;
+			buffer_constant bc;
 		};
-		property& operator<<(unordered_access_view<tex3> t) { output2 = std::move(t); property_resource::need_update(); return *this; }
-		void update(creator& sc, renderer_data& rd) { rd.output2 = output2; }
+		void update(creator& sc, renderer_data_append& rd) { 
+			shader_storage<uint32_t3, float, uint32_t> ss(output_size, Lenght, count);
+			rd.bc.create_pod(sc, ss);
+		}
 	};
 	compute_3D_tiled(creator& c) : compute_resource(c, u"compute_3d_tiled.cso") {}
 	const element_requirement& requirement()
 	{
 		return make_element_requirement(
-			[](stage_context& sc, property::renderer_data& p) {
-			sc.CS() << p.output2[0];
-			sc << dispatch_call{ 1, 1, 32 };
-		}, [](stage_context& sc, property_random_point_f3::renderer_data& rd) {
+			[](stage_context& sc, property_wrapper_t<property>& p) {
+			sc.CS() << p.output[0] << p.bc[0];
+			sc << dispatch_call{ p.output_size.x / 32 + (p.output_size.x % 32 == 0 ? 0 : 1) , p.output_size.y / 32 + (p.output_size.y % 32 == 0 ? 0 : 1) , p.output_size.z };
+		}, [](stage_context& sc, property_wrapper_t<property_random_point_f3>& rd) {
 			sc.CS() << rd.srv[0];
 		}
 		);
 	}
 };
 
+class SDF_2dGenerator : public compute_resource
+{
+public:
+	struct property 
+	{
+		shader_resource_view<tex2> s1;
+		unordered_access_view<tex2> t1;
+		sample_state::description ss_des = sample_state::default_description;
+		uint32_t2 size = {0, 0};
+		uint32_t2 input_texture = {0, 0};
+		float EdgeValue = 0.5f;
+		float DistanceMulity = 4.0f;
+
+		struct renderer_data_append
+		{
+			sample_state ss;
+			buffer_constant bc;
+		};
+		void set(shader_resource_view<tex2> sv, unordered_access_view<tex2> uv) { s1 = std::move(sv); t1 = std::move(uv); }
+		void set(const sample_state::description& sd) { ss_des = sd;}
+		void update(creator& c, renderer_data_append& rd)
+		{
+			rd.ss.create(c, ss_des);
+			shader_storage<uint32_t2, uint32_t2, float, float > ss(size, input_texture, EdgeValue, DistanceMulity);
+			rd.bc.create_pod(c, ss);
+		}
+	};
+	SDF_2dGenerator(creator& c);
+	const element_requirement& requirement();
+};
+
+class SDF_3dGenerator : public compute_resource
+{
+public:
+	struct property
+	{
+		shader_resource_view<tex3> Input;
+		unordered_access_view<tex3> Output;
+		uint32_t3 input_size = {0, 0, 0};
+		uint32_t3 output_size = {0, 0, 0};
+		float EdgeValue = 0.5f;
+		float DistanceMulity = 4.0f;
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rda)
+		{
+			shader_storage<uint32_t3, uint32_t3, float, float > ss(input_size, output_size, EdgeValue, DistanceMulity);
+			rda.bc.create_pod(c, ss);
+		}
+	};
+	SDF_3dGenerator(creator& c);
+	const element_requirement& requirement();
+};
 
 
 

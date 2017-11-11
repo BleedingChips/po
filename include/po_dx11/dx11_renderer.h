@@ -85,22 +85,19 @@ namespace PO
 
 			defer_renderer_default& operator << (const element_compute& el) { compute.logic << el; return *this; }
 
-			class property_gbuffer : public property_resource
+			struct property_gbuffer
 			{
 				shader_resource_view<tex2> srv;
-				sample_state ss;
-			public:
-				struct renderer_data
+				sample_state::description ss_des = sample_state::description{
+					D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, 0.0f, 1,
+					D3D11_COMPARISON_NEVER,{ 1.0f,1.0f,1.0f,1.0f }, -FLT_MAX, FLT_MAX
+				};
+				struct renderer_data_append
 				{
-					shader_resource_view<tex2> srv;
 					sample_state ss;
 				};
-				void update(creator& c, renderer_data& rd) { rd.srv = srv; rd.ss = ss; }
-				void set_gbuffer(shader_resource_view<tex2> color, sample_state ss) 
-				{ 
-					srv = std::move(color); 
-					this->ss = std::move(ss);
-					need_update(); 
+				void update(creator& c, renderer_data_append& rd) { 
+					rd.ss.create(c, ss_des);
 				}
 			};
 
@@ -118,58 +115,40 @@ namespace PO
 				const element_requirement& requirement() const;
 			};
 
-			class property_linearize_z_output : public property_resource
+			struct property_linearize_z_output 
 			{
 				shader_resource_view<tex2> input_depth;
 				unordered_access_view<tex2> output_depth;
 				uint32_t2 size;
-			public:
-				struct renderer_data
-				{
-					shader_resource_view<tex2> input_depth;
-					unordered_access_view<tex2> output_depth;
-					uint32_t2 size;
-				};
 				void set_taregt_f(shader_resource_view<tex2> input, unordered_access_view<tex2> output_f, uint32_t2 output_size);
-				void update(creator& c, renderer_data& rd)
-				{
-					rd.input_depth = input_depth;
-					rd.output_depth = output_depth;
-					rd.size = size;
-				}
 			};
 
-			class property_linear_z : public property_resource
+			struct property_linear_z
 			{
 				shader_resource_view<tex2> z_buffer;
-				sample_state ss;
-			public:
-				struct renderer_data
+				sample_state::description ss_des = sample_state::default_description;
+				struct renderer_data_append
 				{
-					shader_resource_view<tex2> z_buffer;
 					sample_state ss;
 				};
 
-				void update(creator&, renderer_data& rd)
+				void update(creator& c, renderer_data_append& rd)
 				{
-					rd.z_buffer = z_buffer;
-					rd.ss = ss;
-				}
-
-				void set_linear_z(shader_resource_view<tex2> z, sample_state ss)
-				{
-					z_buffer = std::move(z);
-					this->ss = std::move(ss);
-					need_update();
+					rd.ss.create(c, ss_des);
 				}
 			};
 
 			stage_context& get_context() { return context; }
+
+			template<typename T>
+			void insert_task(T&& t) { pos_task.push_back(std::forward<T>(t)); }
 			
 
 		private:
 
 			operator stage_context& () { return context; }
+
+			std::vector<std::function<void(defer_renderer_default&)>> pos_task;
 
 			sub_viewport_perspective view;
 

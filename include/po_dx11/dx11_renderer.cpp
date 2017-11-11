@@ -7,14 +7,16 @@ PO::Dx11::property_proxy_map& operator>>(PO::Dx11::property_proxy_map& ppm, cons
 		PO::Dx::matrix inv = DirectX::XMMatrixInverse(nullptr, tem);
 		PO::Dx::float4x4 tem2;
 		DirectX::XMStoreFloat4x4(&tem2, inv);
-		pvt.set_world_eye(svp.eye, tem2);
+		pvt.world_to_eye = svp.eye;
+		pvt.eye_to_world = tem2;
 		PO::Dx::matrix tem3 = DirectX::XMLoadFloat4x4(&svp.projection);
 		tem = DirectX::XMMatrixMultiply(tem, tem3);
 		inv = DirectX::XMMatrixInverse(nullptr, tem);
 		PO::Dx::float4x4 tem4;
 		DirectX::XMStoreFloat4x4(&tem2, tem);
 		DirectX::XMStoreFloat4x4(&tem4, inv);
-		pvt.set_world_camera(tem2, tem4);
+		pvt.world_to_camera = tem2;
+		pvt.camera_to_world = tem4;
 		pvt.set_surface(svp.projection_property.z, svp.projection_property.w, svp.view.view.MinDepth, svp.view.view.MaxDepth);
 	};
 	return ppm;
@@ -101,18 +103,14 @@ namespace PO
 			element_merga.material = ins.create_material<material_merga_gbuffer>();
 			merga_map << [&](property_gbuffer& pg)
 			{
-				sample_state ss;
-				ss.create(*this);
-				pg.set_gbuffer(gbuffer_color.cast_shader_resource_view(*this), ss);
+				pg.srv = gbuffer_color.cast_shader_resource_view(*this);
 			};
 			merga_map.logic_to_renderer(*this);
 			element_merga.mapping = merga_map.map();
 
 			transparent_mapping << [&](property_linear_z& pl)
 			{
-				sample_state ss;
-				ss.create(*this);
-				pl.set_linear_z(linearize_z_tex.cast_shader_resource_view(*this), ss);
+				pl.z_buffer = linearize_z_tex.cast_shader_resource_view(*this);
 			};
 			transparent_mapping.logic_to_renderer(*this);
 			final_output << final_back_buffer.cast_render_target_view(*this);
@@ -174,7 +172,20 @@ namespace PO
 			context << final_output;
 			element_merga.draw(context, {}, &transparent_map_list);
 			context.unbind();
+			
+			if (!pos_task.empty())
+			{
+				for (auto& ite : pos_task)
+				{
+					ite(*this);
+				}
+				pos_task.clear();
+			}
+			
 			swap->Present(0, 0);
+
+
+
 		}
 
 		defer_renderer_default::material_merga_gbuffer::material_merga_gbuffer(creator& c) :
@@ -183,7 +194,7 @@ namespace PO
 		const element_requirement& defer_renderer_default::material_merga_gbuffer::requirement() const
 		{
 			return make_element_requirement(
-				[](stage_context& sc, property_gbuffer::renderer_data& pgd) {
+				[](stage_context& sc, property_wrapper_t<property_gbuffer>& pgd) {
 				sc.PS() << pgd.srv[0] << pgd.ss[0];
 			}
 			);
@@ -193,7 +204,6 @@ namespace PO
 			input_depth = std::move(input);
 			output_depth = std::move(output_f);
 			size = output_size;
-			need_update();
 		}
 
 		defer_renderer_default::compute_linearize_z::compute_linearize_z(creator& c) :
@@ -203,11 +213,11 @@ namespace PO
 		const element_requirement& defer_renderer_default::compute_linearize_z::requirement() const
 		{
 			return make_element_requirement(
-				[](stage_context& sc, property_linearize_z_output::renderer_data& plz) {
+				[](stage_context& sc, property_wrapper_t<property_linearize_z_output>& plz) {
 				sc.CS() << plz.input_depth[0] << plz.output_depth[0];
 				sc << dispatch_call{ plz.size.x, plz.size.y , 1 };
 			},
-				[](stage_context& sc, property_viewport_transfer::renderer_data& pvt) {
+				[](stage_context& sc, property_wrapper_t<property_viewport_transfer>& pvt) {
 				sc.CS() << pvt.viewport[0];
 			}
 			);

@@ -37,6 +37,9 @@ struct new_plugin
 	tex2 TiledWorly;
 	tex3 TiledWorly3D;
 
+	tex2 Edge;
+	tex2 SDF;
+
 	float layer = 0.5;
 	float scale = 1.0;
 	float max_denstiy;
