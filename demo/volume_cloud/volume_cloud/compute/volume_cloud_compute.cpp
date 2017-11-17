@@ -166,18 +166,71 @@ const element_requirement& SDF_2dGenerator::requirement()
 
 SDF_3dGenerator::SDF_3dGenerator(creator& c) : compute_resource(c, u"sdf_3d_generator.cso") {}
 
+
+bool SDF_3dGenerator::property::next()
+{
+	if (input_end == uint32_t3{ 0, 0, 0 })
+	{
+		input_end = min(step_add, input_size);
+	}
+	else {
+		if (input_end.z >= input_size.z)
+		{
+			if (input_end.y >= input_size.y)
+			{
+				if (input_end.x >= input_size.x)
+					return false;
+				else {
+					input_start.z = 0;
+					input_end.z = step_add.z;
+					input_start.y = 0;
+					input_end.y = step_add.y;
+					input_start.x = input_end.x;
+					input_end.x = input_start.x + step_add.x;
+					input_end = min(input_end, input_size);
+				}
+			}
+			else {
+				input_start.z = 0;
+				input_end.z = step_add.z;
+				input_start.y = input_end.y;
+				input_end.y = input_start.y + step_add.y;
+				input_end = min(input_size, input_end);
+			}
+		}
+		else {
+			input_start.z = input_end.z;
+			input_end.z = input_start.z + step_add.z;
+			input_end = min(input_size, input_end);
+		}
+	}
+	return true;
+}
+
+
 const element_requirement& SDF_3dGenerator::requirement()
 {
 	return make_element_requirement(
 		[](stage_context& sc, property_wrapper_t<property>& re) {
-		sc.CS() << re.bc[0] << re.Input[0] << re.Output[0];
-		sc << dispatch_call{ re.output_size.x / 32 + (re.output_size.x % 32 == 0 ? 0 : 1), re.output_size.y / 32 + (re.output_size.y % 32 == 0 ? 0 : 1), 1 };
+		sc.CS() << re.bc[0] << re.Input[0] << re.InsideTexture[0] << re.OutsideTexture[1];
+		sc << dispatch_call{ re.output_size.x / 32 + (re.output_size.x % 32 == 0 ? 0 : 1), re.output_size.y / 32 + (re.output_size.y % 32 == 0 ? 0 : 1), re.output_size.z };
 	}
 	);
 }
 
 
+full_1::full_1(creator& c) : compute_resource(c, u"full_1.cso") {}
 
+const element_requirement& full_1::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& p)
+	{
+		sc.CS() << p.input[0];
+		sc << dispatch_call{p.size.x, p.size.y, p.size.z};
+	}
+	);
+}
 
 
 // compute_generate_worley_noise_tex3_3d_f4 ***********************************************************

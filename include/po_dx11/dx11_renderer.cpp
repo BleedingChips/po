@@ -172,20 +172,18 @@ namespace PO
 			context << final_output;
 			element_merga.draw(context, {}, &transparent_map_list);
 			context.unbind();
-			
+
 			if (!pos_task.empty())
 			{
-				for (auto& ite : pos_task)
+				std::swap(pos_task, pos_calling_task);
+				for (auto& ite : pos_calling_task)
 				{
 					ite(*this);
 				}
-				pos_task.clear();
+				pos_calling_task.clear();
 			}
 			
 			swap->Present(0, 0);
-
-
-
 		}
 
 		defer_renderer_default::material_merga_gbuffer::material_merga_gbuffer(creator& c) :

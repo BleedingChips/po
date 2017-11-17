@@ -113,9 +113,9 @@ namespace PO
 
 		void property_viewport_transfer::update(creator& c, renderer_data& rd)
 		{
-			shader_storage<float4x4, float4x4, float4x4, float4x4, float, float, float, float, float>
-				ss{ world_to_eye, eye_to_world, world_to_camera, camera_to_world, near_surface, far_surface,
-				view_near_surface, view_far_surface, time
+			shader_storage<float4x4, float4x4, float4x4, float4x4, float4, float>
+				ss{ world_to_eye, eye_to_world, world_to_camera, camera_to_world,
+				float4{ near_surface, far_surface,view_near_surface, view_far_surface }, time
 			};
 			rd.viewport.create_pod(c, ss);
 		}

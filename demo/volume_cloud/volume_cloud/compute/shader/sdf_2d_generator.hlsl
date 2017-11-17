@@ -24,7 +24,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         for (uint countY = 0; countY < inputsize.y; ++countY)
         {
             float Value = inputTexture[uint2(countX, countY)].x;
-            float2 CurPoi = float2(countX, countY) / float2(255, 255);
+            float2 CurPoi = float2(countX, countY) / float2(inputsize - 1);
             float2 CurDir = abs(Poi - CurPoi);
             CurDir = min(CurDir, 1.0 - CurDir);
 

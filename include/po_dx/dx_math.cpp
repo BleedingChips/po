@@ -142,6 +142,11 @@ std::ostream& operator<<(std::ostream& o, const PO::Dx::float4& m)
 	return o << "{" << m.x << "," << m.y << "," << m.z << "," << m.w << "}";
 }
 
+std::ostream& operator<<(std::ostream& o, const PO::Dx::uint32_t3& m)
+{
+	return o << "{" << m.x << "," << m.y << "," << m.z << "}";
+}
+
 std::ostream& operator<<(std::ostream& o, const PO::Dx::float4x4& m)
 {
 	bool need_add = false;

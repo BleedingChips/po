@@ -28,14 +28,14 @@ void generator_worley_noise()
 		{
 			for (size_t x = 0; x < width; ++x)
 			{
-				float2 f_loc = float2(float(x) / width * 2.0 - 1.0, float(y) / height * 2.0 - 1.0);
+				float2 f_loc = float2(float(x) / width * 2.0f - 1.0f, float(y) / height * 2.0f - 1.0f);
 				size_t index = (y * width + x) * 4;
 				float min = 1.0;
 				for (auto& ite : point)
 				{
 					float2 p = ite - f_loc;
 					float dis = sqrtf(p.x * p.x + p.y * p.y) * 10.0f;
-					if (dis > 1.0) dis = 0.99;
+					if (dis > 1.0f) dis = 0.99f;
 					if (dis < min)
 						min = dis;
 				}
@@ -78,7 +78,7 @@ void generator_worley_noise()
 	
 
 	decltype(data) fbm_data;
-	float frequence = 1.0, amplitude = 0.5, Lacunarity = 1.8715, Gain = 0.5;
+	float frequence = 1.0f, amplitude = 0.5f, Lacunarity = 1.8715f, Gain = 0.5f;
 	size_t Octaves = 3;
 
 	auto thread_func_fbm = [&](size_t max_index, size_t current_index, size_t width, size_t height) {

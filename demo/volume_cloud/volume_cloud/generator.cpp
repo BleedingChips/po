@@ -13,13 +13,11 @@ adapter_map generator::mapping(self& sel)
 void generator::init(defer_renderer_default& dr, plugins& pl)
 {
 	CoInitialize(nullptr);
-}
 
-void generator::tick(defer_renderer_default& dr, duration da, plugins& pl, self& s)
-{
 	pl.find_extension([&, this](stage_instance_extension& sie) {
+		
 		tex3 tiling_3d_worley_noise;
-		tiling_3d_worley_noise.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 256, 256, 256 });
+		tiling_3d_worley_noise.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 512, 512, 512 });
 		if (true)
 		{
 			element_compute ele;
@@ -29,7 +27,7 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl, self&
 				p.output = tiling_3d_worley_noise.cast_unordered_access_view(dr);
 				p.output_size = tiling_3d_worley_noise.size();
 				p.count = point_count;
-				p.Lenght = 5.0;
+				p.Lenght = 10.0f;
 			}
 				<< [&](property_random_point_f3& prp)
 			{
@@ -37,22 +35,69 @@ void generator::tick(defer_renderer_default& dr, duration da, plugins& pl, self&
 			}
 			;
 			dr << ele;
-			dr.insert_task([=](defer_renderer_default& dr) {
-				DirectX::ScratchImage SI;
-				DirectX::CaptureTexture(dr.dev, dr.get_context().imp->ptr, tiling_3d_worley_noise.ptr, SI);
-				assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"tiling_3d_worley_noise.DDS")));
-			});
+			try {
+				uint32_t3 target_size = { 64, 64, 64 };
+				std::vector<float4> att(target_size.x * target_size.y * target_size.z, float4(10.0, 10.0, 10.0, 10.0));
+				tex3_source tex{ att.data(), target_size.x * sizeof(float4), target_size.x * target_size.y * sizeof(float4) };
+
+				SDF_3d_Inside.create_unordered_access(dr, DXGI_FORMAT_R32G32B32A32_FLOAT, target_size, 1, &tex);
+				SDF_3d_Outside.create_unordered_access(dr, DXGI_FORMAT_R32G32B32A32_FLOAT, target_size, 1, &tex);
+				if (true)
+				{
+					SDF_ELE << sie.create_compute<SDF_3dGenerator>()
+						<< [&](SDF_3dGenerator::property& p) {
+						p.step_add = uint3{ 40, 40, 40 };
+						p.EdgeValue = 0.3f;
+						p.output_size = SDF_3d_Inside.size();
+						p.InsideTexture = SDF_3d_Inside.cast_unordered_access_view(dr);
+						p.OutsideTexture = SDF_3d_Outside.cast_unordered_access_view(dr);
+						p.Input = tiling_3d_worley_noise.cast_shader_resource_view(dr);
+						p.input_size = tiling_3d_worley_noise.size();
+						p.DistanceMulity = float3{ 2, 2, 2 };
+					};
+				}
+			}
+			catch (...)
+			{
+				__debugbreak();
+			}
 		}
 
-		tex3 SDF_3d;
-		SDF_3d.create_unordered_access(dr, DXGI_FORMAT_R8G8B8A8_TYPELESS, {64, 64, 64});
-		if (true)
-		{
-			element_compute ele;
-
-		}
-
+		
 
 	});
-	s.killmyself();
+
+}
+
+void generator::tick(defer_renderer_default& dr, duration da, plugins& pl, self& s)
+{
+	if (SDF_ELE.ptr->compute)
+	{
+		SDF_ELE << [&](SDF_3dGenerator::property& p) {
+			if (p.next())
+			{
+				std::cout << "[ " << p.input_start << " : " << p.input_end << std::endl;
+				dr << SDF_ELE;
+			}
+			else {
+				p.final_call = 1;
+				dr << SDF_ELE;
+				dr.insert_task([this](defer_renderer_default& drt) {
+					{
+						DirectX::ScratchImage SI;
+						HRESULT re = DirectX::CaptureTexture(drt.dev, drt.get_context().imp->ptr, SDF_3d_Inside.ptr, SI);
+						assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"SDF_3d_Inside.DDS")));
+					}
+					{
+						DirectX::ScratchImage SI;
+						HRESULT re = DirectX::CaptureTexture(drt.dev, drt.get_context().imp->ptr, SDF_3d_Outside.ptr, SI);
+						assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"SDF_3d_Outside.DDS")));
+					}
+					std::cout << "Finsih" << std::endl;
+				});
+				s.killmyself();
+			}
+		};
+	}
+	
 }

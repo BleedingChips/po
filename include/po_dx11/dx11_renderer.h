@@ -149,6 +149,7 @@ namespace PO
 			operator stage_context& () { return context; }
 
 			std::vector<std::function<void(defer_renderer_default&)>> pos_task;
+			std::vector<std::function<void(defer_renderer_default&)>> pos_calling_task;
 
 			sub_viewport_perspective view;
 

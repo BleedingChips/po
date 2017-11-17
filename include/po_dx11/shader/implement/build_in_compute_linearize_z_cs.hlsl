@@ -13,10 +13,10 @@ cbuffer b0 : register(b0)
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    float f = pss.far_surface;
-    float n = pss.near_surface;
-    float nv = pss.view_near_surface;
-    float fv = pss.view_far_surface;
+    float f = far_clip_plane(pss);
+    float n = near_clip_plane(pss);
+    float nv = view_near_clip_plane(pss);
+    float fv = view_far_clip_plane(pss);
 
     float depth = depth_stencil_texture[DTid.xy].x;
     float result = (-2.0 * f * n) / ((2 * depth - fv - nv) * (f - n) / (fv - nv) - f - n);

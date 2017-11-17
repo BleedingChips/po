@@ -162,5 +162,8 @@
     <FxCompile Include="compute\shader\sdf_3d_generator.hlsl">
       <Filter>compute\shader</Filter>
     </FxCompile>
+    <FxCompile Include="compute\shader\full_1.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

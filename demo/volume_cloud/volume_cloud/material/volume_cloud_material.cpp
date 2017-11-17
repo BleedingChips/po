@@ -129,7 +129,7 @@ const element_requirement& new_new_new_material::requirement() const
 		[](stage_context& sc, property_wrapper_t<property_viewport_transfer>& pvt) {
 		sc.PS() << pvt.viewport[2];
 	}, [](stage_context& sc, property_wrapper_t<property>& rd) {
-		sc.PS() << rd.b[0] << rd.BaseShapeTex[0] << rd.ss[0] << rd.BaseShapeTex2[1];
+		sc.PS() << rd.b[0] << rd.BaseShapeTex[0] << rd.ss[0];
 	}, [](stage_context& sc, property_wrapper_t<defer_renderer_default::property_linear_z>& pp)
 	{
 		sc.PS() << pp.ss[2] << pp.z_buffer[2];
@@ -154,7 +154,15 @@ const element_requirement& new_new_new_new_material::requirement() const
 {
 	return make_element_requirement(
 		[](stage_context& sc, property_wrapper_t<property>& rd) {
-		sc.PS() << rd.tex[0] << rd.ss[0];
+		sc.PS() << rd.tex[1] << rd.ss[1] << rd.bc[0];
+	}, [](stage_context& sc, property_wrapper_t<property_viewport_transfer>& pvt) {
+		sc.PS() << pvt.viewport[2];
+	}, [](stage_context& sc, property_wrapper_t<defer_renderer_default::property_linear_z>& pp)
+	{
+		sc.PS() << pp.ss[0] << pp.z_buffer[0];
+	}, [](stage_context& sc, property_wrapper_t<property_local_transfer>& rd)
+	{
+		sc.PS() << rd.transfer[1];
 	}
 	);
 }

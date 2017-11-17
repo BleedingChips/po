@@ -39,16 +39,39 @@ struct property_viewport_transfer
     float4x4 eye_to_world;
     float4x4 world_to_camera;
     float4x4 camera_to_world;
-    float near_surface;
-    float far_surface;
-    float view_near_surface;
-    float view_far_surface;
+    float4 near_far_viewnear_viewfar;
     float time;
 };
+
+float near_clip_plane(property_viewport_transfer pvt)
+{
+    return pvt.near_far_viewnear_viewfar.x;
+}
+
+float far_clip_plane(property_viewport_transfer pvt)
+{
+    return pvt.near_far_viewnear_viewfar.y;
+}
+
+float view_far_clip_plane(property_viewport_transfer pvt)
+{
+    return pvt.near_far_viewnear_viewfar.w;
+}
+
+
+float view_near_clip_plane(property_viewport_transfer pvt)
+{
+    return pvt.near_far_viewnear_viewfar.z;
+}
 
 float3 property_viewport_transfer_eye_world_position(property_viewport_transfer pvt)
 {
     return pvt.world_to_eye._14_24_34;
+}
+
+float3 property_viewport_transfer_eye_world_direction(property_viewport_transfer pvt)
+{
+    return normalize(pvt.world_to_eye._13_23_33);
 }
 
 #endif

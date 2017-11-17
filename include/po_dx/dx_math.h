@@ -1,6 +1,7 @@
 #pragma once
 #include <ostream>
 #include "dx_type.h"
+
 namespace PO
 {
 	namespace Dx
@@ -76,6 +77,7 @@ std::ostream& operator<<(std::ostream& o, const PO::Dx::float2& m);
 std::ostream& operator<<(std::ostream& o, const PO::Dx::float3& m);
 std::ostream& operator<<(std::ostream& o, const PO::Dx::float4& m);
 std::ostream& operator<<(std::ostream& o, const PO::Dx::float4x4& m);
+std::ostream& operator<<(std::ostream& o, const PO::Dx::uint32_t3& m);
 inline std::ostream& operator<<(std::ostream& o, const PO::Dx::eulerian_angle& e) { return o << e.angle; }
 std::ostream& operator<<(std::ostream& o, const PO::Dx::quaternions& m);
 

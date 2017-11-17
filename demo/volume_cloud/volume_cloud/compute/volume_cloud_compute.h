@@ -230,7 +230,7 @@ public:
 	{
 		return make_element_requirement(
 			[](stage_context& sc, property_wrapper_t<property>& p) {
-			for (size_t i = 0; i < 5; ++i)
+			for (uint32_t i = 0; i < 5; ++i)
 				sc.CS() << p.output[i][i];
 			sc << dispatch_call{ 8, 8, 64 };
 		}
@@ -260,7 +260,7 @@ public:
 	{
 		return make_element_requirement(
 			[](stage_context& sc, property_wrapper_t<property>& p) {
-			for (size_t i = 0; i < 2; ++i)
+			for (uint32_t i = 0; i < 2; ++i)
 				sc.CS() << p.output[i][i];
 			sc.CS() << p.output2[2];
 			sc << dispatch_call{ 8, 8, 1 };
@@ -343,18 +343,25 @@ public:
 	struct property
 	{
 		shader_resource_view<tex3> Input;
-		unordered_access_view<tex3> Output;
+		unordered_access_view<tex3> InsideTexture;
+		unordered_access_view<tex3> OutsideTexture;
+		uint32_t3 input_start = { 0, 0, 0 };
+		uint32_t3 input_end = { 0, 0, 0 };
 		uint32_t3 input_size = {0, 0, 0};
 		uint32_t3 output_size = {0, 0, 0};
+		uint32_t3 step_add = { 1, 1, 1 };
 		float EdgeValue = 0.5f;
-		float DistanceMulity = 4.0f;
+		float3 DistanceMulity = float3{ 4, 8, 8 };
+		uint32_t final_call = 0;
 		struct renderer_data_append
 		{
 			buffer_constant bc;
 		};
+		void clear();
+		bool next();
 		void update(creator& c, renderer_data_append& rda)
 		{
-			shader_storage<uint32_t3, uint32_t3, float, float > ss(input_size, output_size, EdgeValue, DistanceMulity);
+			shader_storage<uint32_t3, uint32_t3, uint32_t3, uint32_t3, float, float3, uint32_t> ss(input_start, input_end, input_size, output_size, EdgeValue, DistanceMulity, final_call);
 			rda.bc.create_pod(c, ss);
 		}
 	};
@@ -362,6 +369,18 @@ public:
 	const element_requirement& requirement();
 };
 
+
+class full_1 : public compute_resource
+{
+public:
+	struct property
+	{
+		unordered_access_view<tex3> input;
+		uint32_t3 size;
+	};
+	full_1(creator& c);
+	const element_requirement& requirement();
+};
 
 
 

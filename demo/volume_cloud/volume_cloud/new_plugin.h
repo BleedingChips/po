@@ -8,17 +8,6 @@ using namespace PO::Dx11;
 struct new_plugin
 {
 	int swith_state = 0;
-
-	tex2 final_perlin_noise;
-	tex2 final_worley_noise;
-	tex2 cube_mask;
-
-	tex3 debug_tex;
-	tex3 debug_tex2;
-	tex3 debug_tex3;
-
-	tex2 final_tex0;
-	tex2 final_tex1;
 	
 
 	element_draw back_ground;
@@ -33,12 +22,6 @@ struct new_plugin
 
 	size_t index = 0;
 	float4 Value;
-
-	tex2 TiledWorly;
-	tex3 TiledWorly3D;
-
-	tex2 Edge;
-	tex2 SDF;
 
 	float layer = 0.5;
 	float scale = 1.0;

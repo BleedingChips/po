@@ -3,14 +3,14 @@
 #include "../../../../../include/po_dx11/shader/include/build_in_standard_input_type.hlsli"
 #include "../../../../../include/po_dx11/shader/include/noise.hlsli"
 
-Texture2D BaseShapeTexture : register(t0);
-SamplerState BaseShapeTextureSamplerState : register(s0);
-Texture2D BaseShapeTexture2 : register(t1);
+Texture2D HeightTexture : register(t0);
+SamplerState HeightTextureSampler : register(s0);
 
 cbuffer b0 : register(b0)
 {
     float Density;
     float4 Value;
+    float2 Rate;
 }
 
 cbuffer b1 : register(b1)
@@ -61,9 +61,15 @@ float SampleDetailDensity(Texture2D Tex1, SamplerState Tex1ss, float3 Poi, Textu
     return SampleValue * (1.0 - SampleValue2);
 }
 
-float SampleTextureImplement(Texture2D Tex, SamplerState Texss, float HeightMulity, float CenterHeight, float3 Poi)
+float SampleTextureImplement(Texture2D Tex, SamplerState Texss, float HeightMulity, float CenterHeight, float3 Poi, float2 XYRate, float2 XYShift1, float2 XYShift2, float Rate, float4 ValueFactor)
 {
-    float SampleValue = Texture2DSample(Tex, Texss, Poi.xy).x;
+    float2 PoiXY1 = Poi.xy * XYRate + XYShift1;
+    float2 PoiXY2 = Poi.xy * XYRate + XYShift2;
+    float SampleValue1 = dot(Texture2DSample(Tex, Texss, PoiXY1), ValueFactor);
+    float SampleValue2 = dot(Texture2DSample(Tex, Texss, PoiXY2), ValueFactor);
+
+    float FinalValue = lerp(SampleValue1, SampleValue2, Rate);
+    
     float Height = 0.0;
     if (Poi.z >= CenterHeight)
     {
@@ -77,7 +83,7 @@ float SampleTextureImplement(Texture2D Tex, SamplerState Texss, float HeightMuli
     float Fatcor = 1.0;
     if(Poi.x > 0.5 || Poi.y > 0.5 || Poi.z > 0.5)
         Fatcor = 0.0;
-    return clamp(SampleValue * HeightMulity - Height, 0.0, 1.0) * Fatcor;
+    return clamp(FinalValue * HeightMulity - Height, 0.0, 1.0) * Fatcor;
 }
 
 
@@ -87,15 +93,56 @@ SamplerState HeightValue_TSampler,
 float3 LocalStartPosition_F3,
 float3 LocalEndPosition_F3,
 float3 CubeSize_F3,
-float2 CubeXYRate_F2,
+float RayStepCount_F,
 float HeightMuliply_F,
 float Density_F,
 float HeightCenter_F,
-float3 Light_F3,
-float LightRayLength_F,
-float LightReflex_F
+float2 SpriteFigureXYCount_F2,
+float SpriteRate_F,
+float4 ValueFactor_F4,
+float2 XYScale_F2
 )
 {
+    uint2 SpriteFigureXYCount = floor(SpriteFigureXYCount_F2);
+    uint SpriteTotal = SpriteFigureXYCount.x * SpriteFigureXYCount.y;
+    uint SpriteStart = floor(SpriteRate_F * (SpriteTotal));
+    uint SpriteEnd = SpriteStart + 1;
+    if (SpriteEnd == SpriteTotal)
+        SpriteEnd = 0;
+    float SpriteRate = frac(SpriteRate_F * (SpriteTotal));
+    float2 SpriteMulity = 1.0 / SpriteFigureXYCount_F2;
+    float2 SpriteShift1 = float2(SpriteStart % SpriteFigureXYCount.x, SpriteStart / SpriteFigureXYCount.x) * SpriteMulity;
+    float2 SpriteShift2 = float2(SpriteEnd % SpriteFigureXYCount.x, SpriteEnd / SpriteFigureXYCount.x) * SpriteMulity;
+
+    uint RayCount = floor(RayStepCount_F);
+    float3 Ray = (LocalEndPosition_F3 - LocalStartPosition_F3) / (2.0 * CubeSize_F3);
+    float RayLength = length(Ray);
+    float RayStepLength = RayLength / RayCount;
+    float3 RayStep = normalize(Ray);
+    float3 SampleStartPoint = (LocalStartPosition_F3 + CubeSize_F3) / CubeSize_F3 / 2.0;
+    uint ReachCount = RayCount;
+    float FinalDensity = 0.0;
+    float2 SmapleMulity = SpriteMulity * XYScale_F2;
+    float2 SampleShift1 = SpriteShift1 + SpriteMulity * (1.0 - XYScale_F2) * 0.5;
+    float2 SampleShift2 = SpriteShift2 + SpriteMulity * (1.0 - XYScale_F2) * 0.5;
+
+    for (uint count = 0; count < RayCount; ++count)
+    {
+        float3 SamplePoint = SampleStartPoint + RayStep * count * RayStepLength;// * (1.0 + frac(sin(dot(RayStep * count, float3(12.9898, 78.233, 42.1897))) * 43758.5453) * 0.01);;
+        float Density = SampleTextureImplement(HeightValue_T, HeightValue_TSampler, HeightMuliply_F, HeightCenter_F, SamplePoint, SmapleMulity, SampleShift1, SampleShift2, SpriteRate, ValueFactor_F4);
+        FinalDensity += Density * Density_F * RayStepLength;
+    }
+    
+    return 1.0 - exp(-FinalDensity);
+
+    //return float2(SpriteStart / 16.0, 1.0);
+
+
+
+
+
+
+    /*
     uint RayCount = 64;
     float3 CubeXYZRate = float3(CubeXYRate_F2, 1.0);
     float3 RayStep = (LocalEndPosition_F3 - LocalStartPosition_F3) / (2.0 * CubeSize_F3) / RayCount;
@@ -129,101 +176,25 @@ float LightReflex_F
     }
     
     return float2(Color, 1.0 - exp(-FinalDensity));
-
-    /*
-    const uint DetailRayPowerCount = 64;
-    const uint DetailRayDensityCount = 10;
-    const float3 DetailCubeMultiply = 1.0;
-    const float3 DetailLightRay = float3(0.0, 0.5, 0.0);
-    const float3 DetailLightRayStep = DetailLightRay / DetailRayDensityCount;
-
-    const float3 StartSamplePoint = SampleStartPoint + ReachCount * RayStep;
-
-    
-
-    const float3 DetailRayStep = RayStep / DetailRayPowerCount;
-
-    float LightColor = 0.0;
-    float DetailDensity = 0.0;
-    for (uint count2 = 1; count2 <= DetailRayPowerCount; ++count2)
-    {
-        float3 SamplePoint = StartSamplePoint + count2 * DetailRayStep;
-        float SampleValue = SampleDetailDensity(BaseShapeTexture, BaseShapeTextureSamplerState, SamplePoint, BaseShapeTexture2, BaseShapeTextureSamplerState, DetailCubeMultiply);
-        float LightDensity = 0.0;
-        for (uint count3 = 1; count3 <= DetailRayDensityCount; ++count3)
-        {
-            float3 SampleLightPoint = SamplePoint + count3 * DetailLightRayStep;
-            float SampleValue = SampleDetailDensity(BaseShapeTexture, BaseShapeTextureSamplerState, SampleLightPoint, BaseShapeTexture2, BaseShapeTextureSamplerState, DetailCubeMultiply);
-            LightDensity += SampleValue;
-        }
-        LightColor += exp(-LightDensity * Density * length(DetailLightRay)) * Value.x * (1.0 - exp(-SampleValue * Value.y));
-        SampleValue = SampleValue * Density * length(DetailRayStep);
-        LightColor = LightColor * exp(-SampleValue);
-        DetailDensity += SampleValue;
-    }*/
-
-    
-    /*
-    for (uint count2 = 1; count2 <= DetailRayPowerCount; ++count2)
-    {
-        for (uint count3 = 1; count3 <= DetailRayDensityCount; ++count3)
-        {
-            float3 CurrentSamplePoint = StartSamplePoint + count3 * LightRay;
-            float SampleValue = BaseShapeTexture2.Sample(BaseShapeTextureSamplerState, CurrentSamplePoint);
-            RayDensity += (1.0 - SampleValue);
-        }
-    }*/
-
-
-
-    /*
-    const uint DetailRayPowerPointCount = 1;
-    const uint DetailRayDensityCount = 10;
-    const float DetailCubeMultiply = 4.0;
-    float LightColor = 0.0;
-    if (TotalCount > ReachCount)
-    {
-        float3 StartSamplePoint = SampleStartPoint + ReachCount * RayStep + float3(Move * Time, 0.0);
-        StartSamplePoint = frac(StartSamplePoint * DetailCubeMultiply);
-        float3 LightRay = float3(0.0, 1.0, 0.0) / DetailRayDensityCount;
-        for (uint count2 = 1; count2 <= DetailRayPowerPointCount; ++count2)
-        {
-            float RayDensity = 0.0;
-            for (uint count3 = 1; count3 <= DetailRayDensityCount; ++count3)
-            {
-                float3 CurrentSamplePoint = StartSamplePoint + count3 * LightRay;
-                float SampleValue = BaseShapeTexture2.Sample(BaseShapeTextureSamplerState, CurrentSamplePoint);
-                RayDensity += (1.0 - SampleValue);
-            }
-            RayDensity = -RayDensity * Density / DetailCubeMultiply;
-            LightColor = exp(RayDensity) * (1.0 - exp(RayDensity * 2.0)) * Value.y * (1.0 - exp(-TargeDensity));
-        }
-    }
-    */
-
-
-    
-    /*
-    float3 ColorPosition = (LocalStartPosition + CubeSize_F3) / CubeSize_F3 / 2.0 + RayCountMin * RayStep;
-    ColorPosition = ColorPosition * CubeSize_F3.z / CubeSize_F3;
-    ColorPosition.z /= 8.0;
-    float Color = BaseShapeTexture2.Sample(BaseShapeTextureSamplerState, frac(ColorPosition * 4.0)).x;
 */
 
 
 
 
-
-    return float2(1.0, 1.0 - exp(-FinalDensity));
-    //return float2(ReachCount / float(TotalCount), 1.0);
-
-
-
-        //return float2(RayCountMin / 32.0, 1.0);
+    //return float2(1.0, 1.0 - exp(-FinalDensity));
 }
 
 void main(in standard_ps_input input, out standard_ps_output_transparent output)
 {
+
+    float3 PixelWorldPosition = input.position_world.xyz;
+    float3 CameraWorldPosition = property_viewport_transfer_eye_world_position(ps);
+    float3 CameraWorldDir = property_viewport_transfer_eye_world_direction(ps);
+
+    float3 PixelDir = normalize(PixelWorldPosition - CameraWorldPosition);
+
+    // 世界坐标系下的路径与深度的比值
+    float Result = dot(PixelDir, CameraWorldDir);
 
     const float3 WidthHeightDepth = float3(80, 80, 10);
 
@@ -256,28 +227,31 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     // 计算反向光线的位移，实际上就是从起始点，通过反向光线移动到立方体边界的位移
     float ReverseRayLenght = RayPatch(-LocalEyeRayWithLengthInformation, EndLocalPosition, WidthHeightDepth);
 
+    // 减去近采样面的距离，然后计算在当前射线下的实际距离
+    float MinWorldDepth = (PixelMinDepth - near_clip_plane(ps)) / Result;
+
     // 在世界坐标系下的最小深度
-    float FinalWorldDepth = min(ReverseRayLenght, PixelMinDepth);
+    float FinalWorldDepth = min(ReverseRayLenght, MinWorldDepth);
 
     float3 StartWorldPosition = FinalWorldDepth * -normalize(EyeRay) + EndWorldPosition;
     float3 StartLocalPosition = FinalWorldDepth * -LocalEyeRayWithLengthInformation + EndLocalPosition;
 
-
     float2 RayResult = RayMatchingBuildInNoise_Inside(
-    BaseShapeTexture,
-    BaseShapeTextureSamplerState,
+    HeightTexture,
+    HeightTextureSampler,
     StartLocalPosition,
     EndLocalPosition,
     WidthHeightDepth,
-    float2(0.5, 0.5),
+    100,
     1.0,
     Density,
     0.3,
-    float3(0.5, 0.5, 0.5),
-    0.7, 
-    Value.y
-    );
-    float Color = RayResult.x + Value.x;
+    float2(12.0, 7.0),
+    frac(ps.time / 10000),
+    float4(0.0, 0.0, 0.0, 1.0),
+    float2(1.2, 1.2)
+    ).xy;
+    float Color = //RayResult.x;
     1.0;
     //RayResult.x;
 

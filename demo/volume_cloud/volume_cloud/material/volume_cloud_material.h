@@ -229,29 +229,21 @@ public:
 	struct property
 	{
 		shader_resource_view<tex2> BaseShapeTex;
-		shader_resource_view<tex2> BaseShapeTex2;
-		sample_state ss;
+		sample_state::description ss_des = sample_state::default_description;
 		float Density = 1.0;
 		float4 Value = { 0.0f, 0.0f, 0.0f, 0.0f };
 		struct renderer_data
 		{
 			shader_resource_view<tex2> BaseShapeTex;
-			shader_resource_view<tex2> BaseShapeTex2;
 			sample_state ss;
 			buffer_constant b;
 		};
-		void set(shader_resource_view<tex2> t, shader_resource_view<tex2> t2, sample_state de = sample_state{}) {
-			ss = std::move(de);
-			BaseShapeTex = std::move(t);
-			BaseShapeTex2 = std::move(t2);
-		}
 
 		void set(float D, float4 V = float4{ 1.0, 1.0,1.0,1.0 }) { Density = D;  Value = V;}
 		void update(creator& c, renderer_data& rd)
 		{
 			rd.BaseShapeTex = BaseShapeTex;
-			rd.BaseShapeTex2 = BaseShapeTex2;
-			rd.ss = ss;
+			rd.ss.create(c, ss_des);
 			shader_storage<float, float4> ss(Density, Value);
 			rd.b.create_pod(c, ss);
 		}
@@ -271,18 +263,21 @@ struct new_new_new_new_material : public material_resource
 public:
 	struct property
 	{
-		shader_resource_view<tex2> tex;
-		sample_state::description ss = sample_state::default_description;
+		shader_resource_view<tex3> tex;
+		sample_state::description ss_des = sample_state::default_description;
+		float Density;
+		float4 Value;
 		void update() {  }
-		struct renderer_data
+		struct renderer_data_append
 		{
-			shader_resource_view<tex2> tex;
 			sample_state ss;
+			buffer_constant bc;
 		};
-		void update(creator& c, renderer_data& rd)
+		void update(creator& c, renderer_data_append& rd)
 		{
-			rd.tex = tex;
-			rd.ss.create(c, ss);
+			rd.ss.create(c, ss_des);
+			shader_storage<float, float4> ss{Density, Value};
+			rd.bc.create_pod(c, ss);
 		}
 	};
 	new_new_new_new_material(creator& c);

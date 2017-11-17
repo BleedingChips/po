@@ -18,9 +18,6 @@
 #include "worley_test.h"
 #include "new_intime.h"
 
-
-
-
 int main(int count, const char** parameter)
 {
 	std::cout << ~uint32_t(0) << endl;
@@ -40,10 +37,11 @@ int main(int count, const char** parameter)
 		auto fo = con.create(form<form_default>{});
 		fo.lock([](decltype(fo)::type& ui) {
 			ui.create(extension<Dx11::stage_instance_extension>{});
+			std::this_thread::sleep_for(duration(100));
 			ui.create(renderer<defer_renderer_default>{});
 			if (false)
 				generator_worley_noise();
-			if (true)
+			if (false)
 			{
 				ui.create(plugin<generator>{});
 				/*

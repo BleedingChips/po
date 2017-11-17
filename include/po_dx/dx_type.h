@@ -3,6 +3,8 @@
 #include "../po/tool/tool.h"
 #include <DirectXMath.h>
 #include <fstream>
+#undef min
+#undef max
 namespace PO
 {
 	namespace Dx
@@ -358,4 +360,16 @@ inline PO::Dx::float3 operator-(PO::Dx::float3 i, float o) {
 
 inline PO::Dx::float2 operator-(PO::Dx::float2 i, PO::Dx::float2 o) {
 	return PO::Dx::float2(i.x - o.x, i.y - o.y);
+}
+
+inline PO::Dx::uint32_t3 operator+(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
+	return PO::Dx::uint32_t3{ i.x + o.x, i.y + o.y, i.z + o.z };
+}
+
+inline bool operator==(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
+	return i.x == o.x && i.y == o.y && i.z == o.z;
+}
+
+inline PO::Dx::uint32_t3 min(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
+	return PO::Dx::uint32_t3(i.x > o.x ? o.x : i.x, i.y > o.y ? o.y : i.y, i.z > o.z ? o.z : i.z);
 }
