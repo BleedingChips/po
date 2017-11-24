@@ -18,7 +18,7 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 		
 		tex3 tiling_3d_worley_noise;
 		tiling_3d_worley_noise.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 512, 512, 512 });
-		if (true)
+		if (false)
 		{
 			element_compute ele;
 			uint32_t point_count = 200;
@@ -61,6 +61,62 @@ void generator::init(defer_renderer_default& dr, plugins& pl)
 			{
 				__debugbreak();
 			}
+		}
+
+		if (true)
+		{
+			element_compute compute;
+			uint32_t3 block = {10, 10, 10};
+			uint WorleyCount = 200;
+			tex3 output;
+			output.create_unordered_access(dr, DXGI_FORMAT::DXGI_FORMAT_R16_FLOAT, { 256, 256, 256 });
+			compute << sie.create_compute<generator_perlin_worley_3D_tiless_noise>()
+				<< [&](generator_perlin_worley_3D_tiless_noise::property& p) {
+				p.input = output.cast_unordered_access_view(dr);
+				p.size = output.size();
+				p.block = block;
+				p.worley_count = WorleyCount;
+				p.Length = 5.0f;
+			}
+				<< [&](indexed_property<property_random_point_f3, 0>& p) {
+				p.create_uniform_point(dr, block.x * block.y * block.z, { 2343,3557231,35653 }, 0.0, 3.141592653f * 2.0f);
+			}
+				<< [&](indexed_property<property_random_point_f3, 1>& p) {
+				p.create_uniform_point(dr, WorleyCount, { 2334443,355237231,3565323 }, 0.0, 1.0);
+			}
+			;
+			dr << compute;
+
+			tex2 FinalOutput;
+			FinalOutput.create_unordered_access(dr, DXGI_FORMAT_R8G8B8A8_TYPELESS, { 256 * 8, 256 * 8 });
+			element_compute ele2;
+			ele2 << sie.create_compute<compute_format_tex3_f4_to_2d_u8_4>()
+				<< [&](compute_format_tex3_f4_to_2d_u8_4::property& p) {
+				p.output = FinalOutput.cast_unordered_access_view_as_format(dr, DXGI_FORMAT_R8G8B8A8_UINT);
+				p.srv = output.cast_shader_resource_view(dr);
+				p.value_factor = float4(1.0, 0.0, 0.0, 0.0);
+				p.texture_size = FinalOutput.size();
+				p.simulate_size = uint32_t4{256, 256, 8, 8};
+			};
+			dr << ele2;
+
+
+
+			dr.insert_task([=](defer_renderer_default& dfd) {
+
+				{
+					DirectX::ScratchImage SI;
+					HRESULT re = DirectX::CaptureTexture(dfd.dev, dfd.get_context().imp->ptr, output.ptr, SI);
+					assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"Output_pre.DDS")));
+				}
+				{
+					DirectX::ScratchImage SI;
+					HRESULT re = DirectX::CaptureTexture(dfd.dev, dfd.get_context().imp->ptr, FinalOutput.ptr, SI);
+					assert(SI.OverrideFormat(DXGI_FORMAT_R8G8B8A8_UNORM));
+					assert(SUCCEEDED(DirectX::SaveToDDSFile(SI.GetImages(), SI.GetImageCount(), SI.GetMetadata(), 0, L"Output.DDS")));
+					assert(SUCCEEDED(DirectX::SaveToTGAFile(*SI.GetImages(), L"Output.TGA")));
+				}
+			});
 		}
 
 		

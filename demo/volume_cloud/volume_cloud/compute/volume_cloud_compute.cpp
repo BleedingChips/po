@@ -232,6 +232,30 @@ const element_requirement& full_1::requirement()
 	);
 }
 
+generator_perlin_worley_3D_tiless_noise::generator_perlin_worley_3D_tiless_noise(creator& c) : compute_resource(c, u"generator_perlin_worley_3D_tiless_noise.cso") 
+{
+}
+
+const element_requirement& generator_perlin_worley_3D_tiless_noise::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& p) {
+		sc.CS() << p.input[0] << p.bc[0];
+		sc << dispatch_call{p.size.x / 32 + (p.size.x % 32 != 0), p.size.y / 32 + (p.size.y % 32 != 0), p.size.z};
+	},
+		[](stage_context& sc, property_wrapper_t<indexed_property<property_random_point_f3, 0>>& p) {
+		sc.CS() << p.srv[0] << p.cb[1];
+	},
+		[](stage_context& sc, property_wrapper_t<indexed_property<property_random_point_f3, 1>>& p) {
+		sc.CS() << p.srv[1] << p.cb[2];
+	}
+	);
+}
+
+
+
+
+
 
 // compute_generate_worley_noise_tex3_3d_f4 ***********************************************************
 

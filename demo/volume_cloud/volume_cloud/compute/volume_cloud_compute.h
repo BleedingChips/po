@@ -383,6 +383,30 @@ public:
 };
 
 
+class generator_perlin_worley_3D_tiless_noise : public compute_resource
+{
+public:
+	struct property
+	{
+		unordered_access_view<tex3> input;
+		uint32_t3 size = {0, 0, 0};
+		uint32_t3 block = {0, 0, 0};
+		uint32_t worley_count = 0;
+		float Length = 1.0;
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rda)
+		{
+			shader_storage<uint32_t3, uint32_t3, uint32_t, float> ss(size, block, worley_count, Length);
+			rda.bc.create_pod(c, ss);
+		}
+	};
+	generator_perlin_worley_3D_tiless_noise(creator& c);
+	const element_requirement& requirement();
+};
+
 
 /*
 

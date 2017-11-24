@@ -137,6 +137,34 @@ void UE4_cube_static::apply(stage_context& sc)
 	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0};
 }
 
+UE4_cube_static_Frame::UE4_cube_static_Frame(creator& c) :
+	geometry_resource(
+		c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{},
+		raterizer_state::description{
+	D3D11_FILL_MODE::D3D11_FILL_WIREFRAME,
+	D3D11_CULL_MODE::D3D11_CULL_FRONT,
+	FALSE,
+	0,
+	0.0f,
+	0.0f,
+	true,
+	false,
+	false,
+	false
+}
+)
+{
+	index.create_index(c, cube_static_3d_index);
+	vertex.create_vertex(c, ::staticl.data);
+}
+
+void UE4_cube_static_Frame::apply(stage_context& sc)
+{
+	geometry_resource::apply(sc);
+	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0 };
+}
+
+
 UE4_cubiods_static::UE4_cubiods_static(creator& c) :
 	geometry_resource(
 		c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{},

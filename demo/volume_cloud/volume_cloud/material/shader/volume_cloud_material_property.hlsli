@@ -213,5 +213,52 @@ float3 UnitLight_F3
     return 1.0 - DensityE;
 }
 
+void CalculateFlipNormalCubeRayStartEndLocalPosition(
+out float3 StartLocalPosition, out float3 EndLocalPosition,
+in float3 WidthHeightDepth,
+in float ScreenDepth,
+in float3 PixelWorldPosition,
+in float3 CameraWorldPosition,
+in float3 CameraWorldDir,
+in float PixelDepth,
+in float4x4 WorldToLocal,
+in float NearClipPlane
+)
+
+{
+    // 计算视角射线向量
+    float3 EyeRay = PixelWorldPosition - CameraWorldPosition;
+
+    // 计算像素点的深度与不透明物体的深度的最小值，计算射线的开始点。
+    float PixelMinDepth = min(ScreenDepth, PixelDepth);
+
+    // 通过向量和深度比计算实际采样射线的。
+    float3 EndWorldPosition = EyeRay * (PixelMinDepth / PixelDepth) + CameraWorldPosition;
+
+    EyeRay = normalize(EyeRay);
+
+    // 世界坐标系下的路径与深度差的比值
+    float Result = dot(EyeRay, normalize(CameraWorldDir));
+
+    // 计算带长度信息的局部坐标下的光线向量
+    float3 LocalEyeRayWithLengthInformation = mul(WorldToLocal, float4(EyeRay, 0.0)).xyz;
+
+    // 计算结束点的局部坐标
+    float4 EndWorldPosition4 = float4(EndWorldPosition, 1.0);
+    EndWorldPosition4 = mul(WorldToLocal, EndWorldPosition4);
+    EndLocalPosition = EndWorldPosition4.xyz / EndWorldPosition4.w;
+
+    // 计算反向光线的位移，实际上就是从起始点，通过反向光线移动到立方体边界的位移
+    float ReverseRayLenght = RayPatch(-LocalEyeRayWithLengthInformation, EndLocalPosition, WidthHeightDepth);
+
+    // 减去近采样面的距离，然后计算在当前射线下的实际距离
+    float MinWorldDepth = (PixelMinDepth - NearClipPlane) / Result;
+
+    // 在世界坐标系下的最小深度
+    float FinalWorldDepth = min(ReverseRayLenght, MinWorldDepth);
+
+    StartLocalPosition = FinalWorldDepth * -LocalEyeRayWithLengthInformation + EndLocalPosition;
+}
+
 
 #endif

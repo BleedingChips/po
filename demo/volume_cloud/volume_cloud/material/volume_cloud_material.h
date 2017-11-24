@@ -60,8 +60,6 @@ public:
 
 };
 
-
-
 class property_render_2d_for_3d
 {
 	float3 min_width, max_width, light;
@@ -281,6 +279,37 @@ public:
 		}
 	};
 	new_new_new_new_material(creator& c);
+	const element_requirement& requirement() const;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
+	}
+};
+
+struct Heght2DEdge2DDensity2D : public material_resource
+{
+	depth_stencil_state dss;
+public:
+	struct property
+	{
+		shader_resource_view<tex2> Edge;
+		shader_resource_view<tex2> Height;
+		shader_resource_view<tex2> DensityMap;
+		sample_state::description ss_des = sample_state::default_description;
+		float Density;
+		float4 Value;
+		struct renderer_data_append
+		{
+			sample_state ss;
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rd)
+		{
+			rd.ss.create(c, ss_des);
+			shader_storage<float, float4> ss{ Density, Value };
+			rd.bc.create_pod(c, ss);
+		}
+	};
+	Heght2DEdge2DDensity2D(creator& c);
 	const element_requirement& requirement() const;
 	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
 		return dss;
