@@ -6,11 +6,10 @@
 Texture2D HeightTexture : register(t0);
 SamplerState HeightTextureSampler : register(s0);
 
+
 cbuffer b0 : register(b0)
 {
-    float Density;
-    float4 Value;
-    float2 Rate;
+    property_volumecloud_debug_value pvdv;
 }
 
 cbuffer b1 : register(b1)
@@ -24,29 +23,6 @@ cbuffer b2 : register(b2)
 
 Texture2D linearize_z : register(t2);
 SamplerState ss : register(s2);
-
-float VolumeSample2(Texture2D Tex1, SamplerState TexSample1, float Base1, uint4 Tex1Simulate, Texture2D Tex2, SamplerState TexSample2, float Base2, uint4 Tex2Simulate, float3 Poi, float3 CycleExtand)
-{
-    float Value1 = Sample2D4ChannelSimulate3D1Channel(Tex1, TexSample1, Poi, Tex1Simulate);
-    Value1 = max(Value1 - Base1, 0.0);
-    float Value2 = Sample2D4ChannelSimulate3D1Channel(Tex2, TexSample2, (Poi + CycleExtand.x) * CycleExtand.y + CycleExtand.z, Tex2Simulate);
-    Value2 = max(Value2 - Base2, 0.0);
-    return max(Value1 - Value2, 0.0);
-}
-
-float CalculateLength(float3 Poi, float AttenuationHeight, float Density)
-{
-    //return 1.0;
-    float DensityFactor = exp(-(1.0 - Density));
-    float3 EdgeDetect = abs(Poi);
-    float3 EdgeStep = step(0.5, EdgeDetect);
-    EdgeDetect = EdgeDetect * EdgeStep;
-    float3 EdgeTraget = 0.5 * EdgeStep;
-    float Value = distance(EdgeTraget, EdgeDetect);
-    float Factor = clamp(Value / -0.45 + 1, 0.0, 1.0);
-    //float FinalHeightFactor = clamp((Poi.z / -AttenuationHeight + 1.0), 0.0, 1.0);
-    return min(min(Factor, 1.0), 1.0);
-}
 
 float SampleBaseDensity(Texture2D Tex1, SamplerState Tex1ss, float3 Poi)
 {
@@ -186,7 +162,7 @@ float2 XYScale_F2
 void main(in standard_ps_input input, out standard_ps_output_transparent output)
 {
     
-    const float3 WidthHeightDepth = float3(80, 80, 10);
+    const float3 WidthHeightDepth = pvdv.XYZSizeOfCube;
 
     float3 EndLocalPosition;
     float3 StartLocalPosition;
@@ -213,7 +189,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     WidthHeightDepth,
     100,
     1.0,
-    Density,
+    pvdv.Density,
     0.3,
     float2(12.0, 7.0),
     frac(ps.time / 1000),

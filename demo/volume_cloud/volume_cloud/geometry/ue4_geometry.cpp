@@ -65,7 +65,6 @@ struct multy_50
 			data[i].position = cube_static_3d2[i].position * 50;
 			data[i].texturecoord = cube_static_3d2[i].texturecoord;
 		}
-			
 	}
 };
 multy_50 staticl;
@@ -137,6 +136,11 @@ void UE4_cube_static::apply(stage_context& sc)
 	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0};
 }
 
+uint32_t3 UE4_cube_static::size()
+{
+	return uint32_t3{ 50, 50, 50 };
+}
+
 UE4_cube_static_Frame::UE4_cube_static_Frame(creator& c) :
 	geometry_resource(
 		c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{},
@@ -192,6 +196,11 @@ void UE4_cubiods_static::apply(stage_context& sc)
 	sc << index << vertex[0] << index_call{ static_cast<uint32_t>(cube_static_3d_index.size()), 0, 0 };
 }
 
+uint32_t3 UE4_cubiods_static::size()
+{
+	return uint32_t3{ 80, 80, 10 };
+}
+
 
 std::array<cube_static_3d_t, 8> cube_simple =
 {
@@ -208,52 +217,6 @@ std::array<cube_static_3d_t, 8> cube_simple =
 { { -1.0, 1.0, -1.0 },{ 1.0, 0.0 } },
 
 };
-
-CubeSimpleX::CubeSimpleX(creator& c) : geometry_resource(c, layout_type<buffer_layout<syntax<position, 0, float3>, syntax<texcoord, 0, float2>>>{},
-	raterizer_state::description{
-	D3D11_FILL_MODE::D3D11_FILL_SOLID,
-	D3D11_CULL_MODE::D3D11_CULL_NONE,
-	FALSE,
-	0,
-	0.0f,
-	0.0f,
-	true,
-	false,
-	false,
-	false
-}
-	)
-{
-	vertex.create_vertex(c, cube_simple);
-}
-
-const element_requirement& CubeSimpleX::requirement() const
-{
-	return make_element_requirement([](stage_context& sc, property_wrapper_t<property>& rd) {
-		sc << rd.index;
-	});
-}
-
-void CubeSimpleX::property::update(creator& c, renderer_data& rd)
-{
-	static const std::array<uint16_t, 12> index_data[6] =
-	{
-		{0,1, 6,  1,5,6,  0,1,5, 0, 5, 6 }, //0156,
-	{0,1, 6,  1,2,6,  0,1,2, 0, 2, 6 }, //0126,
-	{ 0,3, 6,  3,2,6,  0,3,2, 0, 2, 6 }, //0326,
-	{ 0,3, 6,  3,7,6,  0,3,7, 0, 7, 6 }, //0376,
-	{ 0,4, 6,  4,7,6,  0,4,7, 0, 7, 6 }, //0476,
-	{ 0,4, 6,  4,5,6,  0,4,5, 0, 5, 6 }, //0456,
-	};
-
-	rd.index.create_index(c, index_data[index_count]);
-}
-
-void CubeSimpleX::apply(stage_context& sc)
-{
-	sc << vertex[0] << geometry_resource::state;
-	sc << index_call{ 12, 0, 0 };
-}
 
 CubeFrame::CubeFrame(creator& c) : geometry_resource(
 	c,

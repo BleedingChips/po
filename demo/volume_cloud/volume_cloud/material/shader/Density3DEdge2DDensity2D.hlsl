@@ -15,9 +15,7 @@ SamplerState HeightTextureSampler : register(s1);
 
 cbuffer b0 : register(b0)
 {
-    float Density;
-    float4 Value;
-    float2 Rate;
+    property_volumecloud_debug_value pvdv;
 }
 
 cbuffer b1 : register(b1)
@@ -111,7 +109,7 @@ float RayCount_F
 void main(in standard_ps_input input, out standard_ps_output_transparent output)
 {
     
-    const float3 WidthHeightDepth = float3(50, 50, 50);
+    const float3 WidthHeightDepth = pvdv.XYZSizeOfCube;
 
     float3 EndLocalPosition;
     float3 StartLocalPosition;
@@ -142,10 +140,10 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     StartLocalPosition,
     EndLocalPosition,
     WidthHeightDepth,
-    Density,
+    pvdv.Density,
     float3(1.0, 1.0, 1.0),
     ps.time / 10000.0 * float3(1.0, 0.0, 0.0),
-    Value.x,
+    pvdv.InputValue.x,
 		100
 );
 

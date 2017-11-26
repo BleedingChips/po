@@ -16,106 +16,121 @@ float rand(float3 co)
     return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 42.1897))) * 43758.5453);
 }
 
-float perlin_noise_rate(float t)
+float PerlinRate(float t)
 {
-    /*
-    float r3 = r * r * r;
-    float r4 = r3 * r;
-    float r5 = r4 * r;
-    return 6 * r5 + 15 * r4 - 10 * r3;
-    */
     return (t * t * t * (t * (t * 6 - 15) + 10));
-    //return t;
 }
 
-float perlin_noise(float p, float ran_seed)
+float ValuePerlinNoiseRand(float2 UV, float2 Block)
 {
-    float p1 = floor(p);
-    float p2 = p1 + 1.0;
-    float rate = perlin_noise_rate(p - p1);
-    ran_seed = rand(ran_seed);
-    float ran_seed2 = ran_seed * ran_seed;
-
-    p1 = rand(ran_seed * p1 + ran_seed2);
-    p2 = rand(ran_seed * p2 + ran_seed2);
-    return p1 * (1.0 - rate) + p2 * rate;
+    float2 TruePoi = UV * Block;
+    float2 Vertex = floor(TruePoi);
+    float2 Rate = frac(Vertex);
+    return lerp(
+    lerp(rand(Vertex), rand(Vertex + float2(1, 0)), PerlinRate(Rate.x)),
+    lerp(rand(Vertex + float2(0, 1)), rand(Vertex + float2(1, 1)), PerlinRate(Rate.x)),
+    PerlinRate(Rate.y)
+);
 }
 
-float perlin_noise(float2 p, float2 ran_seed)
+float ValuePerlinNoiseRand(float3 UV, float3 Block)
 {
-    float2 o = floor(p);
-    float2 rate = p - o;
-    rate = float2(perlin_noise_rate(rate.x), perlin_noise_rate(rate.y));
-
-    float temporary1 = rand(ran_seed);
-    ran_seed = float2(temporary1, temporary1);
-    float2 rand_seed2 = ran_seed * ran_seed;
-
-    float temporary2;
-    float temporary3;
-
-    temporary1 = rand(ran_seed * o + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float2(1.0, 0.0)) + rand_seed2);
-
-    temporary3 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x;
-
-    temporary1 = rand(ran_seed * (o + float2(0.0, 1.0)) + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float2(1.0, 1.0)) + rand_seed2);
-
-    temporary1 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x;
-
-    return temporary3 * (1.0 - rate.y) + temporary1 * rate.y;
+    float3 TruePoi = UV * Block;
+    float3 Vertex = floor(TruePoi);
+    float3 Rate = frac(Vertex);
+    return 
+lerp(
+    lerp(
+        lerp(rand(Vertex + float3(0, 0, 0)), rand(Vertex + float3(1, 0, 0)), PerlinRate(Rate.x)),
+        lerp(rand(Vertex + float3(0, 1, 0)), rand(Vertex + float3(1, 1, 0)), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    lerp(
+        lerp(rand(Vertex + float3(0, 0, 1)), rand(Vertex + float3(1, 0, 1)), PerlinRate(Rate.x)),
+        lerp(rand(Vertex + float3(0, 1, 1)), rand(Vertex + float3(1, 1, 1)), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    PerlinRate(Rate.z)
+);
 }
 
-float perlin_noise(float3 p, float3 ran_seed)
+float GradientPerlinNoiseRand_CalculateValue(float3 Vertex, float3 Rate, float3 Shift)
 {
-
-    float3 o = floor(p);
-    float3 rate = p - o;
-    rate = float3(perlin_noise_rate(rate.x), perlin_noise_rate(rate.y), perlin_noise_rate(rate.z));
-
-    float temporary1 = rand(ran_seed);
-    ran_seed = float3(temporary1, temporary1, temporary1);
-    float3 rand_seed2 = ran_seed * ran_seed;
-
-    float temporary2;
-
-    temporary1 = rand(ran_seed * (o) + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float3(1.0, 0.0, 0.0)) + rand_seed2);
-
-    float temporary3;
-
-    temporary3 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x; // {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}
-
-    temporary1 = rand(ran_seed * (o + float3(0.0, 1.0, 0.0)) + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float3(1.0, 1.0, 0.0)) + rand_seed2);
-
-    temporary1 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x; // {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}
-
-    float temporary4;
-    temporary4 = temporary3 * (1.0 - rate.y) + temporary1 * rate.y; // {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}
-
-    temporary1 = rand(ran_seed * (o + float3(0.0, 0.0, 1.0)) + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float3(1.0, 0.0, 1.0)) + rand_seed2);
-
-    temporary3 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x; // {0.0, 0.0, 1.0}, {1.0, 0.0, 1.0}
-
-    temporary1 = rand(ran_seed * (o + float3(0.0, 1.0, 1.0)) + rand_seed2);
-    temporary2 = rand(ran_seed * (o + float3(1.0, 1.0, 1.0)) + rand_seed2);
-
-    temporary1 = temporary1 * (1.0 - rate.x) + temporary2 * rate.x; // {0.0, 1.0, 1.0}, {1.0, 1.0, 1.0}
-
-    temporary3 = temporary3 * (1.0 - rate.y) + temporary1 * rate.y; // {0.0, 0.0, 1.0}, {1.0, 0.0, 1.0},  {0.0, 1.0, 1.0}, {1.0, 1.0, 1.0}
-
-    return temporary4 * (1.0 - rate.z) + temporary3 * rate.z;
+    Vertex = Vertex + Shift;
+    float RandValue1 = rand(Vertex.xyz);
+    float2 RandValueSC1 = float2(sin(RandValue1), cos(RandValue1));
+    float RandValue2 = rand(Vertex.zxy);
+    float2 RandValueSC2 = float2(sin(RandValue2), cos(RandValue2));
+    return
+    dot(
+        float3(RandValueSC1.x * RandValueSC2.y, RandValueSC1.x * RandValueSC2.x, RandValueSC1.y),
+        Rate - Shift
+    );
 }
 
-float worley_noise(float2 n, float multy)
+float GradientPerlinNoiseRand(float3 UV, float3 Block)
+{
+    float3 TruePoi = UV * Block;
+    float3 Vertex = floor(TruePoi);
+    float3 Rate = frac(Vertex);
+    return
+lerp(
+    lerp(
+        lerp(GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(0, 0, 0)), GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(1, 0, 0)), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(0, 1, 0)), GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(1, 1, 0)), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    lerp(
+        lerp(GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(0, 0, 1)), GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(1, 0, 1)), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(0, 1, 1)), GradientPerlinNoiseRand_CalculateValue(Vertex, Rate, float3(1, 1, 1)), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    PerlinRate(Rate.z)
+);
+}
+
+float GradientPerlinNoiseRandTiled_CalculateValue(uint3 Vertex, float3 Rate, uint3 Shift, uint3 Block)
+{
+    Vertex = Vertex + Shift;
+    Vertex = step(Vertex + 1, Block) * Vertex;
+    float RandValue1 = rand(Vertex.xyz);
+    float2 RandValueSC1 = float2(sin(RandValue1), cos(RandValue1));
+    float RandValue2 = rand(Vertex.zxy);
+    float2 RandValueSC2 = float2(sin(RandValue2), cos(RandValue2));
+    return
+    dot(
+        float3(RandValueSC1.x * RandValueSC2.y, RandValueSC1.x * RandValueSC2.x, RandValueSC1.y),
+        Rate - Shift
+    );
+}
+
+float GradientPerlinNoiseRandTiled(float3 UV, uint3 Block)
+{
+    float3 TruePoi = UV * Block;
+    float3 Vertex = floor(TruePoi);
+    float3 Rate = frac(Vertex);
+    return
+lerp(
+    lerp(
+        lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 0, 0), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 0, 0), Block), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 1, 0), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 1, 0), Block), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    lerp(
+        lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 0, 1), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 0, 1), Block), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 1, 1), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 1, 1), Block), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    PerlinRate(Rate.z)
+);
+}
+
+float WorleyNoiseRand(float2 n, float multy)
 {
     float dis = 2.0;
     for (uint count = 0; count < 9; ++count)
     {
-        float2 dir = float2((count / 3) % 3, count % 3) - 1.0;
+        float2 dir = float2((count / 3), count % 3) - 1.0;
         float2 p = floor(n / 5.0) + dir;
         float rate = rand(p);
         float2 pre_rate = rate + dir - frac(n / 5.0);
@@ -125,20 +140,7 @@ float worley_noise(float2 n, float multy)
     return 1.0 - dis;
 }
 
-float fbm_worley_noise(in float2 n, in float multy, in uint octaves, in float frequency, in float lacunarity, in float gain)
-{
-    float amplitude = gain;
-    float total = 0.0;
-    for (uint i = 0; i < octaves; ++i)
-    {
-        total += worley_noise(n * frequency, multy) * amplitude;
-        frequency *= lacunarity;
-        amplitude *= gain;
-    }
-    return total;
-}
-
-float worley_noise(float3 n, float multy)
+float WorleyNoiseRand(float3 n, float multy)
 {
     float dis = 2.0;
     for (uint count = 0; count < 27; ++count)
@@ -153,17 +155,17 @@ float worley_noise(float3 n, float multy)
     return 1.0 - dis;
 }
 
-float fbm_worley_noise(in float3 n, in float multy, in uint octaves, in float frequency, in float lacunarity, in float gain)
+float WorleyNoiseTileInputPoint(float3 n, float multy, StructuredBuffer<float3> SB, uint TotalPoint)
 {
-    float amplitude = gain;
-    float total = 0.0;
-    for (uint i = 0; i < octaves; ++i)
+    float dis = 1.0;
+    for (uint count = 0; count < TotalPoint; ++count)
     {
-        total += worley_noise(n * frequency, multy) * amplitude;
-        frequency *= lacunarity;
-        amplitude *= gain;
+        float3 PointDir = n - SB[count];
+        PointDir = min(abs(PointDir), abs(1.0 - PointDir));
+        float DistanceValue = length(PointDir) * multy;
+        dis = min(dis, DistanceValue);
     }
-    return total;
+    return dis;
 }
 
 float SimplexNoise(float2 poi)

@@ -19,7 +19,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float fv = view_far_clip_plane(pss);
 
     float depth = depth_stencil_texture[DTid.xy].x;
-    double result = (-2.0 * f * n) / ((2.0 * depth - fv - nv) * (f - n) / (fv - nv) - f - n);
+    float result = (-2.0 * f * n) / ((2.0 * depth - fv - nv) * (f - n) / (fv - nv) - f - n);
     linearize_z[DTid.xy] = result;
 
 

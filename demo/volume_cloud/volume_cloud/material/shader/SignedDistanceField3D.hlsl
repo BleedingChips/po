@@ -11,8 +11,7 @@ SamplerState BaseShapeSampler : register(s1);
 
 cbuffer b0 : register(b0)
 {
-    float Density;
-    float4 Value;
+    property_volumecloud_debug_value pvdv;
 }
 
 cbuffer b1 : register(b1)
@@ -37,7 +36,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     // 世界坐标系下的路径与深度的比值
     float Result = dot(PixelDir, CameraWorldDir);
 
-    const float3 WidthHeightDepth = float3(50, 50, 50);
+    const float3 WidthHeightDepth = pvdv.XYZSizeOfCube;
 
     // 这个是不透明物体的深度，主要处理被不透明物体遮挡时候的问题
     float OpaqueDepth = linearize_z.Sample(ss, get_uv_screen(input.uv_screen, input.position_sv)).x;
@@ -78,7 +77,7 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
     float3 StartLocalPosition = FinalWorldDepth * -LocalEyeRayWithLengthInformation + EndLocalPosition;
 
 
-    float2 RayResult = CalIMp(StartLocalPosition, EndLocalPosition, WidthHeightDepth, BaseShape, BaseShapeSampler, Density, Value, ps.time / 1000.0, float2(0.05, 0.0));
+    float2 RayResult = CalIMp(StartLocalPosition, EndLocalPosition, WidthHeightDepth, BaseShape, BaseShapeSampler, pvdv.Density, pvdv.InputValue, ps.time / 1000.0, float2(0.05, 0.0));
 
 
     float Color = RayResult.x;

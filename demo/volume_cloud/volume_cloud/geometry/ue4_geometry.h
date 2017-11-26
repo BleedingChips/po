@@ -10,6 +10,7 @@ class UE4_cube_static : public geometry_resource
 	buffer_index index;
 	buffer_vertex vertex;
 public:
+	static uint32_t3 size();
 	UE4_cube_static(creator& c);
 	void apply(stage_context& sc);
 };
@@ -28,29 +29,8 @@ class UE4_cubiods_static : public geometry_resource
 	buffer_index index;
 	buffer_vertex vertex;
 public:
+	static uint32_t3 size();
 	UE4_cubiods_static(creator& c);
-	void apply(stage_context& sc);
-};
-
-class CubeSimpleX : public geometry_resource
-{
-	buffer_vertex vertex;
-	buffer_index index[6];
-public:
-
-	struct property
-	{
-		size_t index_count = 0;
-		struct renderer_data
-		{
-			buffer_index index;
-		};
-		void set_index(size_t i) { index_count = i; if (index_count > 5) index_count = 5; }
-		void update(creator& c, renderer_data& rd);
-	};
-
-	CubeSimpleX(creator& c);
-	const element_requirement& requirement() const;
 	void apply(stage_context& sc);
 };
 
@@ -69,6 +49,7 @@ class UE4_cubiods_static_Frame : public geometry_resource
 	buffer_index index;
 	buffer_vertex vertex;
 public:
+	uint32_t3 size();
 	UE4_cubiods_static_Frame(creator& c);
 	void apply(stage_context& sc);
 };

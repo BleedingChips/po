@@ -16,11 +16,9 @@
 #include "translate_ue4_custion_node.h"
 #include "generator.h"
 #include "worley_test.h"
-#include "new_intime.h"
 
 int main(int count, const char** parameter)
 {
-	std::cout << ~uint32_t(0) << endl;
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
@@ -41,7 +39,7 @@ int main(int count, const char** parameter)
 			ui.create(renderer<defer_renderer_default>{});
 			if (false)
 				generator_worley_noise();
-			if (false)
+			if (true)
 			{
 				ui.create(plugin<generator>{});
 				/*
