@@ -884,7 +884,21 @@ namespace PO
 
 		struct dispatch_call { 
 			uint32_t x, y, z; 
+			dispatch_call(const dispatch_call&) = default;
+			dispatch_call(uint32_t ix = 0, uint32_t iy = 0, uint32_t iz = 0) : x(ix), y(iy), z(iz) {}
+			dispatch_call(uint32_t3 iu) : x(iu.x), y(iu.y), z(iu.z) {}
+			dispatch_call(uint32_t2 iu, uint32_t iz = 0) : x(iu.x), y(iu.y), z(iz) {}
 		};
+
+		inline dispatch_call calculate_dispatch(uint32_t2 input, uint32_t3 scale = { 1, 1, 1 })
+		{
+			return { input.x / scale.x + (input.x % scale.x == 0 ? 0 : 1), input.y / scale.y + (input.y % scale.y == 0 ? 0 : 1), 1 };
+		}
+
+		inline dispatch_call calculate_dispatch(uint32_t3 input, uint32_t3 scale = { 1, 1, 1 })
+		{
+			return { input.x / scale.x + (input.x % scale.x == 0 ? 0 : 1), input.y / scale.y + (input.y % scale.y == 0 ? 0 : 1), input.z / scale.z + (input.z % scale.z == 0 ? 0 : 1) };
+		}
 
 		struct vertex_call { uint32_t count, start; };
 		struct index_call { uint32_t index_count, index_start, vertex_start; };

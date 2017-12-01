@@ -13,6 +13,7 @@ namespace PO
 			char* da = new char[size];
 			f.read(da, size);
 			data = da;
+			/*
 			static bool p = false;
 			if (!p)
 			{
@@ -20,7 +21,7 @@ namespace PO
 				pp.write(da, size);
 				pp.close();
 				p = true;
-			}
+			}*/
 			
 
 		}

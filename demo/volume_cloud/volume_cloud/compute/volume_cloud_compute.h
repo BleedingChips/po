@@ -25,6 +25,27 @@ struct property_random_point_f
 	void update(creator& c, renderer_data& rd);
 };
 
+class property_custom_random_point_f3
+{
+	struct type
+	{
+		uint32_t4 data;
+		float4 Parameter;
+	};
+	type data[3];
+	uint32_t count;
+public:
+	struct renderer_data
+	{
+		shader_resource_view<buffer_structured> rand_buffer;
+		buffer_constant parameter;
+	};
+	void update(creator& c, renderer_data& rd);
+	property_custom_random_point_f3& set_normal(uint32_t index, uint32_t Seed, float mean = 0.0f, float stddev = 0.0f);
+	property_custom_random_point_f3& set_uniform(uint32_t index, uint32_t Seed, float min = 0.0f, float max = 0.0f);
+	property_custom_random_point_f3& set_count(uint32_t c) { count = c; return *this; }
+};
+
 struct property_random_point_f3
 {
 	std::vector<float3> random_vector;
@@ -176,5 +197,123 @@ public:
 		}
 	};
 	SDF_3dGenerator(creator& c);
+	const element_requirement& requirement();
+};
+
+struct DensityMap3DGenerator : public compute_resource
+{
+	struct property
+	{
+		unordered_access_view<tex3> output;
+		uint32_t3 output_size = {0, 0, 0};
+		float Length = 6.0;
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rd)
+		{
+			shader_storage<uint32_t3, float> ss(output_size, Length);
+			rd.bc.create_pod(c, ss);
+		}
+	};
+	DensityMap3DGenerator(creator& c);
+	const element_requirement& requirement();
+};
+
+struct Simulate3DFloatWith2DUnorm4 : public compute_resource
+{
+	struct property
+	{
+		uint32_t2 output_size = {0, 0};
+		uint32_t4 simulate_size = {1, 1, 1, 1};
+		float4 Factor = float4(1.0, 0.0, 0.0, 0.0);
+		shader_resource_view<tex3> input;
+		unordered_access_view<tex2> output;
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rdq)
+		{
+			shader_storage<uint32_t4, float4> ss{ simulate_size , Factor };
+			rdq.bc.create_pod(c, ss);
+		}
+	};
+	Simulate3DFloatWith2DUnorm4(creator& c);
+	const element_requirement& requirement();
+	static uint32_t2 calculate_texture_size(uint32_t4 input);
+};
+
+struct SignedDistanceField3DGenerator : public compute_resource
+{
+	class property
+	{
+		uint32_t NextInstace = 0;
+		uint32_t CallInstance = 0;
+	public:
+		unordered_access_view<tex3> outputTexture;
+		unordered_access_view<tex3> bufferTexture;
+		uint32_t3 output_size = {0, 0, 0};
+		shader_resource_view<tex3> inputTexture;
+		uint32_t3 input_size = { 1, 1, 1 };
+		float4 InputFactor = { 1.0, 0.0, 0.0, 0.0 };
+		float MaxDistance = 0.125;
+		uint MaxCount = 8000;
+		float EdgeValue = 0.2f;
+		
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+		};
+		void update(creator& c, renderer_data_append& rda)
+		{
+			uint32_t totalCount = static_cast<uint32_t>((input_size.x * input_size.y * input_size.z) * MaxDistance);
+			shader_storage<uint32_t3, uint32_t3, float4, float, uint32_t, uint32_t, float, uint32_t> ss{ output_size, input_size, InputFactor, MaxDistance, MaxCount, CallInstance, EdgeValue, totalCount };
+			rda.bc.create_pod(c, ss);
+		}
+		void reset() { CallInstance = 0; NextInstace = 0; }
+		bool need_next()
+		{
+			uint32_t totalCount = static_cast<uint32_t>((input_size.x * input_size.y * input_size.z) * MaxDistance);
+			uint NeedInstane = (totalCount / MaxCount) + (totalCount % MaxCount == 0 ? 0 : 1);
+			if (NextInstace < NeedInstane)
+			{
+				std::cout << NextInstace << " / " << NeedInstane << std::endl;
+				CallInstance = NextInstace;
+				++NextInstace;
+				return true;
+			}
+			return false;
+		}
+	};
+	SignedDistanceField3DGenerator(creator& c);
+	const element_requirement& requirement();
+};
+
+struct CenterNoiseGenerator : public compute_resource
+{
+	struct property
+	{
+		unordered_access_view<tex3> output;
+		shader_resource_view<tex2> XY;
+		shader_resource_view<tex2> YZ;
+		shader_resource_view<tex2> XZ;
+		uint32_t3 output_size = {0, 0, 0};
+		float Distance = 1.0;
+		sample_state::description des = sample_state::default_description;
+		struct renderer_data_append
+		{
+			buffer_constant bc;
+			sample_state ss;
+		};
+		void update(creator& c, renderer_data_append& rda)
+		{
+			shader_storage<uint32_t3, float> ss(output_size, Distance);
+			rda.bc.create_pod(c, ss);
+			rda.ss.create(c, des);
+		}
+	};
+	CenterNoiseGenerator(creator& c);
 	const element_requirement& requirement();
 };

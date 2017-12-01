@@ -32,11 +32,21 @@ void main( uint3 DTid : SV_DispatchThreadID )
 {
     float3 Poi = DTid / float3(output_size - 1);
 
-    OutputTexture3[DTid] =
+    float PrlinNoise = clamp((GradientPerlinNoiseRandTiled(Poi, uint3(5, 5, 5)) + 1.0) / 2.0, 0.0, 1.0) * 0.7
+    + clamp((GradientPerlinNoiseRandTiled(frac(Poi * 2.0), uint3(5, 5, 5)) + 1.0) / 2.0, 0.0, 1.0) * 0.3;
+
+    float WorleyNoise = 0.0
+    + WorleyNoiseTileInputPoint(Poi, Length, Point, count) * 0.5
+    + WorleyNoiseTileInputPoint(frac(Poi * 2.0), Length, Point, count) * 0.25
+    + WorleyNoiseTileInputPoint(frac(Poi * 3.0), Length, Point, count) * 0.125
+    ;
+
+    OutputTexture3[DTid] = WorleyNoise;
+    //clamp(PrlinNoise - 0.725 + WorleyNoise, 0.0, 1.0);
+
+
     
-    TilessWorleyPoint3(Poi, Length, 0, count) * 0.5
-    + TilessWorleyPoint3(frac(Poi * 2.0), Length, 0, count) * 0.25
-    + TilessWorleyPoint3(frac(Poi * 4.0), Length, 0, count) * 0.125;
+    
     /*
     TilessWorley(Poi + 0.23423, 5, 1.0) * 0.5;
    0.0 + TilessWorley(Poi + 0.2323, 12, 1.0) * 0.5 * 0.5

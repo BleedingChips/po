@@ -53,6 +53,7 @@ public:
 	struct property
 	{
 		shader_resource_view<tex3> tex;
+		shader_resource_view<tex2> tex_dif;
 		sample_state::description ss_des = sample_state::default_description;
 		struct renderer_data_append
 		{
@@ -78,7 +79,7 @@ public:
 	{
 		shader_resource_view<tex2> Edge;
 		shader_resource_view<tex2> Height;
-		shader_resource_view<tex2> DensityMap;
+		shader_resource_view<tex3> DensityMap;
 		sample_state::description ss_des = sample_state::default_description;
 		struct renderer_data_append
 		{
@@ -90,6 +91,30 @@ public:
 		}
 	};
 	Density3DEdge2DDensity2D(creator& c);
+	const element_requirement& requirement() const;
+	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
+		return dss;
+	}
+};
+
+struct DensityMap3D : public material_resource
+{
+	depth_stencil_state dss;
+public:
+	struct property
+	{
+		shader_resource_view<tex3> DensityMap;
+		sample_state::description ss_des = sample_state::default_description;
+		struct renderer_data_append
+		{
+			sample_state ss;
+		};
+		void update(creator& c, renderer_data_append& rd)
+		{
+			rd.ss.create(c, ss_des);
+		}
+	};
+	DensityMap3D(creator& c);
 	const element_requirement& requirement() const;
 	const depth_stencil_state& replace_depth_stencil_state(const depth_stencil_state&) {
 		return dss;

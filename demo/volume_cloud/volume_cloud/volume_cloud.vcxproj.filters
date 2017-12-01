@@ -126,5 +126,23 @@
     <FxCompile Include="material\shader\SignedDistanceField3D.hlsl">
       <Filter>material\shader</Filter>
     </FxCompile>
+    <FxCompile Include="compute\shader\SignedDistanceField2DGenerator.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\Simulate3DFloatWith2DUnorm4.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\DensityMap3DGenerator.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\SignedDistanceField3DGenerator.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="material\shader\DensityMap3D.hlsl">
+      <Filter>material\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="compute\shader\CenterNoiseGenerator.hlsl">
+      <Filter>compute\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

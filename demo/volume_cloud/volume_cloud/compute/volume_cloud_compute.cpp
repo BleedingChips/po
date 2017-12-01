@@ -96,6 +96,54 @@ void property_random_point_f3::update(creator& c, renderer_data& rd)
 	rd.cb.create_pod(c, ss);
 }
 
+property_custom_random_point_f3& property_custom_random_point_f3::set_normal(uint32_t index, uint32_t Seed, float mean, float stddev) {
+	assert(index <= 3);
+	data[index].data = uint32_t4(Seed, 0,0, 0);
+	data[index].Parameter = float4(mean, stddev, 0, 0);
+	return *this;
+}
+
+property_custom_random_point_f3& property_custom_random_point_f3::set_uniform(uint32_t index, uint32_t Seed, float min, float max)
+{
+	assert(index <= 3);
+	data[index].data = uint32_t4(Seed, 1, 0, 0);
+	data[index].Parameter = float4(min, max, 0, 0);
+	return *this;
+}
+
+void property_custom_random_point_f3::update(creator& c, renderer_data& rd)
+{
+	std::vector<float3> buffer(count, float3(0, 0, 0));
+	//std::array<std::mt19937, 3> mt({ data[0].data.x, data[1].data.x, data[2].data.x});
+	std::mt19937 mt[3] = { std::mt19937(data[0].data.x), std::mt19937(data[1].data.x), std::mt19937(data[2].data.x) };
+	for (size_t i = 0; i < count; ++i)
+	{
+		float Result[3];
+		for (size_t i = 0; i < 3; ++i)
+		{
+			if (data[i].data.y == 0)
+			{
+				std::normal_distribution<float> nd(data[i].Parameter.x, data[i].Parameter.y);
+				Result[i] = nd(mt[i]);
+			}
+			else if (data[i].data.y == 1)
+			{
+				std::uniform_real_distribution<float> nd(data[i].Parameter.x, data[i].Parameter.y);
+				Result[i] = nd(mt[i]);
+			}
+		}
+		float3 FinalResult(Result[0], Result[1], Result[2]);
+		buffer[i] = FinalResult;
+	}
+	buffer_structured bs;
+	bs.create(c, buffer);
+	rd.rand_buffer = bs.cast_shader_resource_view(c);
+	shader_storage<uint32_t, uint32_t4, float4, uint32_t4, float4, uint32_t4, float4> ss(count, data[0].data, data[0].Parameter, data[1].data, data[1].Parameter, data[1].data, data[1].Parameter);
+	rd.parameter.create_pod(c, ss);
+}
+
+
+
 SDF_2dGenerator::SDF_2dGenerator(creator& c) : compute_resource(c, u"sdf_2d_generator.cso") {
 
 }
@@ -165,3 +213,66 @@ const element_requirement& SDF_3dGenerator::requirement()
 	);
 }
 
+DensityMap3DGenerator::DensityMap3DGenerator(creator& c) : compute_resource(c, u"DensityMap3DGenerator.cso") {}
+
+const element_requirement& DensityMap3DGenerator::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& p) {
+		sc.CS() << p.bc[0] << p.output[0];
+		sc << calculate_dispatch(p.output_size, { 32, 32, 1 });
+	},
+		[](stage_context& sc, property_wrapper_t<property_random_point_f3>& p){
+		sc.CS() << p.srv[0] << p.cb[1];
+	}
+	);
+}
+
+Simulate3DFloatWith2DUnorm4::Simulate3DFloatWith2DUnorm4(creator& c) : compute_resource(c, u"Simulate3DFloatWith2DUnorm4.cso")
+{
+
+}
+
+uint32_t2 Simulate3DFloatWith2DUnorm4::calculate_texture_size(uint32_t4 input)
+{
+	return uint32_t2{ (input.x + 2) * input.z, (input.y + 2) * input.w };
+}
+
+
+const element_requirement& Simulate3DFloatWith2DUnorm4::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& p) {
+		sc.CS() << p.bc[0] << p.input[0] << p.output[0];
+		sc << calculate_dispatch(p.output_size, { 32, 32, 1 });
+	}
+	);
+}
+
+SignedDistanceField3DGenerator::SignedDistanceField3DGenerator(creator& c) : compute_resource(c, u"SignedDistanceField3DGenerator.cso") {}
+const element_requirement& SignedDistanceField3DGenerator::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& pp) {
+		sc.CS() << pp.bc[0] << pp.inputTexture[0] << pp.outputTexture[0] << pp.bufferTexture[1];
+		sc << calculate_dispatch(pp.output_size, { 32, 32, 1 });
+	}
+	);
+}
+
+
+CenterNoiseGenerator::CenterNoiseGenerator(creator& c) : compute_resource(c, u"CenterNoiseGenerator.cso") {}
+
+const element_requirement& CenterNoiseGenerator::requirement()
+{
+	return make_element_requirement(
+		[](stage_context& sc, property_wrapper_t<property>& pp) {
+		sc.CS() << pp.bc[0] << pp.output[0] << pp.ss[0] << pp.XY[1] << pp.YZ[2] << pp.XZ[3];
+		sc << calculate_dispatch(pp.output_size, { 32, 32, 1 });
+	},
+		[](stage_context& sc, property_wrapper_t<property_custom_random_point_f3>& p)
+	{
+		sc.CS() << p.parameter[1] << p.rand_buffer[0];
+	}
+	);
+}

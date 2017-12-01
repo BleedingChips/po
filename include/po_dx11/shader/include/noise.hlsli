@@ -93,9 +93,9 @@ float GradientPerlinNoiseRandTiled_CalculateValue(uint3 Vertex, float3 Rate, uin
 {
     Vertex = Vertex + Shift;
     Vertex = step(Vertex + 1, Block) * Vertex;
-    float RandValue1 = rand(Vertex.xyz);
+    float RandValue1 = rand(Vertex.xyz) * 3.141592653 * 2.0;
     float2 RandValueSC1 = float2(sin(RandValue1), cos(RandValue1));
-    float RandValue2 = rand(Vertex.zxy);
+    float RandValue2 = rand(Vertex.zxy) * 3.141592653 * 2.0;
     float2 RandValueSC2 = float2(sin(RandValue2), cos(RandValue2));
     return
     dot(
@@ -108,7 +108,7 @@ float GradientPerlinNoiseRandTiled(float3 UV, uint3 Block)
 {
     float3 TruePoi = UV * Block;
     float3 Vertex = floor(TruePoi);
-    float3 Rate = frac(Vertex);
+    float3 Rate = frac(TruePoi);
     return
 lerp(
     lerp(
@@ -119,6 +119,42 @@ lerp(
     lerp(
         lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 0, 1), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 0, 1), Block), PerlinRate(Rate.x)),
         lerp(GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(0, 1, 1), Block), GradientPerlinNoiseRandTiled_CalculateValue(Vertex, Rate, float3(1, 1, 1), Block), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    PerlinRate(Rate.z)
+);
+}
+
+float GradientPerlinNoisePointTiled_CalculateValue(uint3 Vertex, float3 Rate, uint3 Shift, uint3 Block, StructuredBuffer<float2> Point)
+{
+    Vertex = Vertex + Shift;
+    Vertex = step(Vertex + 1, Block) * Vertex;
+    float RandValue1 = rand(Vertex.xyz) * 3.141592653 * 2.0;
+    float2 RandValueSC1 = float2(sin(RandValue1), cos(RandValue1));
+    float RandValue2 = rand(Vertex.zxy) * 3.141592653 * 2.0;
+    float2 RandValueSC2 = float2(sin(RandValue2), cos(RandValue2));
+    return
+    dot(
+        float3(RandValueSC1.x * RandValueSC2.y, RandValueSC1.x * RandValueSC2.x, RandValueSC1.y),
+        Rate - Shift
+    );
+}
+
+float GradientPerlinNoisePointTiled(float3 UV, uint3 Block, StructuredBuffer<float2> Point)
+{
+    float3 TruePoi = UV * Block;
+    float3 Vertex = floor(TruePoi);
+    float3 Rate = frac(TruePoi);
+    return
+lerp(
+    lerp(
+        lerp(GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(0, 0, 0), Block, Point), GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(1, 0, 0), Block, Point), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(0, 1, 0), Block, Point), GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(1, 1, 0), Block, Point), PerlinRate(Rate.x)),
+        PerlinRate(Rate.y)
+    ),
+    lerp(
+        lerp(GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(0, 0, 1), Block, Point), GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(1, 0, 1), Block, Point), PerlinRate(Rate.x)),
+        lerp(GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(0, 1, 1), Block, Point), GradientPerlinNoisePointTiled_CalculateValue(Vertex, Rate, float3(1, 1, 1), Block, Point), PerlinRate(Rate.x)),
         PerlinRate(Rate.y)
     ),
     PerlinRate(Rate.z)
@@ -160,12 +196,24 @@ float WorleyNoiseTileInputPoint(float3 n, float multy, StructuredBuffer<float3> 
     float dis = 1.0;
     for (uint count = 0; count < TotalPoint; ++count)
     {
-        float3 PointDir = n - SB[count];
-        PointDir = min(abs(PointDir), abs(1.0 - PointDir));
+        float3 PointDir = abs(n - SB[count]);
+        PointDir = min(PointDir, 1.0 - PointDir);
         float DistanceValue = length(PointDir) * multy;
         dis = min(dis, DistanceValue);
     }
-    return dis;
+    return 1.0 - dis;
+}
+
+float WorleyNoiseInputPoint(float3 n, float multy, StructuredBuffer<float3> SB, uint TotalPoint)
+{
+    float dis = 1.0;
+    for (uint count = 0; count < TotalPoint; ++count)
+    {
+        float3 PointDir = abs(n - SB[count]);
+        float DistanceValue = length(PointDir) * multy;
+        dis = min(dis, DistanceValue);
+    }
+    return 1.0 - dis;
 }
 
 float SimplexNoise(float2 poi)

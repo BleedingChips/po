@@ -5,7 +5,7 @@ struct property_volumecloud_debug_value
 {
     float4 InputValue;
     float Density;
-    float3 XYZSizeOfCube;
+    uint3 XYZSizeOfCube;
 };
 
 float RayPatch(float3 RayWidthLengthInfo_F3, float3 StartPoint_F3, float3 WidthHeightDepth_F3)
@@ -54,6 +54,46 @@ float Sample2D4ChannelSimulate3D1Channel_Mirro(Texture2D Tex, SamplerState SS, f
     (MirroLocation.x * 0.98 + 0.01 + MaxChunkXY.x) / float(Block.z),
     (MirroLocation.y * 0.98 + 0.01 + MaxChunkXY.y) / float(Block.w)
     );
+
+    static const float4 IndexFactor[4] =
+    {
+        float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1)
+    };
+
+    float4 S1 = Texture2DSample(Tex, SS, FinalLocationLast);
+    float4 S2 = Texture2DSample(Tex, SS, FinalLocationMax);
+    float4 F1 = IndexFactor[ZChunkLast / ZChannelCount];
+    float4 F2 = IndexFactor[ZChunkMax / ZChannelCount];
+
+    float V1 = dot(S1, F1);
+    float V2 = dot(S2, F2);
+
+    return lerp(V1, V2, rate);
+}
+
+float Sample2D4ChannelSimulate3D1ChannelWrap(Texture2D Tex, SamplerState SS, float3 SampleLocaltion, uint4 Block)
+{
+    float3 WrapLocation = frac(SampleLocaltion);
+    //WrapLocation.z = frac(WrapLocation.z);
+    float3 IntLoacation = WrapLocation * uint3(Block.x, Block.y, Block.z * Block.w * 4);
+
+    uint ZChannelCount = Block.z * Block.w;
+    uint ZCount = ZChannelCount * 4;
+    float ZChunk = WrapLocation.z * (ZCount);
+    ZChunk -= 0.5;
+    ZChunk = lerp(ZChunk + ZCount, ZChunk, step(0.0, ZChunk));
+    uint ZChunkLast = floor(ZChunk);
+    uint ZChunkMax = ZChunkLast + 1;
+    ZChunkMax = step(ZChunkMax + 1, ZCount) * ZChunkMax;
+    float rate = ZChunk - ZChunkLast;
+    uint2 LastChunkXY = uint2(ZChunkLast % Block.z, (ZChunkLast % ZChannelCount) / Block.z);
+    uint2 MaxChunkXY = uint2(ZChunkMax % Block.z, (ZChunkMax % ZChannelCount) / Block.z);
+
+    float2 Mulity = Block.xy / float2(Block.xy + 2);
+    float2 Shift = 1.0 / float2(Block.xy + 2);
+
+    float2 FinalLocationLast = (WrapLocation.xy * Mulity + LastChunkXY + Shift) / float2(Block.zw);
+    float2 FinalLocationMax = (WrapLocation.xy * Mulity + Shift + MaxChunkXY) / float2(Block.zw);
 
     static const float4 IndexFactor[4] =
     {

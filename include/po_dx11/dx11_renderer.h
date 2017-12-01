@@ -15,10 +15,10 @@ namespace PO
 			float4x4 eye;
 			viewport view;
 
-			sub_viewport_perspective(float2 view_size, float2 view_left_top = float2{ 0.0, 0.0 }, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 100000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f });
-			sub_viewport_perspective(float4 view_border, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 100000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f })
+			sub_viewport_perspective(float2 view_size, float2 view_left_top = float2{ 0.0, 0.0 }, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 10000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f });
+			sub_viewport_perspective(float4 view_border, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 10000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f })
 				: sub_viewport_perspective(float2{ view_border.z - view_border.x, view_border.w - view_border.y }, float2{ view_border.x,view_border.y }, angle, far_near_plane, avalible_depth) {}
-			sub_viewport_perspective(tex2 tex, float2 view_left_top = float2{ 0.0, 0.0 }, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 100000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f }) :
+			sub_viewport_perspective(tex2 tex, float2 view_left_top = float2{ 0.0, 0.0 }, float angle = 3.1415926f / 4.0f, float2 far_near_plane = float2{ 0.1f, 10000.0f }, float2 avalible_depth = float2{ 0.0f, 1.0f }) :
 				sub_viewport_perspective(tex.size_f(), view_left_top, angle, far_near_plane, avalible_depth) {}
 			sub_viewport_perspective(const sub_viewport_perspective&) = default;
 			sub_viewport_perspective& operator=(const sub_viewport_perspective&) = default;

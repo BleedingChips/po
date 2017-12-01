@@ -19,6 +19,9 @@
 
 int main(int count, const char** parameter)
 {
+
+
+
 #ifdef DEBUG
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
 	PO::Dx11::add_shader_path<PO::Dx::shader_binary>(u"..\\..\\..\\..\\..\\project\\vs2017\\po_dx11\\lib\\shader\\Debug");
@@ -39,7 +42,7 @@ int main(int count, const char** parameter)
 			ui.create(renderer<defer_renderer_default>{});
 			if (false)
 				generator_worley_noise();
-			if (true)
+			if (false)
 			{
 				ui.create(plugin<generator>{});
 				/*

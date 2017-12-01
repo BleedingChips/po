@@ -20,7 +20,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
     float depth = depth_stencil_texture[DTid.xy].x;
     float result = (-2.0 * f * n) / ((2.0 * depth - fv - nv) * (f - n) / (fv - nv) - f - n);
-    linearize_z[DTid.xy] = result;
+    linearize_z[DTid.xy] = float(result);
 
 
     //linearize_z[DTid.xy] = (-2.0 * f * n) / ((2 * depth_stencil_texture[DTid.xy].x - fv - nv) * (f - n) / (fv - nv) - f - n);
