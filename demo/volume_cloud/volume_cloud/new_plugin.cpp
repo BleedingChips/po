@@ -26,12 +26,12 @@ adapter_map new_plugin::mapping(self& sel)
 	});
 	sel.auto_bind_respond(&new_plugin::respond, this);
 	return {
-		make_member_adapter<defer_renderer_default>(this, &new_plugin::init, &new_plugin::tick)
+		//make_member_adapter<defer_renderer_default>(this, &new_plugin::init, &new_plugin::tick)
 	};
 	
 }
 
-Respond new_plugin::respond(const event& e)
+Respond new_plugin::respond(const event& e, self&, plugins&, viewer& v)
 {
 	Respond re = s.respond(e);
 	if (re == Respond::Pass)
@@ -122,36 +122,8 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 			ts1.poi = float3(0.0, 0.0, 5.0);
 			ts1.sca = float3(0.02f, 0.02f, 0.02f);
 
-			tex3 CenterTexture;
-			CenterTexture.create_unordered_access(dr, DXGI_FORMAT_R16_FLOAT, { 128,128, 128 });
-			tex2 XY;
-			assert(LoadFormTGA(dr, XY, u"XY.tga"));
-			tex2 YZ;
-			assert(LoadFormTGA(dr, YZ, u"YZ.tga"));
-			tex2 XZ;
-			assert(LoadFormTGA(dr, XZ, u"XZ.tga"));
-			element_compute ele;
-			ele << sie.create_compute<CenterNoiseGenerator>()
-				<< [&](CenterNoiseGenerator::property& p) {
-				p.output = CenterTexture.cast_unordered_access_view(dr);
-				p.output_size = CenterTexture.size();
-				p.Distance = 6.0;
-				p.XY = XY.cast_shader_resource_view(dr);
-				p.YZ = YZ.cast_shader_resource_view(dr);
-				p.XZ = XZ.cast_shader_resource_view(dr);
-			}
-				<< [&](property_custom_random_point_f3& pcrp)
-			{
-				pcrp.set_normal(0, 23543, 0.0, 0.22f)
-					.set_normal(1, 2342342, 0.0, 0.22f)
-					.set_normal(2, 67853, 0.0, 0.15f)
-					.set_count(400);
-			}
-			;
-			dr << ele;
-			dr.insert_task([=](defer_renderer_default& dr) {
-				assert(SaveToDDS(dr, CenterTexture, u"Center.DDS"));
-			});
+			tex3 SDF;
+			assert(LoadFormDDS(dr, SDF, u"SDF_GOGOG.DDS"));
 
 			output_volume_cube << sie.create_geometry<UE4_cube_static>()
 				<< sie.create_placement<placement_static_viewport_static>()
@@ -163,9 +135,9 @@ void new_plugin::init(defer_renderer_default& dr, plugins& pl)
 				pvdv.Density = max_denstiy;
 				pvdv.InputValue = Value;
 				pvdv.XYZSizeOfCube = UE4_cube_static::size();
-			} << sie.create_material<DensityMap3D>()
-				<< [&](DensityMap3D::property& p) {
-				p.DensityMap = CenterTexture.cast_shader_resource_view(dr);
+			} << sie.create_material<SignedDistanceField3D>()
+				<< [&](SignedDistanceField3D::property& p) {
+				p.tex = SDF.cast_shader_resource_view(dr);
 				p.ss_des.Filter = decltype(p.ss_des.Filter)::D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 				p.ss_des.AddressU = decltype(p.ss_des.AddressU)::D3D11_TEXTURE_ADDRESS_WRAP;
 				p.ss_des.AddressV = decltype(p.ss_des.AddressU)::D3D11_TEXTURE_ADDRESS_WRAP;
@@ -229,5 +201,5 @@ void new_plugin::tick(defer_renderer_default& dr, duration da, plugins& pl)
 	dr.pipeline_opaque() << back_ground;
 	
 	dr.pipeline_transparent() << output_volume_cube;
-	dr.pipeline_transparent() << output_volume_cube_frame;
+	//dr.pipeline_transparent() << output_volume_cube_frame;
 }

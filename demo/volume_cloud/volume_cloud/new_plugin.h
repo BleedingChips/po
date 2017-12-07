@@ -29,5 +29,5 @@ struct new_plugin
 	adapter_map mapping(self& sel);
 	void init(defer_renderer_default& dr, plugins& pl);
 	void tick(defer_renderer_default& dr, duration da, plugins& pl);
-	Respond respond(const event& e);
+	Respond respond(const event&, self&, plugins&, viewer& v);
 };

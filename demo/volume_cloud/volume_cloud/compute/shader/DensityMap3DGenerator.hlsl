@@ -7,6 +7,7 @@ StructuredBuffer<float3> Point : register(t0);
 cbuffer b0 : register(b0)
 {
     uint3 Size;
+    uint3 Block;
     float Length;
 }
 
@@ -20,10 +21,11 @@ void main( uint3 DTid : SV_DispatchThreadID )
 {
     float3 Poi = DTid / float3(Size - 1);
 
-    float PrlinNoise = clamp((GradientPerlinNoiseRandTiled(Poi, uint3(5, 5, 5)) + 1.0) / 2.0, 0.0, 1.0) * 0.5
-    + clamp((GradientPerlinNoiseRandTiled(frac(Poi * 2.0), uint3(5, 5, 5)) + 1.0) / 2.0, 0.0, 1.0) * 0.25
-    + clamp((GradientPerlinNoiseRandTiled(frac(Poi * 4.0), uint3(5, 5, 5)) + 1.0) / 2.0, 0.0, 1.0) * 0.125;
+    float PrlinNoise = clamp((GradientPerlinNoiseRandTiled(Poi, Block) + 1.0) / 2.0, 0.0, 1.0) * 0.5
+    + clamp((GradientPerlinNoiseRandTiled(frac(Poi * 2.0), Block) + 1.0) / 2.0, 0.0, 1.0) * 0.25
+    + clamp((GradientPerlinNoiseRandTiled(frac(Poi * 4.0), Block) + 1.0) / 2.0, 0.0, 1.0) * 0.125;
     PrlinNoise /= 0.725;
+
     float WorlyNoise = WorleyNoiseTileInputPoint(Poi, Length, Point, prp.count) * 0.5
     + WorleyNoiseTileInputPoint(frac(Poi * 2.0), Length, Point, prp.count) * 0.25
     + WorleyNoiseTileInputPoint(frac(Poi * 4.0), Length, Point, prp.count) * 0.125;

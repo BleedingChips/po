@@ -141,7 +141,7 @@ namespace PO
 
 		template<typename extension_t, typename ...AP>
 		void create(extension<extension_t>, AP&& ...ap) {
-			extension_delegate_function.lock([&](decltype(extension_delegate_function)::type& tabk) {
+			extension_delegate_function.lock([&](typename decltype(extension_delegate_function)::type& tabk) {
 				tabk.push_back([=](value_table& vt) -> std::unique_ptr<Implement::extension_interface> {
 					return std::make_unique<Implement::extension_implement<extension_t>>(vt, std::forward<AP>(ap)...);
 				});

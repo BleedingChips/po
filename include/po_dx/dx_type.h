@@ -373,3 +373,11 @@ inline bool operator==(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
 inline PO::Dx::uint32_t3 min(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
 	return PO::Dx::uint32_t3(i.x > o.x ? o.x : i.x, i.y > o.y ? o.y : i.y, i.z > o.z ? o.z : i.z);
 }
+
+inline PO::Dx::uint32_t3 operator*(PO::Dx::uint32_t3 i, uint32_t o) {
+	return PO::Dx::uint32_t3(i.x * o, i.y * o, i.z * o);
+}
+
+inline PO::Dx::uint32_t3 operator*(PO::Dx::uint32_t3 i, PO::Dx::uint32_t3 o) {
+	return PO::Dx::uint32_t3(i.x * o.x, i.y * o.y, i.z * o.z);
+}

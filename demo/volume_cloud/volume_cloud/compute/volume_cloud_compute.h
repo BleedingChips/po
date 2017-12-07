@@ -206,6 +206,7 @@ struct DensityMap3DGenerator : public compute_resource
 	{
 		unordered_access_view<tex3> output;
 		uint32_t3 output_size = {0, 0, 0};
+		uint32_t3 block = { 5, 5, 5 };
 		float Length = 6.0;
 		struct renderer_data_append
 		{
@@ -213,7 +214,7 @@ struct DensityMap3DGenerator : public compute_resource
 		};
 		void update(creator& c, renderer_data_append& rd)
 		{
-			shader_storage<uint32_t3, float> ss(output_size, Length);
+			shader_storage<uint32_t3, uint32_t3, float> ss(output_size, block, Length);
 			rd.bc.create_pod(c, ss);
 		}
 	};
@@ -253,7 +254,6 @@ struct SignedDistanceField3DGenerator : public compute_resource
 		uint32_t CallInstance = 0;
 	public:
 		unordered_access_view<tex3> outputTexture;
-		unordered_access_view<tex3> bufferTexture;
 		uint32_t3 output_size = {0, 0, 0};
 		shader_resource_view<tex3> inputTexture;
 		uint32_t3 input_size = { 1, 1, 1 };
@@ -265,12 +265,21 @@ struct SignedDistanceField3DGenerator : public compute_resource
 		struct renderer_data_append
 		{
 			buffer_constant bc;
+			unordered_access_view<tex3> bufferTexture;
+			uint32_t3 buffer_size = { 0, 0, 0 };
 		};
 		void update(creator& c, renderer_data_append& rda)
 		{
 			uint32_t totalCount = static_cast<uint32_t>((input_size.x * input_size.y * input_size.z) * MaxDistance);
 			shader_storage<uint32_t3, uint32_t3, float4, float, uint32_t, uint32_t, float, uint32_t> ss{ output_size, input_size, InputFactor, MaxDistance, MaxCount, CallInstance, EdgeValue, totalCount };
 			rda.bc.create_pod(c, ss);
+			if (!(rda.buffer_size == output_size * uint32_t3(2, 1, 1)))
+			{
+				tex3 BufferTexture;
+				BufferTexture.create_unordered_access(c, DXGI_FORMAT_R16G16B16A16_FLOAT, output_size * uint32_t3(2, 1, 1));
+				rda.bufferTexture = BufferTexture.cast_unordered_access_view(c);
+				rda.buffer_size = output_size * uint32_t3(2, 1, 1);
+			}
 		}
 		void reset() { CallInstance = 0; NextInstace = 0; }
 		bool need_next()

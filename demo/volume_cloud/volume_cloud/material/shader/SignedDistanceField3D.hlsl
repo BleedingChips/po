@@ -8,7 +8,7 @@ SamplerState ss : register(s0);
 
 Texture3D BaseShape : register(t1);
 SamplerState BaseShapeSampler : register(s1);
-Texture2D BaseShapeDif : register(t2);
+//Texture2D BaseShapeDif : register(t2);
 
 cbuffer b0 : register(b0)
 {
@@ -60,20 +60,29 @@ void main(in standard_ps_input input, out standard_ps_output_transparent output)
 
 }
 
-float2 CalIMp(float3 LocalStartPosition_F3, float3 LocalEndPosition_F3, float3 CubeSize_F3, Texture3D Tex_T, SamplerState Tex_TSampler, float Density, float4 Value, float Time_F, float2 Move_F2)
+float2 CalIMp(float3 LocalStartPosition_F3, float3 LocalEndPosition_F3, 
+float3 CubeSize_F3, Texture3D Tex_T, SamplerState Tex_TSampler, float Density, float4 Value, float Time_F, float2 Move_F2
+)
 {
-    uint RayCount = 64;
+    uint RayCount = 100;
+    uint LightCount = 10;
     float3 Ray = (LocalEndPosition_F3 - LocalStartPosition_F3) / (2.0 * CubeSize_F3);
     float3 RayStep = normalize(Ray);
-    float3 SamplePoint = (LocalStartPosition_F3 + CubeSize_F3) / CubeSize_F3 / 2.0;
-    float min_step = 0.001;
+    float3 SampleStartPoint = (LocalStartPosition_F3 + CubeSize_F3) / CubeSize_F3 / 2.0;
+    float3 SamplePoint = SampleStartPoint;
     float FinalDensity = 0.0;
     uint ReachCount = RayCount;
 
+    float RayTotalLength = length(Ray);
 
-    SamplePoint += Value.x / 100.0 * Ray;
+    float3 Light = float3(0.0, 1.0, 0.0);
+    float DensityLength = 0.0;
+    float LastLength = 0.0;
+    uint state = 0;
+    float ShadowLength = 2.0;
 
     /*
+    SamplePoint += Value.x / 100.0 * Ray;
     float SampleValue =
         Sample2D4ChannelSimulate3D1ChannelWrap(BaseShapeDif, Tex_TSampler, SamplePoint, uint4(126, 126, 8, 4));
     float SampleValue2 =
@@ -81,27 +90,41 @@ float2 CalIMp(float3 LocalStartPosition_F3, float3 LocalEndPosition_F3, float3 C
 
     return float2(abs(SampleValue - SampleValue2) * 10.0, 1.0);
 */
-
+    Value = Value / 10.0;
 
     for (uint count = 0; count <= RayCount; ++count)
     {
-        
-        float SampleValue = 
-        Sample2D4ChannelSimulate3D1ChannelWrap(BaseShapeDif, Tex_TSampler, SamplePoint + float3(Time_F * Move_F2, 0.0), uint4(126, 126, 8, 4));
-        float SampleValue2 = 
-        Tex_T.Sample(Tex_TSampler, SamplePoint).x;
-        float FinalValue = (SampleValue.x - 0.5) * 0.25 * 2.0;
-        if (FinalValue >= -min_step)
+        if (RayTotalLength >= LastLength)
         {
-            if (ReachCount >= count)
-                ReachCount = count;
-        }
-        SamplePoint += abs(FinalValue) * RayStep;
-        if (dot(step(abs(SamplePoint - 0.5), 0.5001), 1.0) <= 2.5)
-        {
-            break;
+            float4 SampleValue = Tex_T.Sample(Tex_TSampler, SamplePoint);
+            float FinalValue = (SampleValue.x - 0.5) * 0.25;
+            FinalValue = FinalValue - Value.x;
+            float absFinalValue = max(abs(FinalValue), 0.005);
+            if (FinalValue >= 0.0)
+            {
+                DensityLength += min(absFinalValue, RayTotalLength - LastLength);
+                if (state == 1)
+                {
+                    ShadowLength = min(ShadowLength, LastLength);
+                }
+            }
+            else
+            {
+                if (state == 0)
+                    state = 1;
+            }
+            //float NextLength = max(abs(FinalValue - Value.x), 0.01);
+            SamplePoint += absFinalValue * RayStep;
+            LastLength += absFinalValue;
         }
     }
     
-    return float2(1.0, 1.0 - ReachCount / float(RayCount));
+    float ShadowPoint = ShadowLength * RayStep + SampleStartPoint;
+    for (count = 0; count < 10; ++ count)
+    {
+
+    }
+
+
+        return float2(1.0, 1.0 - exp(-DensityLength * Density));
 }

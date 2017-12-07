@@ -43,7 +43,7 @@ const element_requirement& SignedDistanceField3D::requirement() const
 {
 	return make_element_requirement(
 		[](stage_context& sc, property_wrapper_t<property>& rd) {
-		sc.PS() << rd.tex[1] << rd.ss[1] << rd.tex_dif[2];
+		sc.PS() << rd.tex[1] << rd.ss[1];
 	}, [](stage_context& sc, property_wrapper_t<property_viewport_transfer>& pvt) {
 		sc.PS() << pvt.viewport[2];
 	}, [](stage_context& sc, property_wrapper_t<defer_renderer_default::property_linear_z>& pp)

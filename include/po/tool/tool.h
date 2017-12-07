@@ -44,7 +44,7 @@ namespace PO
 		//TODO - add a is_nothrow_callable
 		class at_scope_exit
 		{
-			std::function<void(void) noexcept> func;
+			std::function<void(void)> func;
 		public:
 			template<typename T>
 			at_scope_exit(T&& t) : func(std::forward<T>(t)) {}

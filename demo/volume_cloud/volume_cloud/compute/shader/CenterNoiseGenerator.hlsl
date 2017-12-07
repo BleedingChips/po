@@ -40,12 +40,15 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float3 PrePOi = (POi - 0.5) * 2.0;
     float Value =
     
-    XY.SampleLevel(ss, POi.xy, 0).x * YZ.SampleLevel(ss, POi.yz, 0).x 
-    
-    
-    * clamp((fbm_XXX_noise(PrePOi, 2, 0.8, 1.75, 1.0) / 2.0 + abs(GradientPerlinNoiseRand(POi, uint3(10, 10, 10))) - 0.5), 0.0, 1.0);
+    clamp(fbm_XXX_noise(PrePOi, 2, 0.8, 1.75, 1.0) / 2.0 + abs(GradientPerlinNoiseRand(POi, uint3(10, 10, 10))) - 0.5, 0.0, 1.0)
 
 
+    * XY.SampleLevel(ss, POi.xy, 0).x * YZ.SampleLevel(ss, POi.yz, 0).x 
+    
+    
+    //clamp((fbm_XXX_noise(PrePOi, 2, 0.8, 1.75, 1.0) / 2.0 + abs(GradientPerlinNoiseRand(POi, uint3(10, 10, 10))) - 0.5), 0.0, 1.0);
+
+    ;
 
 
     OutputTexture[DTid] = Value;

@@ -1,7 +1,7 @@
 #include "../../../../../include/po_dx11/shader/include/noise.hlsli"
 #include "volume_cloud_compute_property.hlsli"
 RWTexture3D<float> output : register(u0);
-RWTexture3D<float2> buffer : register(u1);
+RWTexture3D<float4> buffer : register(u1);
 Texture3D input : register(t0);
 
 cbuffer b0 : register(b0)
@@ -26,11 +26,19 @@ void main( uint3 DTid : SV_DispatchThreadID )
     uint3 ScanBlock = InputSize * MaxDistance + 2;
     uint FinalCount = TotalLength;
     InputSize.x * InputSize.y * InputSize.z;
-    float2 BackUp;
+    float3 BiggerMark;
+    float3 SmallerMark;
     if (CallInstance == 0)
-        BackUp = float2(1.0, 1.0);
+    {
+        BiggerMark = float3(1.0, 1.0, 1.0);
+        SmallerMark = float3(1.0, 1.0, 1.0);
+    }
     else
-        BackUp = buffer[DTid].xy;
+    {
+        BiggerMark = buffer[DTid * uint3(2, 1, 1)].xyz;
+        SmallerMark = buffer[DTid * uint3(2, 1, 1) + uint3(1, 0, 0)].xyz;
+    }
+        
     uint count = 0;
 
     for (; count < MaxCount && CallInstance * MaxCount + count < FinalCount; ++count)
@@ -43,26 +51,31 @@ void main( uint3 DTid : SV_DispatchThreadID )
         float3 ScanPoi = CurrentScanPoi / float3(InputSize - 1);
         float3 Dir = Poi - ScanPoi;
         Dir = min(abs(Dir), abs(1.0 - Dir));
-        float Dis = length(Dir);
+        float3 Dis = float3(
+        length(Dir),
+        Dir.x + Dir.y + Dir.z,
+        min(Dir.x, min(Dir.y, Dir.z))
+);
         if (Value >= EdgeValue)
         {
-            BackUp.x = min(BackUp.x, Dis);
+            BiggerMark = min(BiggerMark, Dis);
         }
         else
         {
-            BackUp.y = min(BackUp.y, Dis);
+            SmallerMark = min(SmallerMark, Dis);
         }
     }
     if (CallInstance * MaxCount + count >= FinalCount)
     {
-        float FinalValue = clamp(max(BackUp.x, BackUp.y) * (step(BackUp.x, BackUp.y) * 2.0 - 1.0) + 0.5, 0.0, 1.0);
-        output[DTid] = FinalValue;
+        float3 FinalValue = clamp(max(BiggerMark, SmallerMark) * (step(BiggerMark, SmallerMark) * 2.0 - 1.0) / MaxDistance + 0.5, 0.0, 1.0);
+        output[DTid] = float4(FinalValue, 1.0);
         //
         //output[DTid] = float4(FinalValue, 1.0, 1.0, 1.0);
     }
     else
     {
-        buffer[DTid] = float2(BackUp);
+        buffer[DTid * uint3(2, 1, 1)] = float4(BiggerMark, 1.0);
+        buffer[DTid * uint3(2, 1, 1) + uint3(1, 0, 0)] = float4(SmallerMark, 1.0);
     }
 
 }

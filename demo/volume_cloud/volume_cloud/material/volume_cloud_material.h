@@ -53,7 +53,6 @@ public:
 	struct property
 	{
 		shader_resource_view<tex3> tex;
-		shader_resource_view<tex2> tex_dif;
 		sample_state::description ss_des = sample_state::default_description;
 		struct renderer_data_append
 		{

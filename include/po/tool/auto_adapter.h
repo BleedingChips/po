@@ -125,7 +125,7 @@ namespace PO
 		decltype(auto) auto_adapter(func_object&& fo, input&&... in)
 		{
 			//cout << typeid(func_object).name() << " " << typeid(std::tuple<input&&...>).name() << endl;
-			return statement_if<Tmp::is_callable<func_object, input...>::value>
+			return statement_if<std::is_invocable_v<func_object, input...>>
 				(
 					[](auto&& fot, auto&& ...ini) { return std::invoke(std::forward<decltype(fot) && >(fot), std::forward<decltype(ini) && >(ini)...); },
 					[](auto&& fot, auto&& ...ini)
@@ -138,6 +138,7 @@ namespace PO
 			},
 					std::forward<func_object>(fo), std::forward<input>(in)...
 				);
+				
 		}
 
 
