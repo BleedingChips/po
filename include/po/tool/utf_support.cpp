@@ -17,11 +17,11 @@ namespace PO
 		return tem;
 	}
 
-	inline std::u16string asc_to_utf16(const std::string& data)
+	std::u16string asc_to_utf16(const std::string& data)
 	{
 		static thread_local std::vector<wchar_t>  translate_char_buffer;
-		if (data.size() > translate_char_buffer.size())
-			translate_char_buffer.resize(data.size());
+		if (data.size() + 1> translate_char_buffer.size())
+			translate_char_buffer.resize(data.size() + 1);
 		MultiByteToWideChar(CP_ACP, 0, data.c_str(), -1, &translate_char_buffer[0], static_cast<int>(translate_char_buffer.size()));
 		return std::u16string(reinterpret_cast<char16_t*>(&translate_char_buffer[0]));
 	}

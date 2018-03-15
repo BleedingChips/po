@@ -60,6 +60,8 @@ Temporary Items
 *.opendb
 *.ilk
 *.cso
+*.dll
+*.exp
 
 #VS2017 file
 *.iobj
@@ -71,3 +73,4 @@ Temporary Items
 *.jpg
 *.tga
 *.png
+*.JPEG

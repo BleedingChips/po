@@ -1,105 +1,125 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="po">
+      <UniqueIdentifier>{fb917069-0168-4e6a-b1b8-1f99ef4b53f3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    <Filter Include="po\frame">
+      <UniqueIdentifier>{cd3f400d-b8f1-490b-a630-5420f8a6c1a8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="po\tool">
+      <UniqueIdentifier>{dbc8fb35-ecfd-4372-9185-f6c79205631b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\frame">
-      <UniqueIdentifier>{5f116d26-a5c8-4fe1-9d21-edc302fc3e07}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="头文件\tool">
-      <UniqueIdentifier>{e88bef77-6552-4917-87cd-784de39a5beb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\frame">
-      <UniqueIdentifier>{8961419c-9c71-4bdb-a16c-c4709baa3529}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\tool">
-      <UniqueIdentifier>{5e2d52c5-3d18-4cad-b550-c1ce2f663d02}</UniqueIdentifier>
+    <Filter Include="po\platform">
+      <UniqueIdentifier>{3807a9bd-2018-4957-a558-f678014ed52f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\po\frame\adapter.h">
-      <Filter>头文件\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\define.h">
-      <Filter>头文件\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\error.h">
-      <Filter>头文件\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\event.h">
-      <Filter>头文件\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\viewer.h">
-      <Filter>头文件\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\auto_adapter.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\mail.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\thread_tool.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\tmp.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\tmpcall.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\tool.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\form.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\plugin.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\po.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\renderer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\utf_support.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\scene.h">
-      <Filter>头文件\tool</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\include\po\plugin.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="..\..\..\include\po\frame\pre_define.cpp">
+      <Filter>po\frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\po.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="..\..\..\include\po\frame\object_pool.cpp">
+      <Filter>po\frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\renderer.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="..\..\..\include\po\frame\entity.cpp">
+      <Filter>po\frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\frame\define.cpp">
-      <Filter>源文件\frame</Filter>
+    <ClCompile Include="..\..\..\include\po\frame\context.cpp">
+      <Filter>po\frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\tool\thread_tool.cpp">
-      <Filter>源文件\tool</Filter>
+    <ClCompile Include="..\..\..\include\po\platform\asynchronous_affairs.cpp">
+      <Filter>po\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\platform\platform.cpp">
+      <Filter>po\platform</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\include\po\tool\utf_support.cpp">
-      <Filter>源文件\tool</Filter>
+      <Filter>po\tool</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\tool\scene.cpp">
-      <Filter>源文件\tool</Filter>
+    <ClCompile Include="..\..\..\include\po\tool\tool.cpp">
+      <Filter>po\tool</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\simple_command_analyzer.cpp">
+      <Filter>po\tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\memory_pool.cpp">
+      <Filter>po\tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\math.cpp">
+      <Filter>po\tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\event.cpp">
+      <Filter>po\tool</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\po\frame\system.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\requirement_detection.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\pre_define.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\object_pool.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\entity.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\context.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\component.h">
+      <Filter>po\frame</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\platform\asynchronous_affairs.h">
+      <Filter>po\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\platform\platform.h">
+      <Filter>po\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\utf_support.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tool.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tmpcall.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tmp.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\simple_command_analyzer.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\path_system.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\memory_pool.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\math.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\mail.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\event.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\auto_adapter.h">
+      <Filter>po\tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\po.h">
+      <Filter>po</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\include\po\tool\readme.md">
+      <Filter>po\tool</Filter>
+    </None>
   </ItemGroup>
 </Project>

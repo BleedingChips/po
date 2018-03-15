@@ -17,6 +17,12 @@ namespace PO
 		template<typename T, typename I, typename ...AT> struct is_not_one_of<T, I, AT...> : is_not_one_of<T, AT...> {};
 		template<typename T, typename ...AT> struct is_not_one_of<T, T, AT...> : std::false_type {};
 
+
+		/* value_add */
+		template<typename T, T value, T ...o_value> struct value_add : std::integral_constant<T, value>{};
+		template<typename T, T value, T value2, T ...o_value> struct value_add<T, value, value2, o_value...> : value_add<T, value + value2, o_value...> {};
+
+
 		/* is_repeat */
 		template<typename ...AT> struct is_repeat : public std::false_type {};
 		template<typename T, typename ...AT>
@@ -156,6 +162,45 @@ namespace PO
 		}
 
 		template<typename T> struct have_value : Implement::have_value_implement<T>::type {};
+
+		template<typename ...storage_type> struct storage
+		{
+			template<typename ...inout> using append = storage<storage_type..., inout...>;
+			template<template<typename ...> class output_tank> using output = output_tank<storage_type...>;
+		};
+
+
+
+		namespace Implement
+		{
+			template<typename hold_type, size_t index> struct index_holder : std::integral_constant<size_t, index>
+			{
+				using type = hold_type;
+			};
+
+			template<size_t start_index, template<typename, size_t> class index_holder, template<typename ...> class output, typename temporary, typename ...all_index> 
+			struct add_index_implement
+			{
+				using type = typename temporary::template output<output>;
+			};
+
+			template<size_t start_index, template<typename, size_t> class index_holder, template<typename ...> class output, typename temporary, typename this_type, typename ...all_index>
+			struct add_index_implement<start_index, index_holder, output, temporary, this_type, all_index...>
+				: add_index_implement<start_index+1, index_holder, output, typename temporary::template append<index_holder<this_type, start_index>>, all_index...>{};
+
+			
+
+		}
+
+		template<typename input, size_t start_index = 0, template<typename, size_t> class index_holder = Implement::index_holder> struct add_index;
+		template<typename ...input, template<typename ...> class hold_tank, size_t start_index, template<typename, size_t> class index_holder>
+		struct add_index<hold_tank<input...>, start_index, index_holder>
+			: Implement::add_index_implement<start_index, index_holder, hold_tank, storage<>, input...>
+		{};
+
+		template<typename input, size_t start_index = 0, template<typename, size_t> class index_holder = Implement::index_holder > 
+		using add_index_t = typename add_index<input, start_index, index_holder>::type;
+
 		
 		/***** degenerate_func ********/
 		template<typename fun_type> struct pick_func;
@@ -239,6 +284,17 @@ namespace PO
 
 		template<typename T> struct is_integer_sequence : std::false_type {};
 		template<typename T, T ...v> struct is_integer_sequence<std::integer_sequence<T, v...>> : std::true_type {};
+
+		namespace Implement
+		{
+			template<typename ...t> struct instance_list {};
+			template<template<typename ...> class instance_role, typename T, typename = void> struct able_instance_implement{};
+			template<template<typename ...> class instance_role, typename ...instance, typename Result> struct able_instance_implement<instance_role, instance_list<instance...>, Result> : std::false_type {};
+			template<template<typename ...> class instance_role, typename ...instance> struct able_instance_implement<instance_role, instance_list<instance...>, std::void_t<instance_role<instance...>>> : std::true_type {};
+		}
+
+		template<template<typename ...> class instance_role, typename ...instance> using able_instance = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>;
+		template<template<typename ...> class instance_role, typename ...instance> constexpr bool able_instance_v = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>::value;
 
 	}
 }

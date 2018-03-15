@@ -1,124 +1,30 @@
 #pragma once
 #include "tmpcall.h"
-#include <exception>
-#include <string>
-#include <functional>
-#include <unordered_map>
-#include <array>
+#include <assert.h>
+#include <atomic>
+#include <mutex>
+#include <typeindex>
+#include <optional>
 namespace PO
 {
 	namespace Tool
 	{
-		namespace Error
+		namespace Implement
 		{
-			struct tool_exeception : public std::exception
-			{
-				std::string scription;
-			public:
-				tool_exeception(std::string&& s) : scription(std::move(s)) {}
-				tool_exeception(const std::string& s) : scription(s) {}
-				tool_exeception(const tool_exeception&) = default;
-				tool_exeception(tool_exeception&&) = default;
-				tool_exeception() {}
-				operator std::string& () { return scription; }
-				operator const std::string& () const { return scription; }
-				operator const char*() const { return scription.c_str(); }
-				const char* what() const override { return *this; }
+			template<typename T> struct base_value_inherit {
+				T data;
+				base_value_inherit() noexcept {}
+				base_value_inherit(T t) noexcept : data(t) {}
+				operator T&() noexcept { return data; }
+				operator T() const noexcept  { return data; }
+				base_value_inherit& operator=(T t) noexcept { data = t; return *this; }
 			};
 		}
-
-		template<typename T> struct base_value_inherit {
-			T data;
-			base_value_inherit() {}
-			base_value_inherit(T t) : data(t) {}
-			operator T&() { return data; }
-			operator T() const { return data; }
-			base_value_inherit& operator=(T t) { data = t; return *this; }
-		};
 
 		template<typename T> using inherit_t = std::conditional_t<
 			std::is_arithmetic<T>::value,
-			base_value_inherit<T>, T
+			Implement::base_value_inherit<T>, T
 		>;
-
-		//TODO - add a is_nothrow_callable
-		class at_scope_exit
-		{
-			std::function<void(void) noexcept> func;
-		public:
-			template<typename T>
-			at_scope_exit(T&& t) : func(std::forward<T>(t)) {}
-			~at_scope_exit() 
-			{
-				if (func)
-					func();
-			}
-		};
-
-		/* statement_if */
-		namespace Implement
-		{
-			template<bool> struct statement_if_struct
-			{
-				template<typename F, typename P, typename ...AT> static decltype(auto) run(F&& t, P&& p, AT&&... at) { return std::forward<F>(t)(std::forward<AT>(at)...); }
-			};
-
-			template<> struct statement_if_struct<false>
-			{
-				template<typename T, typename P, typename ...AT> static decltype(auto) run(T&& t, P&& p, AT&&... at) { return std::forward<P>(p)(std::forward<AT>(at)...); }
-			};
-
-			template<bool s, typename T = int> struct statement_if_implement
-			{
-				T t;
-				template<typename ...AT> decltype(auto) operator()(AT&&... at) { return t(std::forward<AT>(at)...); }
-				template<bool other_s, typename K> statement_if_implement& elseif_(K&& k) {
-					return *this;
-				}
-				template<typename K> statement_if_implement& else_(K&& k) {
-					return *this;
-				}
-			};
-
-			template<typename T> struct statement_if_implement<false, T>
-			{
-				T t;
-				template<typename ...AT> decltype(auto) operator()(AT&&... at) { }
-				template<bool other_s, typename K> decltype(auto) elseif_(K&& k) {
-					return statement_if_implement<other_s, K&&>{std::forward<K>(k)};
-				}
-				template<typename K> decltype(auto) else_(K&& k) {
-					return statement_if_implement<true, K&&>{std::forward<K>(k)};
-				}
-			};
-		}
-
-		template<bool s, typename T, typename P, typename ...AK> decltype(auto) statement_if(T&& t, P&& p, AK&& ...ak) { return Implement::statement_if_struct<s>::run(std::forward<T>(t), std::forward<P>(p), std::forward<AK>(ak)...); }
-		template<bool s, typename T> decltype(auto) statement_if(T&& t) { return Implement::statement_if_implement<s, T&&>{std::forward<T>(t)}; }
-
-
-		/* adapter */
-		template<typename ...T> struct adapter
-		{
-			template<typename K>  adapter(K&& k) {}
-		};
-
-		template<typename P, typename ...T> struct adapter<P, T...> : adapter<T...>
-		{
-			P data;
-			template<typename K>  adapter(K&& k) : adapter<T...>(std::forward<K>(k)), data(std::forward<K>(k)) {}
-			template<typename D>
-			decltype(auto) get()
-			{
-				static_assert(Tmp::is_one_of<D, P, T...>::value, "what you get is not exist");
-				return Tool::statement_if< std::is_same<D, P>::value >
-					(
-						[](auto& it) { return it.adapter<P, T...>::data;  },
-						[](auto& it) { return it.adapter<T...>::template get<D>(); },
-						*this
-						);
-			}
-		};
 
 		/* static_mapping */
 		namespace Implement
@@ -168,673 +74,469 @@ namespace PO
 		template<class equal_ope, class less_ope, typename ...input>
 		using static_mapping_t = Implement::static_mapping_implement<less_ope, equal_ope, 0, sizeof...(input), input...>;
 
-		/* variant */
+		template<typename T> class aligned_class
+		{
+			char storage[sizeof(T) + alignof(T) - 1];
+			void* get_pointer() const {
+				size_t space = sizeof(T) + alignof(T)-1;
+				void* ptr = storage;
+				std::align(alignof(T), sizeof(T), ptr, space);
+				return ptr;
+			}
+
+		public:
+
+			operator T& () { return *static_cast<T*>(get_pointer());  }
+			operator const T& () const { return *static_cast<const T*>(get_pointer()); }
+
+			T* operator->() { return static_cast<T*>(get_pointer()); }
+			const T* operator->() const { return static_cast<const T*>(get_pointer()); }
+
+			template<typename ...AT> aligned_class(AT&& ...at) {
+				new (get_pointer()) T(std::forward<AT>(at)...);
+			}
+
+			~aligned_class()
+			{
+				static_cast<T*>(get_pointer())->~T();
+			}
+		};
+
 		namespace Implement
 		{
-			struct variant_type_index_equal
+			template<size_t s, typename ...T> struct max_align_implement
 			{
-				template<typename T, typename L> bool operator()(T t, L l)
-				{
-					return Tmp::type_extract_t<T>::label::value == l;
-				}
+				static constexpr size_t value = s;
 			};
 
-			struct variant_type_index_less
+			template<size_t s, typename K, typename ...T> struct max_align_implement<s, K, T...>
 			{
-				template<typename T, typename L> bool operator()(T t, L l)
-				{
-					return l < Tmp::type_extract_t<T>::label::value;
-				}
+				static constexpr size_t value = max_align_implement<(s > alignof(K) ? s : alignof(K)), T...>::value;
 			};
-
-			template<typename T, typename K, typename = void> struct is_assignable : std::false_type {};
-			template<typename T, typename K> struct is_assignable<T,K,std::void_t<decltype( std::declval<T>() = std::declval<K>())>> : std::true_type {};
-
-			template<typename type, typename store>
-			void variant_destructor(store& s) noexcept
-			{
-				reinterpret_cast<type*>(&s)->~type();
-			}
-
-			template<typename type, typename store, typename ...AK>
-			bool variant_constructor(store& s, AK&& ...ak)
-			{
-				return statement_if< std::is_constructible<type, AK...>::value>
-					(
-						[&](auto ptr, auto&& ...pa)
-				{
-					using type = Tmp::type_extract_t<decltype(ptr)>;
-					new (&s) type( std::forward<decltype(pa)&&>(pa)... );
-					return true;
-				},
-						[&](auto ptr, auto&& ...pa)
-				{
-						return false;
-				},
-					Tmp::itself<type>(), std::forward<AK>(ak)...
-					);
-			}
-
-			template<typename type, typename store, typename K>
-			bool variant_assignment(store& s, K&& k)
-			{
-				return statement_if<std::is_assignable<type, K>::value>
-					(
-						[&](auto ptr)
-				{
-					using type = Tmp::type_extract_t<decltype(ptr)>;
-					reinterpret_cast<type*>(&s)->operator=(std::forward<K>(k));
-					return true;
-				},
-						[&](auto ptr)
-				{
-					using type = Tmp::type_extract_t<decltype(ptr)>;
-					variant_destructor<type>(s);
-					return variant_constructor<type>(s, std::forward<K>(k));
-				},
-					Tmp::itself<type>()
-					);
-			}
-
 		}
 
-		template<typename ...T> class variant
+		template<typename ...T> struct max_align : public  Implement::max_align_implement<0, T...> {};
+
+		template<typename value_type> struct stack_list
 		{
-			static_assert(!Tmp::is_repeat<T...>::value, "type of variant can not repeat");
-			using void_index = TmpCall::call<TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<std::is_void>>, TmpCall::self>;
-			static_assert(std::is_same<void_index, std::integer_sequence<size_t>>::value, "varient can not include void");
+			value_type& type_ref;
+			stack_list* front;
+			stack_list(value_type& ref, stack_list* f = nullptr) noexcept : type_ref(ref), front(f) {}
+		};
 
-			using mapping = TmpCall::call<TmpCall::append<T...>, TmpCall::label<TmpCall::make_func<TmpCall::label_serial>>, make_static_mapping< Implement::variant_type_index_equal, Implement::variant_type_index_less > >;
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, stack_list<value_type>* sl = nullptr) noexcept
+		{
+			return ca(sl);
+		}
 
-			using size_index =
-				TmpCall::call <
-				TmpCall::append<T...>, TmpCall::label<TmpCall::make_func<TmpCall::label_size>>, TmpCall::replace <TmpCall::make_func<TmpCall::replace_label>> ,
-					TmpCall::combine<TmpCall::make_func<Tmp::bigger_value>>, TmpCall::self
-				>;
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, stack_list<value_type>* sl, value_type& ref, other_type&& ...ot) noexcept
+		{
+			stack_list<value_type> temporary{ ref, sl };
+			return make_stack_list<value_type>(std::forward<callable_function>(ca), &temporary, std::forward<other_type>(ot)...);
+		}
 
-			template<template<typename ...> class relation, typename ...in> struct relation_type
-			{
-				using type = TmpCall::call<
-					TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<relation, in...>>, TmpCall::sperate_value, TmpCall::append<std::integral_constant<size_t, sizeof...(T)>>,
-					TmpCall::select_index<std::integer_sequence<size_t, 0>>, TmpCall::self
-				>;
-			};
+		template<typename value_type, typename callable_function, typename ...other_type> decltype(auto) make_stack_list(callable_function&& ca, value_type& ref, other_type&& ...ot) noexcept
+		{
+			stack_list<value_type> temporary{ ref };
+			return make_stack_list<value_type>(std::forward<callable_function>(ca), &temporary, std::forward<other_type>(ot)...);
+		}
 
-			template<typename in> struct same_type
-			{
-				using type = TmpCall::call<
-					TmpCall::append<T...>, TmpCall::localizer<TmpCall::make_func<std::is_same, in>>, TmpCall::sperate_value,
-					TmpCall::append<std::integral_constant<size_t, sizeof...(T)>>, TmpCall::select_index<std::integer_sequence<size_t, 0>>, TmpCall::self
-				>;
-			};
-
-			typename std::aligned_union<1, T...>::type data;
-
-			std::conditional_t< (sizeof...(T)+1 <= 255), uint8_t, std::conditional_t< (sizeof...(T)+1 <= 65535), uint16_t, std::conditional_t< (sizeof...(T)+1 <= 4294967295), uint32_t, uint64_t > > > index;
-
-			template<typename K>
-			variant(std::true_type, K&& v) : index(v.index)
-			{
-				if (v.index != sizeof...(T))
-					mapping{}(
-						v.index,
-						[&v, this](auto self)
-				{
-					using type = typename Tmp::type_extract_t<decltype(self)>::type;
-					if(!Implement::variant_constructor<type>(data, std::forward<K>(v).template cast<type>()))
-						throw Error::tool_exeception("this kind of type can not construct form itself");
-				},
-						[]() { throw Error::tool_exeception("unmatch mapping while construct form const varient&"); }
-				);
-			}
-
-			template<typename ...K>
-			variant(std::false_type, K&& ...k) : index(relation_type<std::is_constructible, K...>::type::value)
-			{
-				static_assert(relation_type<std::is_constructible, K...>::type::value != sizeof...(T), "not avalible type construct form this");
-				using type = TmpCall::call<TmpCall::append<T...>, TmpCall::select_index<typename relation_type<std::is_constructible, K...>::type>, TmpCall::self>;
-				if (!Implement::variant_constructor<type>(data, std::forward<K>(k)...))
-					throw Error::tool_exeception("unmatch mapping while construct form those parameter");
-			}
-
+		template<template<typename ...> class implement_t> class deflection_ptr
+		{
+			const std::type_index original_info;
 
 		public:
 
-			operator bool() const noexcept { return index != sizeof...(T); }
-
-			auto get_index() const noexcept { return index; }
-
-			template<typename P> bool able_cast() const noexcept
-			{
-				static_assert(Tmp::is_one_of<P, T...>::value, "variant can not cast to unbinded type.");
-				return index == same_type<P>::type::value;
+			deflection_ptr(const std::type_index& original) noexcept : original_info(original) {}
+			const std::type_index& id() const noexcept { return original_info; }
+			template<typename T> bool is() const noexcept {
+				using type = std::decay_t<T>;
+				return original_info == typeid(type);
 			}
 
-			template<typename P> P& cast() &
-			{
-				if (!this->template able_cast<P>())
-					throw Error::tool_exeception("variant now are not this type");
-				return *reinterpret_cast<P*>(&data);
+			template<typename T> std::decay_t<T>& cast() {
+				using type = std::decay_t<T>;
+				return static_cast<type&>(static_cast<implement_t<type>&>(*this));
 			}
 
-			template<typename P> const P& cast() const&
-			{
-				if (!this->template able_cast<P>())
-					throw Error::tool_exeception("variant now are not this type");
-				return *reinterpret_cast<const P*>(&data);
+			template<typename T> const std::decay_t<T>& cast() const {
+				using type = std::decay_t<T>;
+				return static_cast<const type&>(static_cast<const implement_t<type>&>(*this));
 			}
 
-			template<typename P> P&& cast() &&
+			template<typename T, typename ...AT> bool cast(T&& t, AT&& ...at) noexcept
 			{
-				if (!this->template able_cast<P>())
-					throw Error::tool_exeception("variant now are not this type");
-				return std::move(*reinterpret_cast<P*>(&data));
+				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
+				static_assert(funtype::size == 1, "only receive one parameter");
+				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
+				//static_assert(std::is_base_of<base_interface, true_type>::value, "need derived form base_interface.");
+				if (is<true_type>())
+					return (t(cast<true_type>(), std::forward<AT>(at)...), true);
+				return false;
+			}
+			virtual ~deflection_ptr() = default;
+
+		};
+
+		class atomic_reference_count
+		{
+			std::atomic_size_t ref = 0;
+
+		public:
+
+			void wait_touch(size_t targe_value) const noexcept;
+
+			bool try_add_ref() noexcept;
+
+			void add_ref() noexcept
+			{
+				assert(static_cast<std::ptrdiff_t>(ref.load(std::memory_order_relaxed)) >= 0);
+				ref.fetch_add(1, std::memory_order_relaxed);
 			}
 
-			variant() noexcept : index(sizeof...(T)){}
-			template<typename P, typename ...K> variant(P&& p, K&& ...k) :
-				variant(
-					std::integral_constant<bool, sizeof...(K) == 0 && std::is_same<std::remove_const_t<std::remove_reference_t<P>>, variant>::value>(),
-					std::forward<P>(p), std::forward<K>(k)...
-				) {}
-
-			template<typename P, typename ...AT>
-			variant(Tmp::itself<P>, AT&&... at) : index(same_type<P>::type::value)
+			bool sub_ref() noexcept
 			{
-				static_assert(Tmp::is_one_of<P,T...>::value, "not avalible type construct form this");
-				if (!Implement::variant_constructor<P>(data, std::forward<AT>(at)...))
-					throw Error::tool_exeception("unmatch mapping while construct form those parameter");
+				assert(static_cast<std::ptrdiff_t>(ref.load(std::memory_order_relaxed)) >= 0);
+				return ref.fetch_sub(1, std::memory_order_relaxed) == 1;
 			}
 
-			template<typename ...AT>
-			variant(Tmp::itself<void>, AT&& ...at) : variant(std::false_type{}, std::forward<AT>(at)...)
-			{
-				static_assert(Tmp::is_one_of<Tmp::itself<void>, T...>::value, "not avalible type construct form this");
+			atomic_reference_count() noexcept : ref(0) {}
+			atomic_reference_count(const atomic_reference_count&) = delete;
+			atomic_reference_count& operator= (const atomic_reference_count&) = delete;
+			~atomic_reference_count() { assert(ref.load(std::memory_order_relaxed)==0); }
+		};
+
+		template<typename type, typename deleter_type = std::default_delete<type>> 
+		class intrusive_ptr
+		{
+			type* data;
+			deleter_type del;
+		public:
+			const deleter_type& deleter() const { return del; }
+			bool operator== (const intrusive_ptr& ip) const noexcept { return data == ip.data; }
+			bool operator!= (const intrusive_ptr& ip) const noexcept { return data != ip.data; }
+			operator bool() const noexcept { return data != nullptr; }
+			intrusive_ptr(type* t, deleter_type dt = deleter_type{}) : data(t), del(dt) {
+				if (data != nullptr) {
+					data->add_ref();
+				}
+			}
+			intrusive_ptr() noexcept  : data(nullptr) {}
+			intrusive_ptr(const intrusive_ptr& ip) noexcept : data(ip.data), del(ip.del) {
+				if (data != nullptr)
+					data->add_ref();
 			}
 
-			~variant()
-			{
-				if (index != sizeof...(T))
-					mapping{}(index, [this](auto ptr) { using type = typename Tmp::type_extract_t<decltype(ptr)>::type; Implement::variant_destructor<type>(data); }, []() {});
-			}
-
-			template<typename func>
-			void call(func&& f)
-			{
-				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::type; f(this->cast<type>()); }, []() {});
-			}
-
-			template<typename func, typename def>
-			void call(func&& f, def&& d)
-			{
-				mapping{}(index, [&f, this](auto i) { using type = typename Tmp::type_extract_t<decltype(i)>::type; f(this->cast<type>()); }, d);
-			}
+			template<typename other_type, typename = std::void_t<std::enable_if_t<std::is_base_of_v<type, other_type>>>>
 			
-			variant& operator= (const variant& v)
+			intrusive_ptr(const intrusive_ptr<other_type>& ip) noexcept : data(ip.data), del(ip.del) {
+				if (data != nullptr)
+					data->add_ref();
+			}
+
+			intrusive_ptr(intrusive_ptr&& ip) noexcept : data(ip.data), del(std::move(ip.del))
 			{
-				if (index == sizeof...(T) && v.index == sizeof...(T)) return *this;
-				if (index == v.index)
+				ip.data = nullptr;
+			}
+			void reset() noexcept
+			{
+				if (data != nullptr && data->sub_ref())
 				{
-					mapping{}(index, 
-						[&, this](auto ptr)
-					{
-						using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
-						if(!Implement::variant_assignment<type>(data, v.template cast<type>()))
-							throw Error::tool_exeception("unable to assignment");
-					},
-						[]() {throw Error::tool_exeception("unmatch mapping while call operator="); }
-					);
-					return *this;
+					del(data);
 				}
-				if (index != sizeof...(T))
-					mapping{}(index, 
-						[&, this](auto ptr) 
-				{ 
-					using type = typename decltype(ptr)::type::type; 
-					Implement::variant_destructor<type>(data);
-				}, []() {});
-				if(v.index!= sizeof...(T))
-					mapping{}(v.index, 
-						[&, this](auto ptr) 
-				{ 
-					using type = typename decltype(ptr)::type::type;
-					Implement::variant_constructor<type>(data, v.template cast<type>());
-				}, []() {});
-				index = v.index;
+				data = nullptr;
+			}
+			~intrusive_ptr() {
+				if (data != nullptr && data->sub_ref())
+				{
+					del(data);
+				}
+			}
+			intrusive_ptr& operator=(intrusive_ptr ip)  noexcept
+			{
+				reset();
+				data = ip.data;
+				del = ip.del;
+				ip.data = nullptr;
 				return *this;
 			}
-			
-			variant& operator= (variant&& v)
-			{
-				if (index == sizeof...(T) && v.index == sizeof...(T)) return *this;
-				if (index == v.index)
-				{
-					mapping{}(index,
-						[&, this](auto ptr)
-					{
-						using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
-						if (!Implement::variant_assignment<type>(data, std::move(v).template cast<type>()))
-							throw Error::tool_exeception("unable to assignment");
-					},
-							[]() {throw Error::tool_exeception("unmatch mapping while call operator="); }
-					);
-						return *this;
-				}
-				if (index != sizeof...(T))
-					mapping{}(index,
-						[&, this](auto ptr)
-				{
-					using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
-					Implement::variant_destructor<type>(data);
-				}, []() {});
-				if (v.index != sizeof...(T))
-					mapping{}(v.index,
-						[&, this](auto ptr)
-				{
-					using type = typename Tmp::type_extract_t<decltype(ptr)>::type;
-					Implement::variant_constructor<type>(data, std::move(v).template cast<type>());
-				}, []() {});
-				index = v.index;
-				return *this;
+			/*
+			template<typename cast_type> intrusive_ptr<cast_type> cast() const {
+				return intrusive_ptr<cast_type> { data, deleter };
 			}
-
-			template<typename K, typename = std::enable_if_t<!std::is_same< std::remove_const_t<std::remove_reference_t<K>>, variant>::value>>
-			variant& operator= (K&& k)
-			{
-				using type_ass = typename relation_type<Implement::is_assignable, K>::type;
-				using type_con = typename relation_type<std::is_constructible, K>::type;
-				
-				static_assert(type_ass::value != sizeof...(T) || type_con::value != sizeof...(T), "variant can not cast to unbinded type.");
-				using type_index = std::conditional_t< type_ass::value != sizeof...(T), type_ass, type_con>;
-				using type = TmpCall::call<TmpCall::append<T...>, TmpCall::select_index<std::integer_sequence<size_t, type_index::value>>, TmpCall::self>;
-				if (index == type_index::value)
-				{
-					if (!Implement::variant_assignment<type>(data, std::forward<K>(k)))
-						throw Error::tool_exeception("unable to assignment");
-					return *this;
-				}
-				if (index != sizeof...(T))
-					mapping{}(index, [this](auto ptr) {Implement::variant_destructor<typename Tmp::type_extract_t<decltype(ptr)>::type>(data); }, []() {__debugbreak(); });
-				Implement::variant_constructor<type>(data, std::forward<K>(k));
-				index = type_index::value;
-				
-				return *this;
-			}
-		};
-		
-		template<> class variant<>
-		{
-		public:
-			variant() {}
-			variant(const variant&) {}
-			~variant() {}
-			size_t get_index() const { return 0; }
-			operator bool() const noexcept { return false; }
-			variant& operator=(variant&&) = default;
-			variant& operator=(const variant&) = default;
+			*/
+			operator type* () noexcept { return data; }
+			operator const type* () const noexcept { return data; }
+			type* operator->() noexcept { return data; }
+			const type* operator->() const noexcept { return data; }
+			type& operator* () noexcept { return *data; }
+			const type& operator*() const noexcept { return *data; }
+			template<typename other_type> operator intrusive_ptr<other_type>() const noexcept { return intrusive_ptr<other_type>{data, del }; }
 		};
 
-		template<typename T> class optional : variant<T>
-		{
-		public:
-			//T& operator*() { return variant<T>::template cast<T>(); }
+		template<typename T> class stack_ref;
+		template<typename T> class stack_ref_ptr;
 
-			const T& operator*() const& { return variant<T>::template cast<T>(); }
-			const T* operator->() const& { return &(variant<T>::template cast<T>()); }
-
-			T& operator*() & { return variant<T>::template cast<T>(); }
-			T* operator->() & { return &(variant<T>::template cast<T>()); }
-
-			T&& operator*() && { return std::move(variant<T>::template cast<T>()); }
-			T&& operator->() && { return &(variant<T>::template cast<T>()); }
-
-			operator bool() const noexcept { return variant<T>::operator bool(); }
-
-			template<typename K>
-			optional& operator= (K&& ap) { variant<T>::operator=(std::forward<K>(ap)); return *this; }
-
-			using variant<T>::variant;
-
-			T& value_or(T& or_data) &
-			{
-				if (variant<T>::template able_cast<T>())
-					return variant<T>::template cast<T>();
-				else
-					return or_data;
-			}
-
-			const T& value_or(const T& or_data) const&
-			{
-				if (variant<T>::template able_cast<T>())
-					return variant<T>::template cast<T>();
-				else
-					return or_data;
-			}
-
-			T&& value_or(T&& or_data) &&
-			{
-				if (variant<T>::template able_cast<T>())
-					return variant<T>::template cast<T>();
-				else
-					return std::move(or_data);
-			}
-		};
-
-		template<typename T> using optional_t = std::conditional_t<std::is_void<T>::value,
-			Tool::optional<Tmp::itself<void>>,
-			Tool::optional<T>
-		>;
-
-		template<typename F, typename ...P>
-		decltype(auto) return_optional_t(F&& f, P&& ...ap)
-		{
-			return statement_if<std::is_void<decltype(f(std::forward<P>(ap)...))>::value>
-				(
-					[](auto& t, auto&& ...io) {t(std::forward<decltype(io) && >(io)...); return Tmp::itself<void>{}; },
-					[](auto& t, auto&& ...io) {return t(std::forward<decltype(io) && >(io)...); },
-					f, std::forward<P>(ap)...
-					);
-		};
+		struct inherit_construct_t {};
 
 		namespace Implement
 		{
-			struct any_store_struct
+			struct stack_ref_control_block
 			{
-				std::vector<char> buffer;
-				template<typename T> T* alloc()
+
+				enum class State : int8_t
 				{
-					buffer.resize(sizeof(T) + alignof(T)- 1, 0);
-					return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(buffer.data()) + alignof(T)- 1) & ~(alignof(T)- 1));
-				}
+					Construction,
+					Ready,
+					Destruction,
+					Missing
+				};
+
+				std::atomic<State> state;
+				atomic_reference_count using_count;
+				atomic_reference_count ref;
+
+				stack_ref_control_block() : state(State::Missing) {}
+
+				//必须保证第一个被调用
+				void start_construction() noexcept { state.store(State::Construction, std::memory_order::memory_order_release); }
+				void finish_construction() noexcept { state.store(State::Ready, std::memory_order::memory_order_release); }
+				void start_destruction() noexcept;
+				void finish_destruction() noexcept { state.store(State::Missing, std::memory_order::memory_order_release); }
+
+
+				bool try_add_ref() noexcept { return ref.try_add_ref(); }
+				void add_ref() noexcept { return ref.add_ref(); }
+				bool sub_ref() noexcept { return ref.sub_ref(); }
+
+				// avalible: if it can be call, means state == Ready; need_wait: means state == Construction;
+				void try_add_using_ref(bool& avalible, bool& need_wait) noexcept;
+				//call if try_add_using_ref -> avalible is true!
+				void sub_using_ref() noexcept;
+
 			};
 
-			struct any_interface
+			class stack_ref_head
 			{
-				const std::type_info& info;
-				virtual ~any_interface() {}
-				any_interface(const std::type_info& ti) :info(ti) {}
-				any_interface(const any_interface& ai) : info(ai.info) {}
-				virtual any_interface* clone(any_store_struct&) const = 0;
+				intrusive_ptr<Implement::stack_ref_control_block> block;
+			public:
+				operator intrusive_ptr<Implement::stack_ref_control_block>() { return block; }
+				operator const intrusive_ptr<Implement::stack_ref_control_block>() const { return block; }
+				stack_ref_head();
+				virtual ~stack_ref_head();
+				void finish_construction() { block->finish_construction(); }
+				void start_destruction() { block->start_destruction(); }
 			};
+		}
+
+		template<typename T> class stack_ref_ptr
+		{
+			intrusive_ptr<Implement::stack_ref_control_block> block;
+			T* ref_ptr;
+		public:
+			stack_ref_ptr() noexcept : ref_ptr(nullptr) {}
+			stack_ref_ptr(intrusive_ptr<Implement::stack_ref_control_block> src, T* ref_ptr) noexcept : block(src), ref_ptr(ref_ptr) {}
+			stack_ref_ptr(const stack_ref_ptr& srp) noexcept : stack_ref_ptr(srp.block, srp.ref_ptr) {}
+
+			stack_ref_ptr(stack_ref_ptr&& srp) noexcept : block(std::move(srp.block)), ref_ptr(ref_ptr) {}
 
 			template<typename T>
-			struct alignas(alignof(std::decay_t<T>) < 4 ? 0: alignof(std::decay_t<T>)) any_implement : public any_interface 
+			stack_ref_ptr(const stack_ref_ptr<T>& srp) noexcept : block(srp.block), ref_ptr(ref_ptr) {}
+
+			template<typename T>
+			stack_ref_ptr(stack_ref_ptr<T>&& srp) noexcept : block(std::move(srp.block)), ref_ptr(ref_ptr) {}
+
+			stack_ref_ptr& operator=(stack_ref_ptr srp) noexcept
 			{
-				
-				std::decay_t<T> data;
-				template<typename ...AT> any_implement(AT&& ...at) : any_interface(typeid(std::decay_t<T>)), data(std::forward<AT>(at)...) 
-				{
-				}
-				any_implement(const any_implement& ai) : any_interface(ai), std::decay_t<T>(ai) {}
-				any_interface* clone(any_store_struct& ass) const
-				{
-					any_implement<std::decay_t<T>>* ptr = ass.alloc<any_implement<std::decay_t<T>>>();
-					new (ptr) any_implement<std::decay_t<T>>{data};
-					return ptr;
-					/*
-					return statement_if<std::is_copy_constructible<std::decay_t<T>>::value>
-						(
-							[this](auto& ass, auto t) {
-						using type = typename std::decay_t<decltype(t)>::type;
-						any_implement<type>* ptr = ass.alloc<any_implement<type>>();
-						new (ptr) any_implement<type>{*this};
-						return ptr;
-					},
-							[](auto& ass, auto t) {return nullptr; },
-							ass, Tmp::itself<T>{}
-							);
-							*/
-				}
-			};
-		}
-
-		//to do in c++ 17 : may be change to std::aligned_alloc or operator new (size_t ,.aligned)
-
-		class any
-		{
-			Implement::any_store_struct ass;
-			Implement::any_interface* pointer = nullptr;
-		public:
-			operator bool() const noexcept {
-				return pointer != nullptr;
-			}
-
-			~any()
-			{
-				if (pointer != nullptr)
-					pointer->~any_interface();
-			}
-			any() {}
-			any(any&& a) :ass(std::move(a.ass)), pointer(a.pointer) { a.pointer = nullptr; }
-
-			any(const any& a)
-			{
-				if (a.pointer != nullptr)
-					pointer = a.pointer->clone(ass);
-			}
-
-			template<typename T, typename ...AT>
-			any(Tmp::itself<T>, AT&&... at)
-			{
-				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
-				using any_type = Implement::any_implement<Tmp::pure_type<T>>;
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ std::forward<AT>(at)... };
-				pointer = ptr;
-			}
-
-			template<typename T, typename = std::enable_if_t<!std::is_same<std::decay_t<T>, any>::value && std::is_copy_constructible<std::decay_t<T>>::value>> any(T&& t)
-			{
-				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
-				using any_type = Implement::any_implement<std::decay_t<T>>;
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ std::forward<T>(t) };
-				pointer = ptr;
-			}
-
-			template<typename T> void reconstruct(T&& t)
-			{
-				this->operator=(std::forward<T>(t));
-			}
-
-			template<typename T, typename ...AT> void reconstruct(Tmp::itself<T>, AT&& ...at)
-			{
-				using any_type = Implement::any_implement<std::decay_t<T>>;
-				any_type* ptr = realloc<any_type>();
-				new (ptr) any_type{ std::forward<AT>(at)... };
-				pointer = ptr;
-			}
-
-			any& operator=(any&& a)
-			{
-				any Tem(std::move(a));
-				if (pointer != nullptr)
-					pointer->~any_interface();
-				ass = std::move(Tem.ass);
-				pointer = Tem.pointer;
-				Tem.pointer = nullptr;
-				return *this; 
-			}
-
-			any& operator=(const any& a)
-			{
-				any Tem(a);
-				if(pointer!=nullptr)
-					pointer->~any_interface();
-				ass = std::move(Tem.ass);
-				pointer = Tem.pointer;
-				Tem.pointer = nullptr;
+				block = std::move(srp.block);
+				ref_ptr = srp.ref_ptr;
 				return *this;
 			}
 
-			template<typename T, typename = std::enable_if_t<!std::is_same<std::decay_t<T>, any>::value>> auto& operator=(T&& t)
-			{
-				static_assert(std::is_copy_constructible<std::decay_t<T>>::value, "any only accept copy constructible class");
-				using any_type = Implement::any_implement<std::decay_t<T>>;
-				if (pointer != nullptr)
-					pointer->~any_interface();
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ std::forward<T>(t) };
-				pointer = ptr;
-				return *this;
-			}
+			void reset() { block.reset(); }
 
-			template<typename T> bool able_cast() const noexcept
+			template<typename callable_object>
+			bool try_ref(callable_object&& obj) noexcept(noexcept(obj(*ref_ptr)))
 			{
-				if (pointer != nullptr)
-					return pointer->info == typeid(T);
+				bool avalible, need_wait;
+				if (block && (block->try_add_using_ref(avalible, need_wait), avalible))
+				{
+					try {
+						obj(static_cast<T&>(*ref_ptr));
+					}
+					catch (...) {
+						block->sub_using_ref();
+						throw;
+					}
+					block->sub_using_ref();
+					return true;
+				}
 				return false;
 			}
 
-			template<typename T> T& cast()& noexcept
+			template<typename callable_object>
+			bool try_ref(callable_object&& obj, bool& need_wait) noexcept(noexcept(obj(*ref_ptr)))
 			{
-				return static_cast<Implement::any_implement<T>*>(pointer)->data;
+				bool avalible;
+				if (block && (block->try_add_using_ref(avalible, need_wait), avalible))
+				{
+					try {
+						obj(static_cast<T&>(*ref_ptr));
+					}
+					catch (...) {
+						block->sub_using_ref();
+						throw;
+					}
+					block->sub_using_ref();
+					return true;
+				}
+				return false;
 			}
 
-			template<typename T> const T& cast() const& noexcept
+			template<typename callable_object>
+			bool try_ref(callable_object&& obj) const noexcept(noexcept(obj(*ref_ptr)))
 			{
-				return static_cast<Implement::any_implement<T>*>(pointer)->data;
+				bool avalible, need_wait;
+				if (block && (block->try_add_using_ref(avalible, need_wait), avalible))
+				{
+					try {
+						obj(static_cast<const T&>(*ref_ptr));
+					}
+					catch (...) {
+						block->sub_using_ref();
+						throw;
+					}
+					block->sub_using_ref();
+					return true;
+				}
+				return false;
 			}
-			template<typename T> T&& cast() && noexcept
+
+			template<typename callable_object>
+			bool try_ref(callable_object&& obj, bool& need_wait) const noexcept(noexcept(obj(*ref_ptr)))
 			{
-				return static_cast<Implement::any_implement<T>*>(pointer)->data;
+				bool avalible;
+				if (block && (block->try_add_using_ref(avalible, need_wait), avalible))
+				{
+					try {
+						obj(static_cast<const T&>(*ref_ptr));
+					}
+					catch (...) {
+						block->sub_using_ref();
+						throw;
+					}
+					block->sub_using_ref();
+					return true;
+				}
+				return false;
 			}
+
 		};
 
-
-
-		namespace Implement
+		template<typename T> class stack_ref : protected Implement::stack_ref_head, public inherit_t<T>
 		{
-			struct any_nocopy_interface
-			{
-				const std::type_info& info;
-				virtual ~any_nocopy_interface() = 0;
-				any_nocopy_interface(const std::type_info& ti) :info(ti) {}
-				any_nocopy_interface(const any_nocopy_interface& ai) : info(ai.info) {}
-			};
-
-			template<typename T> struct alignas(alignof(std::decay_t<T>) < 4 ? 0 : alignof(std::decay_t<T>))  any_nocopy_implement :any_nocopy_interface
-			{
-				T data;
-				template<typename ...AT> any_nocopy_implement(AT&& ...at) : any_interface(typeid(T)), data(std::forward<AT>(at)...){}
-				~any_nocopy_implement() {}
-			};
-		}
-
-		struct any_nocopy {
-			Implement::any_store_struct ass;
-			Implement::any_nocopy_interface* pointer = nullptr;
-			~any_nocopy() {
-				if (pointer != nullptr)
-					pointer->~any_nocopy_interface();
-			}
-
-			template<typename T, typename ...AT> any_nocopy(Tmp::itself<T> t, AT&& ...at) {
-				using any_type = Implement::any_nocopy_implement<T>;
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ std::forward<AT>(at)... };
-				pointer = ptr;
-			}
-
-			template<typename T> any_nocopy(T&& t)
-			{
-				if (pointer != nullptr)
-					pointer->~any_nocopy_interface();
-				using any_type = Implement::any_nocopy_implement<std::decay_t<T>>;
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ std::forward<T>(t) };
-				pointer = ptr;
-			}
-
-			template<typename T> any_nocopy(const T& t)
-			{
-				if (pointer != nullptr)
-					pointer->~any_nocopy_interface();
-				using any_type = Implement::any_nocopy_implement<std::decay_t<T>>;
-				any_type* ptr = ass.alloc<any_type>();
-				new (ptr) any_type{ t };
-				pointer = ptr;
-			}
-
-			template<typename T> bool able_to_cast() const {
-				return pointer != nullptr && (pointer->info == typeid(std::decay_t<T>()));
-			}
-			template<typename T> std::decay_t<T>& cast() {
-				return static_cast<Implement::any_nocopy_implement<T>*>(pointer)->data;
-			}
-		};
-
-		template<typename T> struct align_store
-		{
-			std::aligned_union_t<1, T> data;
-			template<typename ...AT> align_store(AT&&... at) { new (data) T(std::forward<AT>(at)...); }
-			~align_store() { reinterpret_cast<T*>(data)->~T(); }
-			T* operator->() {
-				return reinterpret_cast<T*>(data);
-			}
-			const T* operator->() const {
-				return reinterpret_cast<T*>(data);
-			}
-			T& operator*() {
-				return (*reinterpret_cast<T*>(data));
-			}
-			const T* operator*() const {
-				return (*reinterpret_cast<T*>(data));
-			}
-			operator T&() {
-				return (*reinterpret_cast<T*>(data));
-			}
-			operator const T& () const{
-				return (*reinterpret_cast<T*>(data));
-			}
-		};
-
-		template<typename T> T* find_align_adress(void* data)
-		{
-			return reinterpret_cast<T*>((reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(data) + alignof(T)-1) & ~(alignof(T)-1)));
-		}
-
-		/*
-		template<typename T> class any_interface
-		{
-			any data;
-			Tmp::pure_type<T>* inter = nullptr;
 		public:
-			any_interface() {}
-			operator bool() const noexcept { return data; }
-			template<typename K> any_interface(K&& k) : data(std::forward<K>(k)), inter(&data.cast<Tmp::pure_type<K>>())
-			{
-				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
-			}
-			template<typename K, typename ...AT> any_interface(Tmp::itself<K> t, AT&& ...at) : data(t, std::forward<AT>(at)...), inter(&data.cast<Tmp::pure_type<K>>())
-			{
-				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
-			}
-			any_interface(any_interface&& ai) : data(std::move(ai.data)), inter(ai.inter)
-			{
-				ai.inter = nullptr;
-			}
-			template<typename K> any_interface(any_interface<K>&& ai) : data(std::move(ai.data)), inter(ai.inter)
-			{
-				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
-				ai.inter = nullptr;
-			}
-			Tmp::pure_type<T>* operator->() noexcept { return inter; }
-			Tmp::pure_type<T>& operator*() { return *inter; }
-			template<typename K, typename ...AT> void reconstruct(Tmp::itself<K> t, AT&& ...at)
-			{
-				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
-				data.reconstruct(t, std::forward<AT>(at)...);
-				inter = &data.cast<Tmp::pure_type<K>>();
-			}
-			template<typename K> void reconstruct(K&& k)
-			{
-				static_assert(std::is_base_of<T, Tmp::pure_type<K>>::value, "any_interface<T> can not store the derived class of T");
-				data.reconstruct(k);
-				inter = &data.cast<Tmp::pure_type<K>>();
-			}
+			operator stack_ref_ptr<T>() { return stack_ref_ptr<T>{  static_cast<Implement::stack_ref_control_block*>(static_cast<Implement::stack_ref_head&>(*this)), static_cast<T*>(this) }; }
+			template<typename ...AT> stack_ref(AT&& ...at) : inherit_t<T>(std::forward<AT>(at)...) { Implement::stack_ref_head::finish_construction(); }
+			~stack_ref() { Implement::stack_ref_head::start_destruction(); }
 		};
-		*/
+
+		template<typename callable_object_t, typename mutex_t> decltype(auto) simple_lock(callable_object_t&& cj, mutex_t& m) {
+			std::lock_guard<std::remove_extent_t<mutex_t>> lg(m);
+			return std::forward<callable_object_t>(cj)();
+		}
+
+		template<typename callable_object_t, typename mutex_t, typename ...o_mutex_t> decltype(auto) simple_lock(callable_object_t&& cj, mutex_t& m, o_mutex_t& ...om) {
+			std::lock_guard<std::remove_extent_t<mutex_t>> lg(m);
+			return simple_lock(std::forward<callable_object_t>(cj), om...);
+		}
+
+		template<typename T> struct replace_void { using type = T; };
+		template<> struct replace_void<void> { using type = Tmp::itself<void>; };
+
+		template<typename T, typename mutex_t = std::mutex> class scope_lock
+		{
+			T data;
+			mutable mutex_t mutex;
+		public:
+			template<typename ...construction_para>  scope_lock(construction_para&& ...cp) : data(std::forward<construction_para>(cp)...) {}
+			using type = T;
+			using mutex_type = mutex_t;
+
+			using type = T;
+
+			T exchange(T t) noexcept {
+				std::lock_guard<mutex_t> lg(mutex);
+				T tem(std::move(data));
+				data = std::move(t);
+				return tem;
+			}
+
+			T copy() const noexcept {
+				std::lock_guard<mutex_t> lg(mutex);
+				return data;
+			}
+
+			T move() && noexcept {
+				std::lock_guard<mutex_t> lg(mutex);
+				T tem(std::move(data));
+				return tem;
+			}
+
+			scope_lock& equal(T t) noexcept
+			{
+				std::lock_guard<mutex_t> lg(mutex);
+				data = std::move(t);
+				return *this;
+			}
+
+			template<typename callable_object> decltype(auto) lock(callable_object&& obj) noexcept(noexcept(std::forward<callable_object>(obj)(static_cast<T&>(data))))
+			{
+				std::lock_guard<mutex_t> lg(mutex);
+				return std::forward<callable_object>(obj)(static_cast<T&>(data));
+			}
+			template<typename callable_object> decltype(auto) lock(callable_object&& obj) const noexcept(noexcept(std::forward<callable_object>(obj)(static_cast<const T&>(data))))
+			{
+				std::lock_guard<mutex_t> lg(mutex);
+				return std::forward<callable_object>(obj)(static_cast<const T&>(data));
+			}
+
+			template<typename callable_object>  auto try_lock(callable_object&& obj)
+				noexcept(noexcept(std::forward<callable_object>(obj)(static_cast<T&>(data))))
+				-> std::conditional_t<
+					std::is_void_v<decltype(std::forward<callable_object>(obj)(static_cast<T&>(data)))>,
+					bool,
+					std::optional<decltype(std::forward<callable_object>(obj)(static_cast<T&>(data)))>
+				>
+			{
+				if (mutex.try_lock())
+				{
+					std::lock_guard<mutex_t> lg(mutex, std::adopt_lock);
+					if constexpr(std::is_void_v<decltype(std::forward<callable_object>(obj)(static_cast<T&>(data)))>)
+					{
+						return true;
+					}else
+						return{ std::forward<callable_object>(obj)(static_cast<T&>(data)) };
+				}
+				if constexpr(std::is_void_v<decltype(std::forward<callable_object>(obj)(static_cast<T&>(data)))>)
+				{
+					return false;
+				}
+				else
+					return {};
+			}
+
+			template<typename other_mutex_t, typename other_type, typename callable_object> auto lock_with(scope_lock<other_type, other_mutex_t>& sl, callable_object&& obj)
+				noexcept(noexcept(std::forward<callable_object>(obj)(data, sl.data)))
+				-> decltype(std::forward<callable_object>(obj)(data, sl.data))
+			{
+				std::lock(mutex, sl.mutex);
+				std::lock_guard<mutex_t> lg(mutex, std::adopt_lock);
+				std::lock_guard<other_mutex_t> lg2(sl.mutex, std::adopt_lock);
+				return std::forward<callable_object>(obj)(data, sl.data);
+			}
+
+		};
 
 	} 
 }

@@ -1,12 +1,3 @@
-_PO_
-=======
-
-这个是自用的基于cpp17的玩具异步ECS框架，目前其只在VS2017 5.6的版本下测试编译通过（需要最新CPP标准草案，需要开启RTTI），未完成。
-
----
-
-使用示例：（可编译版本见 demo/po_demo.sln）
-```
 #include "po/po.h"
 #include <iostream>
 struct component_1 : PO::component_res {};
@@ -60,4 +51,3 @@ int main()
 	system("pause");
 	return 0;
 }
-```
