@@ -1,4 +1,4 @@
-#include "context.h"
+#include "context_implement.h"
 #include <atomic>
 #include <limits>
 #undef max
@@ -12,6 +12,45 @@ namespace PO::ECSFramework
 		SECOND,
 		NOT_CARE
 	};
+
+	bool have(Implement::type_index_view view, std::type_index ti)
+	{
+		if (view.view_count == 0)
+			return false;
+		if (view[0] > ti || view[view.view_count - 1] < ti)
+			return false;
+		size_t Start = 0;
+		size_t End = view.view_count;
+		for (; Start != End; )
+		{
+			size_t C = (Start + End) / 2;
+			if (view[C] == ti)
+				return true;
+			else if (view[C] < ti)
+			{
+				Start = C + 1;
+			}
+			else
+			{
+				End = C;
+			}
+		}
+		return false;
+	}
+
+	bool is_collided(Implement::type_index_view ti1, Implement::type_index_view ti2)
+	{
+		if (ti1.view_count != 0 && ti2.view_count != 0 && ti1.view[ti1.view_count - 1] >= ti2.view[0] && ti1.view[0] <= ti2.view[ti2.view_count - 1])
+		{
+			for (size_t index = 0; index <= ti1.view_count; ++index)
+			{
+				if (have(ti2, ti1.view[index]))
+					return true;
+			}
+		}
+		return false;
+	}
+
 
 
 	SequenceResult calculate_sequence(SystemExecutionSequence S1, SystemExecutionSequence S2)
@@ -226,7 +265,7 @@ namespace PO::ECSFramework
 
 		decltype(component_map::map_holder)::iterator component_map::find_min_type_index(type_index_view tiv) noexcept
 		{
-			size_t view_type = tiv.size();
+			size_t view_type = tiv.view_count;
 			if (view_type == 0) return map_holder.end();
 			decltype(map_holder)::iterator min_result = map_holder.end();
 			size_t min_index_size = std::numeric_limits<size_t>::max();
@@ -453,11 +492,11 @@ namespace PO::ECSFramework
 				SystemLayout layout2 = ref2.ptr->layout();
 				auto id2 = ref2.ptr->id();
 
-				bool write_conflict = info1.entity_write.is_collided(info2.entity_write) || info1.singleton_write.is_collided(info2.singleton_write);
-				bool e1_rw_conflict = info1.entity_write.is_collided(info2.entity_read) || info1.singleton_write.is_collided(info2.singleton_read);
-				bool e2_rw_conflict = info2.entity_write.is_collided(info1.entity_read) || info2.singleton_write.is_collided(info1.singleton_read);
-				bool e1_trigger_conflict = info2.singleton_write.have(info1.trigger);
-				bool e2_trigger_conflict = info1.singleton_write.have(info2.trigger);
+				bool write_conflict = is_collided(info1.entity_write, info2.entity_write) || is_collided(info1.singleton_write, info2.singleton_write);
+				bool e1_rw_conflict = is_collided(info1.entity_write, info2.entity_read) || is_collided(info1.singleton_write, info2.singleton_read);
+				bool e2_rw_conflict = is_collided(info2.entity_write, info1.entity_read) || is_collided(info2.singleton_write, info1.singleton_read);
+				bool e1_trigger_conflict = have(info2.singleton_write, info1.trigger);
+				bool e2_trigger_conflict = have(info1.singleton_write, info2.trigger);
 				// 0 : 相等， 1 : 1 在 2 之前 2 : 2 在1 之前。
 				SequenceResult layout_result = (layout1 == layout2 ? SequenceResult::UNDEFINE : (layout1 < layout2 ? SequenceResult::FIRST : SequenceResult::SECOND));
 				if (write_conflict || e1_rw_conflict || e2_rw_conflict || e1_trigger_conflict || e2_trigger_conflict)
@@ -494,9 +533,9 @@ namespace PO::ECSFramework
 				auto info = ite.second.ptr->info();
 				if (info.trigger != typeid(void))
 				{
-					if (info.first.have(id))
+					if (have(info.first, id))
 						ite.second.ptr->insert_first(cch.e_ptr);
-					if (info.second.have(id))
+					if (have(info.second, id))
 						ite.second.ptr->insert_second(cch.e_ptr);
 				}
 			}
@@ -515,7 +554,7 @@ namespace PO::ECSFramework
 				auto info = ite.second.ptr->info();
 				if (info.trigger == id)
 					ite.second.ptr->insert_trigger(cch.h_ptr);
-				if (info.singleton.have(id))
+				if (have(info.singleton, id))
 					ite.second.ptr->insert_singleton(e);
 			}
 		}

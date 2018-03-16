@@ -5,8 +5,11 @@ namespace PO::ECSFramework
 
 	class context;
 
+	class other_entity {};
+	class singleton {};
 	namespace Implement
 	{
+
 		// system requirement
 		template<typename type> struct is_readed_type :std::true_type {};
 		template<typename type> struct is_readed_type<const type&> :std::true_type {};

@@ -1,7 +1,39 @@
 #pragma once
-#include "pre_define.h"
+#include "../tool/tool.h"
+#include "object_pool.h"
 namespace PO::ECSFramework
 {
+	namespace Implement
+	{
+
+		struct ptr_base
+		{
+			virtual void* data() noexcept = 0;
+			virtual const void* data() const noexcept = 0;
+			virtual ~ptr_base() = default;
+			virtual bool is_avalible() const noexcept = 0;
+			virtual bool is_same_id(std::type_index ti) const noexcept = 0;
+			virtual std::type_index id() const noexcept = 0;
+			template<typename T> T& cast() noexcept { return *static_cast<T*>(data()); }
+			template<typename T> const T& cast() const noexcept { return *static_cast<const T*>(data()); }
+
+		};
+
+		template<typename T> struct default_deleter { void operator ()(T* da) const noexcept { if (da != nullptr) { da->~T(); } } };
+		template<typename T> using ecs_intrusive_ptr = PO::Tool::intrusive_ptr<T, default_deleter<T>>;
+		template<typename T> using ecs_unique_ptr = std::unique_ptr<T, default_deleter<T>>;
+
+		class base_res
+		{
+			bool living = true;
+		public:
+			void destory() noexcept { living = false; }
+			bool is_avalible() const noexcept { return living; }
+		};
+	}
+
+
+
 	using component_res = Implement::base_res;
 	class entity;
 
@@ -10,6 +42,10 @@ namespace PO::ECSFramework
 
 	namespace Implement
 	{
+
+
+
+
 		struct component_inside_ptr : public ptr_base {};
 
 		template<typename implement_t>

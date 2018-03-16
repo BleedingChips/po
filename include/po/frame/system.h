@@ -1,6 +1,7 @@
 #pragma once
 #include "entity.h"
 #include "requirement_detection.h"
+#include <array>
 namespace PO::ECSFramework
 {
 	enum class SystemLayout
@@ -12,6 +13,7 @@ namespace PO::ECSFramework
 
 	inline bool operator<(SystemLayout SL, SystemLayout SL2) { return static_cast<size_t>(SL) < static_cast<size_t>(SL2); }
 	inline bool operator==(SystemLayout SL, SystemLayout SL2) { return static_cast<size_t>(SL) == static_cast<size_t>(SL2); }
+
 
 	enum class SystemExecutionSequence
 	{
@@ -31,6 +33,50 @@ namespace PO::ECSFramework
 	
 	namespace Implement
 	{
+
+		template<typename this_type, typename ...type> bool is_all_true(this_type tt, type... t)
+		{
+			return tt;
+		}
+
+		template<typename this_type, typename other_type, typename ...type> bool is_all_true(this_type tt, other_type ot, type... t)
+		{
+			return is_all_true(tt && ot, t...);
+		}
+
+
+		struct type_index_view
+		{
+			const std::type_index* view = nullptr;
+			size_t view_count = 0;
+			const std::type_index& operator[](size_t index) const noexcept { return view[index]; }
+			operator bool() const { return view_count != 0; }
+			/*
+			bool operator ==(type_index_view tiv) const noexcept;
+			bool operator < (type_index_view tiv) const noexcept;
+			bool have(std::type_index ti) const noexcept;
+			bool is_collided(const type_index_view& tiv) const noexcept;
+			const std::type_index& operator[](size_t index) const noexcept { return view[index]; }
+			size_t size() const noexcept { return view_count; }
+			*/
+		};
+
+		template<typename ...type>
+		struct type_array
+		{
+			std::array<std::type_index, sizeof...(type)> array_buffer = { typeid(type)... };
+			type_array() { std::sort(array_buffer.begin(), array_buffer.end()); }
+			type_index_view view() const noexcept { return type_index_view{ array_buffer.data(), array_buffer.size() }; }
+		};
+
+		template<>
+		struct type_array<>
+		{
+			type_array() { }
+			type_index_view view() const noexcept { return type_index_view{ nullptr, 0 }; }
+		};
+
+
 		struct context_interface;
 
 		// requirement_storage =============================

@@ -1,4 +1,4 @@
-#include "po/po.h"
+#include "po/po_implement.h"
 #include <iostream>
 struct component_1 : PO::component_res {};
 struct component_2 : PO::component_res {};
