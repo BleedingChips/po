@@ -18,9 +18,6 @@
     <ClCompile Include="..\..\..\include\po\frame\object_pool.cpp">
       <Filter>po\frame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\frame\entity.cpp">
-      <Filter>po\frame</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\include\po\platform\asynchronous_affairs.cpp">
       <Filter>po\platform</Filter>
     </ClCompile>
@@ -45,27 +42,12 @@
     <ClCompile Include="..\..\..\include\po\tool\event.cpp">
       <Filter>po\tool</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\frame\context_implement.cpp">
-      <Filter>po\frame</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\po\frame\system.h">
-      <Filter>po\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\requirement_detection.h">
-      <Filter>po\frame</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\po\frame\object_pool.h">
       <Filter>po\frame</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\entity.h">
-      <Filter>po\frame</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\po\frame\context.h">
-      <Filter>po\frame</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\component.h">
       <Filter>po\frame</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\platform\asynchronous_affairs.h">
@@ -109,9 +91,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\po.h">
       <Filter>po</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\frame\context_implement.h">
-      <Filter>po\frame</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\po_implement.h">
       <Filter>po</Filter>

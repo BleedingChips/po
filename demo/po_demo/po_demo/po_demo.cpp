@@ -1,5 +1,7 @@
-#include "po/po_implement.h"
+#include "po/po.h"
+#include "po/frame/context.h"
 #include <iostream>
+/*
 struct component_1 : PO::component_res {};
 struct component_2 : PO::component_res {};
 
@@ -34,9 +36,37 @@ struct system_3 : PO::system_res
 			c.close_context();
 	}
 };
+*/
+
+struct A {};
+struct B {};
+struct C {};
+struct D {};
+
+struct system_testing : PO::system_default_define
+{
+	void operator()(PO::context& c, PO::filter<A&> f) {}
+};
 
 int main()
 {
+	using namespace PO::ECSFramework;
+
+	using type = typename PO::ECSFramework::Implement::system_requirement_detect<PO::ECSFramework::context&, filter<A&, const B&>, filter<const A&, const C&, A&>, A& , const B&, D&>::type;
+	std::cout << typeid(typename type::filter::write).name() << std::endl;
+	std::cout << typeid(typename type::filter::read).name() << std::endl;
+	std::cout << typeid(typename type::singleton::write).name() << std::endl;
+	std::cout << typeid(typename type::singleton::read).name() << std::endl;
+	std::cout << PO::ECSFramework::Implement::is_const<A&>::value << std::endl;
+
+	auto ptr = std::make_unique<PO::ECSFramework::Implement::system_implement<system_testing>>();
+	//std::cout << ptr->info().write.operator[](0).name() << std::endl;
+
+
+	
+
+
+	/*
 	PO::context_implement imp;
 	imp.create([](PO::context& c) {
 		auto ent = c.create_entity();
@@ -48,6 +78,7 @@ int main()
 	});
 	imp.set_duration(PO::duration_ms{ 2000 });
 	imp.loop();
+	*/
 	system("pause");
 	return 0;
 }

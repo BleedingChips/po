@@ -14,7 +14,6 @@ namespace PO::ECSFramework
 	inline bool operator<(SystemLayout SL, SystemLayout SL2) { return static_cast<size_t>(SL) < static_cast<size_t>(SL2); }
 	inline bool operator==(SystemLayout SL, SystemLayout SL2) { return static_cast<size_t>(SL) == static_cast<size_t>(SL2); }
 
-
 	enum class SystemExecutionSequence
 	{
 		UNDEFINE,
@@ -51,14 +50,6 @@ namespace PO::ECSFramework
 			size_t view_count = 0;
 			const std::type_index& operator[](size_t index) const noexcept { return view[index]; }
 			operator bool() const { return view_count != 0; }
-			/*
-			bool operator ==(type_index_view tiv) const noexcept;
-			bool operator < (type_index_view tiv) const noexcept;
-			bool have(std::type_index ti) const noexcept;
-			bool is_collided(const type_index_view& tiv) const noexcept;
-			const std::type_index& operator[](size_t index) const noexcept { return view[index]; }
-			size_t size() const noexcept { return view_count; }
-			*/
 		};
 
 		template<typename ...type>

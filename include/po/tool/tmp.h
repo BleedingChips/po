@@ -296,5 +296,49 @@ namespace PO
 		template<template<typename ...> class instance_role, typename ...instance> using able_instance = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>;
 		template<template<typename ...> class instance_role, typename ...instance> constexpr bool able_instance_v = Implement::able_instance_implement<instance_role, Implement::instance_list<instance...>>::value;
 
+		template<typename f, typename s> struct link;
+		template<typename ...f, template<typename ...> class ft, typename ...s, template<typename ...> class st> struct link<ft<f...>, st<s...>>
+		{
+			using type = ft<f..., s...>;
+		};
+
+		template<typename f, typename s> using link_t = typename link<f, s>::type;
+
+		template<typename f, template<typename ...> class fto> struct replace;
+
+		template<typename ...f, template<typename ...> class ft, template<typename ...> class fto> struct replace<ft<f...>, fto>
+		{
+			using type = fto<f...>;
+		};
+
+		template<typename f, template<typename ...> class fto> using replace_t = typename replace<f, fto>::type;
+
+		namespace Implement
+		{
+			template<typename output, typename ...type> struct remove_repeat_implement;
+			template<typename ...output, template<typename ...> class ot> struct remove_repeat_implement<ot<output...>>
+			{
+				using type = ot<output...>;
+			};
+
+			template<typename ...output, template<typename ...> class ot, typename t, typename ...o_type> struct remove_repeat_implement<ot<output...>, t, o_type...>
+			{
+				using result_type = std::conditional_t<
+					Tmp::is_one_of<t, output...>::value,
+					ot<output...>,
+					ot<output..., t>
+				>;
+				using type = typename remove_repeat_implement<result_type, o_type...>::type;
+			};
+
+		}
+
+		template<typename f> struct remove_repeat;
+		template<typename ...f, template<typename ...> class ft> struct remove_repeat<ft<f...>>
+		{
+			using type = typename Implement::remove_repeat_implement<ft<>, f...>::type;
+		};
+
+		template<typename f> using remove_repeat_t = typename remove_repeat<f>::type;
 	}
 }

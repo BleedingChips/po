@@ -115,8 +115,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\include\po\frame\context_implement.cpp" />
-    <ClCompile Include="..\..\..\include\po\frame\entity.cpp" />
     <ClCompile Include="..\..\..\include\po\frame\object_pool.cpp" />
     <ClCompile Include="..\..\..\include\po\platform\asynchronous_affairs.cpp" />
     <ClCompile Include="..\..\..\include\po\platform\platform.cpp" />
@@ -128,13 +126,8 @@
     <ClCompile Include="..\..\..\include\po\tool\utf_support.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\po\frame\component.h" />
     <ClInclude Include="..\..\..\include\po\frame\context.h" />
-    <ClInclude Include="..\..\..\include\po\frame\context_implement.h" />
-    <ClInclude Include="..\..\..\include\po\frame\entity.h" />
     <ClInclude Include="..\..\..\include\po\frame\object_pool.h" />
-    <ClInclude Include="..\..\..\include\po\frame\requirement_detection.h" />
-    <ClInclude Include="..\..\..\include\po\frame\system.h" />
     <ClInclude Include="..\..\..\include\po\platform\asynchronous_affairs.h" />
     <ClInclude Include="..\..\..\include\po\platform\platform.h" />
     <ClInclude Include="..\..\..\include\po\po.h" />
