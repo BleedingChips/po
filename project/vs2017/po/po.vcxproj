@@ -115,6 +115,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\include\po\frame\context.cpp" />
+    <ClCompile Include="..\..\..\include\po\frame\context_implement.cpp" />
     <ClCompile Include="..\..\..\include\po\frame\object_pool.cpp" />
     <ClCompile Include="..\..\..\include\po\platform\asynchronous_affairs.cpp" />
     <ClCompile Include="..\..\..\include\po\platform\platform.cpp" />
@@ -127,6 +129,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\po\frame\context.h" />
+    <ClInclude Include="..\..\..\include\po\frame\context_implement.h" />
     <ClInclude Include="..\..\..\include\po\frame\object_pool.h" />
     <ClInclude Include="..\..\..\include\po\platform\asynchronous_affairs.h" />
     <ClInclude Include="..\..\..\include\po\platform\platform.h" />

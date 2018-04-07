@@ -53,13 +53,12 @@ int main()
 	using namespace PO::ECSFramework;
 
 	using type = typename PO::ECSFramework::Implement::system_requirement_detect<PO::ECSFramework::context&, filter<A&, const B&>, filter<const A&, const C&, A&>, A& , const B&, D&>::type;
-	std::cout << typeid(typename type::filter::write).name() << std::endl;
-	std::cout << typeid(typename type::filter::read).name() << std::endl;
-	std::cout << typeid(typename type::singleton::write).name() << std::endl;
-	std::cout << typeid(typename type::singleton::read).name() << std::endl;
+	std::cout << typeid(typename type::write).name() << std::endl;
+	std::cout << typeid(typename type::read).name() << std::endl;
 	std::cout << PO::ECSFramework::Implement::is_const<A&>::value << std::endl;
 
 	auto ptr = std::make_unique<PO::ECSFramework::Implement::system_implement<system_testing>>();
+	ptr->debug();
 	//std::cout << ptr->info().write.operator[](0).name() << std::endl;
 
 

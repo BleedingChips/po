@@ -23,54 +23,55 @@ namespace PO::ECSFramework
 		};
 	}
 
+	// component_map *************************************
 	namespace Implement
 	{
-
-		class vision
+		struct component_holder
 		{
-			size_t vision_number = 0;
-		public:
-			void update() { vision_number++; }
-			bool different(const vision& t) {
-				if (vision_number != t.vision_number)
-					return (vision_number = t.vision_number, true);
-				return false;
-			}
+			component_ptr componenet;
+			entity_ptr entity;
 		};
 
-		struct context_component_holder
+		struct component_map
 		{
-			component_holder_ptr h_ptr;
-			entity_implement_ptr e_ptr;
-			context_component_holder(component_holder_ptr c, entity_implement_ptr e) : h_ptr(std::move(c)), e_ptr(std::move(e)) {}
-		};
+			struct element
+			{
+				std::vector<component_holder> ptr;
+				std::vector<std::weak_ptr<filter_storage_interface>> accosiate_filter;
+			};
 
-		struct context_system_holder
-		{
-			system_holder_ptr s_ptr;
+			std::unordered_map<std::type_index, element> all_component_map;
+			void insert(component_holder c);
+			void reflesh(std::type_index ti);
+			void insert(std::shared_ptr<filter_storage_interface> filter);
 		};
 	}
 
+	// component_temporary *****************************
 	namespace Implement
 	{
 		struct context_temporary : public context
 		{
-			std::vector<context_component_holder> temporary_component_context_holder;
-			std::vector<system_holder_ptr> temporary_system_context_holder;
-			virtual void insert(component_holder_ptr chp, entity_implement_ptr e) { temporary_component_context_holder.push_back(context_component_holder{ std::move(chp), std::move(e) }); };
-			virtual void insert(system_holder_ptr csh) { temporary_system_context_holder.push_back(system_holder_ptr{ std::move(csh) }); };
+			std::vector<component_holder> init_component_list;
+			std::vector<system_ptr> init_system_list;
+			std::vector<std::pair<entity_ptr, std::type_index>> destory_component_list;
+			std::vector<entity_ptr> destory_entity_list;
+			std::vector<std::type_index> destory_singleton_component_list;
+			std::vector<std::type_index> destory_system_list;
 			using context::context;
-		};
 
-		class component_map
-		{
-			std::unordered_map<std::type_index, std::pair<Implement::vision, std::vector<Implement::context_component_holder>>> map_holder;
-			decltype(map_holder)::iterator find_min_type_index(type_index_view tiv) noexcept;
-		public:
-			void insert(Implement::vision, Implement::context_component_holder);
-			void update(Implement::vision, Implement::system_holder_ptr);
-			void reflesh(Implement::vision);
+			virtual void insert(component_ptr, entity_ptr) override;
+			virtual void insert(system_ptr) override;
+			virtual void destory(entity_ptr) override;
+			virtual void destory_component(entity_ptr, std::type_index) override;
+			virtual void destory_singleton_component(std::type_index) override;
+			virtual void destory_system(std::type_index) override;
 		};
+	}
+
+	// system map **********************************
+	namespace Implement
+	{
 
 		struct system_relationship;
 
@@ -114,7 +115,7 @@ namespace PO::ECSFramework
 
 		struct system_relationship
 		{
-			Implement::system_holder_ptr ptr;
+			system_ptr ptr;
 			SystemOperatorState state = SystemOperatorState::READY;
 
 			std::map<std::type_index, system_relationship_iterator_t> simplify_before;
@@ -142,60 +143,67 @@ namespace PO::ECSFramework
 			std::map<std::type_index, system_relationship_iterator_t> waitting_list;
 
 			void remove_relation(system_relationship_iterator_t ite);
-			Implement::system_holder_ptr pop_one(bool& finish);
+			Implement::system_ptr pop_one(bool& finish);
 			void finish_operating(std::type_index ti);
 		public:
 			bool reflesh_unavalible_map();
 			bool update_waitting_list();
-			void insert(Implement::system_holder_ptr);
-			void insert(Implement::context_component_holder);
-			void insert_singleton(Implement::context_component_holder, Implement::entity_implement_ptr);
-
+			void insert(system_ptr);
+			void destory_system(std::type_index id);
 			bool execute_one(context& c);
 			bool execute_one_other_thread(context& c, bool& finish);
 		};
+
+		
+
 	}
 
+	// component *******************
 	class context_implement : public Implement::context_interface
 	{
-
 		object_pool pool;
-		Platform::thread_pool threads;
+		//Platform::thread_pool threads;
 		Platform::asynchronous_affairs addairs;
 		std::atomic_bool avalible;
-		Implement::vision reflesh_vision;
 		std::chrono::milliseconds duration_ms;
-		Implement::component_map all_component;
-		std::vector<Implement::context_component_holder> tem_component_buffer;
-		PO::Tool::scope_lock<std::vector<Implement::context_component_holder>> temporary_component_holder;
 
+		Tool::scope_lock<std::vector<Implement::component_holder>> init_component_list;
+		Tool::scope_lock<std::vector<Implement::system_ptr>> init_system_list;
+		Tool::scope_lock<std::vector<std::pair<Implement::entity_ptr, std::type_index>>> destory_component_list;
+		Tool::scope_lock<std::vector<Implement::entity_ptr>> destory_entity_list;
+		Tool::scope_lock<std::vector<std::type_index>> destory_singleton_component_list;
+		Tool::scope_lock<std::vector<std::type_index>> destory_system_list;
+
+		Implement::component_map all_component;
 		Implement::system_map all_system;
-		PO::Tool::scope_lock<std::vector<Implement::system_holder_ptr>> temporary_system_holder;
-		decltype(temporary_system_holder)::type temporary_system_holder_buffer;
+		
 
 		std::mutex waitting_list_mutex;
-		std::set<std::type_index> waitting_list_start;
-		std::set<std::type_index> waitting_list;
 
-		entity singleton_entity;
+		std::map<std::type_index, Implement::component_ptr> singleton_component;
 
-		virtual Implement::component_holder_ptr allocate_component(std::type_index, size_t type, size_t aligna, void*& component_out) override;
-		virtual Implement::system_holder_ptr allocate_system(std::type_index, size_t type, size_t aligna, void*& system_out) override;
+		virtual Implement::component_ptr allocate_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) override;
+		virtual Implement::system_ptr allocate_system(std::type_index, size_t type, size_t aligna) override;
+
+		virtual void set_filter(std::shared_ptr<Implement::filter_storage_interface>) override;
+		virtual Implement::component_ptr get_singleton_component(std::type_index) noexcept override;
 
 		bool thread_execute();
+		size_t thread_reserved = 0;
 
 	public:
 
+		void set_thread_reserved(size_t count) { thread_reserved = count; }
 		void close_context() noexcept override { avalible = false; }
 		void set_duration(std::chrono::milliseconds ms) { duration_ms = ms; }
 
 		context_implement();
 		void load_form_context(Implement::context_temporary& c);
-		virtual entity create_entity() { return entity{ Implement::entity_implement_ptr{ pool.allocate<Implement::entity_implement>() } }; };
+		virtual entity create_entity() override;
 
 		void loop();
 
-		template<typename fun> void create(fun&& f)
+		template<typename fun> void init(fun&& f)
 		{
 			Implement::context_temporary ct(*this);
 			f(ct);
