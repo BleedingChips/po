@@ -4,11 +4,11 @@ namespace PO::ECSFramework
 	// component **************************************************
 	namespace Implement
 	{
-		component_ref::component_ref(std::type_index ti, void(*d)(void*) noexcept) : defined_id(ti), deleter(d)
+		singleton_component_ref::singleton_component_ref(std::type_index ti, void(*d)(void*) noexcept) : defined_id(ti), deleter(d)
 		{
 
 		}
-		void component_ref::destory() noexcept
+		void singleton_component_ref::destory() noexcept
 		{
 			if (avalible)
 			{
@@ -16,7 +16,7 @@ namespace PO::ECSFramework
 				avalible = false;
 			}
 		}
-		component_ref::~component_ref()
+		singleton_component_ref::~singleton_component_ref()
 		{
 			destory();
 		}
@@ -57,6 +57,19 @@ namespace PO::ECSFramework
 			return true;
 		}
 
+		void entity_implement::destory_all_component(std::set<std::type_index>& s)
+		{
+			for (auto& ite : component_set)
+			{
+				if (ite.second && *ite.second)
+				{
+					ite.second->destory();
+					s.insert(ite.first);
+				}
+			}
+			component_set.clear();
+		}
+
 		component_ptr entity_implement::get_component(std::type_index ti) const noexcept
 		{
 			auto ite = component_set.find(ti);
@@ -83,7 +96,12 @@ namespace PO::ECSFramework
 
 		entity_implement::~entity_implement()
 		{
-			assert(component_set.empty());
+			for (auto& ite : component_set)
+			{
+				if (ite.second && *ite.second)
+					ite.second->destory();
+			}
+			component_set.clear();
 		}
 
 		void entity_ref::destory() noexcept
@@ -105,6 +123,9 @@ namespace PO::ECSFramework
 	// system **************************************************
 	namespace Implement
 	{
-		void system_ref::destory() { ptr->~system_interface(); }
+		void system_ref::destory() noexcept { ptr->~system_interface(); ptr = nullptr; }
+		system_ref::~system_ref() { 
+			destory(); 
+		}
 	}
 }

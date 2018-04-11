@@ -11,5 +11,11 @@ namespace PO
 	using entity = PO::ECSFramework::entity;
 	//using context_implement = PO::ECSFramework::context_implement;
 	using duration_ms = std::chrono::milliseconds;
-	template<typename ...T> using filter = PO::ECSFramework::filter<T...>;
+	template<typename ...component> using filter = PO::ECSFramework::filter<component...>;
+	template<typename ...component> using pre_filter = PO::ECSFramework::pre_filter<component...>;
+	template<typename component> using provider = PO::ECSFramework::provider<component>;
+	template<typename component> using receiver = PO::ECSFramework::receiver<component>;
+	using SystemSequence = PO::ECSFramework::SystemSequence;
+	using SystemLayout = PO::ECSFramework::SystemLayout;
+
 }

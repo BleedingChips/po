@@ -1,6 +1,7 @@
 #include "context_implement.h"
 #include <atomic>
 #include <limits>
+#include <iostream>
 #undef max
 namespace PO::ECSFramework
 {
@@ -19,7 +20,7 @@ namespace PO::ECSFramework
 				ite = all_component_map.insert({ id, element{} }).first;
 			}
 			auto& ref = ite->second;
-			ref.accosiate_filter.erase(std::remove_if(ref.accosiate_filter.begin(), ref.accosiate_filter.end(), [&](std::weak_ptr<filter_storage_interface>& wp) {
+			ref.accosiate_filter.erase(std::remove_if(ref.accosiate_filter.begin(), ref.accosiate_filter.end(), [&](std::weak_ptr<pre_filter_storage_interface>& wp) {
 				auto ptr = wp.lock();
 				if (ptr)
 				{
@@ -28,6 +29,7 @@ namespace PO::ECSFramework
 				}
 				return true;
 			}), ref.accosiate_filter.end());
+			ref.ptr.push_back(std::move(c));
 		}
 
 		void component_map::reflesh(std::type_index ti)
@@ -42,7 +44,7 @@ namespace PO::ECSFramework
 			}
 		}
 
-		void component_map::insert(std::shared_ptr<filter_storage_interface> filter)
+		void component_map::insert(std::shared_ptr<pre_filter_storage_interface> filter)
 		{
 			assert(filter);
 			auto info = filter->needed();
@@ -57,7 +59,9 @@ namespace PO::ECSFramework
 				}
 				else {
 					ite->second.accosiate_filter.push_back(filter);
-					if (ite->second.ptr.size() < min_ite->second.ptr.size())
+					if (min_ite == all_component_map.end())
+						min_ite = ite;
+					else if (ite->second.ptr.size() < min_ite->second.ptr.size())
 						min_ite = ite;
 				}
 			}
@@ -80,34 +84,39 @@ namespace PO::ECSFramework
 	//context_temporary *****************************
 	namespace Implement
 	{
-		void context_temporary::insert(component_ptr cp, entity_ptr ep)
+		void context_temporary::insert_component(component_ptr cp, entity_ptr ep)
 		{
-			init_component_list.push_back(component_holder{ std::move(cp), std::move(ep) });
+			context_event.push_back(component_holder{ std::move(cp), std::move(ep) });
 		}
 
-		void context_temporary::insert(system_ptr sp)
+		void context_temporary::insert_system(system_ptr sp)
 		{
-			init_system_list.push_back(std::move(sp));
+			context_event.push_back(std::move(sp));
 		}
 
-		void context_temporary::destory(entity_ptr e)
+		void context_temporary::insert_singleton_component(Implement::singleton_component_ptr scp)
 		{
-			destory_entity_list.push_back(std::move(e));
+			context_event.push_back(std::move(scp));
+		}
+
+		void context_temporary::destory_entity(entity_ptr e)
+		{
+			context_event.push_back(std::move(e));
 		}
 
 		void context_temporary::destory_component(entity_ptr e, std::type_index ti)
 		{
-			destory_component_list.push_back(std::pair<entity_ptr, std::type_index>{ std::move(e), ti });
+			context_event.push_back(component_destory{ std::move(e), ti });
 		}
 
 		void context_temporary::destory_singleton_component(std::type_index ti)
 		{
-			destory_singleton_component_list.push_back(ti);
+			context_event.push_back(singleton_component_destory{ ti });
 		}
 
 		void context_temporary::destory_system(std::type_index ti)
 		{
-			destory_system_list.push_back(ti);
+			context_event.push_back(system_destory{ ti });
 		}
 	}
 	
@@ -401,7 +410,7 @@ namespace PO::ECSFramework
 					systems.erase(ite1++);
 				}
 			}
-			return systems.empty();
+			return !systems.empty();
 		}
 
 		void system_map::insert(system_ptr shp)
@@ -443,20 +452,19 @@ namespace PO::ECSFramework
 				if (write_conflict || e1_rw_conflict || e2_rw_conflict)
 				{
 					// 0 : 相等， 1 : 1 在 2 之前 2 : 2 在1 之前。
-					SequenceResult layout_result = (layout1 == layout2 ? SequenceResult::UNDEFINE : (layout1 < layout2 ? SequenceResult::FIRST : SequenceResult::SECOND));
-					SequenceResult result = calculate_sequence(ref1.ptr->check_sequence(id2), ref2.ptr->check_sequence(id1));
-					if (result == SequenceResult::UNDEFINE || result == SequenceResult::NOT_CARE)
+					SequenceResult result = (layout1 == layout2 ? SequenceResult::UNDEFINE : (layout1 < layout2 ? SequenceResult::FIRST : SequenceResult::SECOND));
+					if (result == SequenceResult::UNDEFINE)
 					{
-						if (e1_rw_conflict && !e2_rw_conflict)
-							insert_sequence(SequenceResult::FIRST, ite, ite2);
-						else if (e2_rw_conflict && !e1_rw_conflict)
-							insert_sequence(SequenceResult::SECOND, ite, ite2);
-						else
-							insert_sequence(result, ite, ite2);
+						result = calculate_sequence(ref1.ptr->check_sequence(id2), ref2.ptr->check_sequence(id1));
+						if (result == SequenceResult::UNDEFINE || result == SequenceResult::NOT_CARE)
+						{
+							if (e1_rw_conflict && !e2_rw_conflict)
+								result = SequenceResult::FIRST;
+							else if (e2_rw_conflict && !e1_rw_conflict)
+								result = SequenceResult::SECOND;
+						}
 					}
-					else {
-						insert_sequence(result, ite, ite2);
-					}
+					insert_sequence(result, ite, ite2);
 				}
 			}
 		}
@@ -683,6 +691,7 @@ namespace PO::ECSFramework
 			{
 				remove_relation(ite);
 				systems.erase(ite);
+				system_need_update = true;
 			}
 		}
 
@@ -704,6 +713,37 @@ namespace PO::ECSFramework
 			}
 			return true;
 		}
+
+		void system_map::set_event_pool(Tool::intrusive_ptr<event_pool_interface> pool)
+		{
+			if (pool && *pool)
+			{
+				auto ite = event_pool.find(pool->id);
+				if (ite != event_pool.end())
+				{
+					ite->second.erase(std::remove_if(ite->second.begin(), ite->second.end(), [&](Tool::intrusive_ptr<event_pool_interface>& ptr) {
+						return ptr == pool || (!ptr) || (!*ptr);
+					}), ite->second.end());
+				}
+				else
+					ite = event_pool.insert({ pool->id , std::vector<Tool::intrusive_ptr<event_pool_interface>> {} }).first;
+				ite->second.push_back(std::move(pool));
+			}
+		}
+
+		const Tool::intrusive_ptr<event_pool_interface>* system_map::get_event_pool(std::type_index id, size_t& count) const noexcept
+		{
+			auto ite = event_pool.find(id);
+			if (ite != event_pool.end())
+			{
+				count = ite->second.size();
+				return ite->second.data();
+			}
+			else {
+				count = 0;
+				return nullptr;
+			}
+		}
 	}
 
 	// context_implement *******************
@@ -713,9 +753,11 @@ namespace PO::ECSFramework
 		bool finish;
 		if (all_system.execute_one_other_thread(ct, finish))
 		{
+			load_form_context(ct);
 			return false;
 		}
 		else {
+			load_form_context(ct);
 			auto fu = addairs.pop_front();
 			if (fu)
 			{
@@ -741,33 +783,102 @@ namespace PO::ECSFramework
 		*/
 	}
 
+	size_t resize_aligna(size_t size, size_t aligna)
+	{
+		return (size % aligna == 0) ? size : (size - (size % aligna) + aligna);
+	}
+
 	Implement::component_ptr context_implement::allocate_component(std::type_index ti, size_t type, size_t aligna, void(*deleter)(void*) noexcept)
 	{
 		assert(type % aligna == 0);
-		size_t component_ref_size = sizeof(Implement::component_ref);
-		component_ref_size = 
-			(component_ref_size % aligna == 0) ? component_ref_size : 
-			(component_ref_size - (component_ref_size % aligna) + aligna);
-
+		size_t aligna_ref = alignof(Implement::component_ref);
+		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
+		if (aligna <= aligna_ref)
+		{
+			type = resize_aligna(type, aligna_ref);
+		}
+		else {
+			size_t mulity = aligna / aligna_ref;
+			mulity -= 1;
+			type += mulity * aligna_ref;
+		}
+		void * data = pool.allocate(ti, sizeof(Implement::component_ref) + type, aligna_ref);
+		Implement::component_ptr tem = new(data) Implement::component_ref{ ti, deleter };
+		tem->data = reinterpret_cast<std::byte*>(data) + sizeof(Implement::component_ref);
+		size_t space = sizeof(Implement::component_ref) + type;
+		std::align(aligna, aligna, tem->data, space);
+		return tem;
+		/*
+		aligna = aligna > alignof(Implement::component_ref) ? aligna : alignof(Implement::component_ref);
+		size_t component_ref_size = resize_aligna(sizeof(Implement::component_ref), aligna);
+		type = resize_aligna(type, aligna);
 		void* data = pool.allocate(ti, component_ref_size + type, aligna);
-
 		Implement::component_ptr tem = new(data) Implement::component_ref{ti, deleter};
 		tem->data = reinterpret_cast<std::byte*>(data) + component_ref_size;
 		return tem;
+		*/
 	}
 
 	Implement::system_ptr context_implement::allocate_system(std::type_index ti, size_t type, size_t aligna)
 	{
 		assert(type % aligna == 0);
-		size_t allocate_size = type;
-		if (aligna != sizeof(nullptr_t))
-			allocate_size += aligna - 1;
-		std::byte* data = new std::byte[sizeof(Implement::system_ref) + allocate_size];
+		size_t aligna_ref = alignof(Implement::system_ref);
+		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
+		assert(aligna_ref == alignof(void*));
+		if (aligna <= aligna_ref)
+		{
+			type = resize_aligna(type, aligna_ref);
+		}
+		else {
+			size_t mulity = aligna / aligna_ref;
+			mulity -= 1;
+			type += mulity * aligna_ref;
+		}
+		std::byte* data = new std::byte[sizeof(Implement::system_ref) + type];
+		Implement::system_ptr tem = new(data) Implement::system_ref{};
+		void* data_start = data + sizeof(Implement::system_ref);
+		size_t space = sizeof(Implement::system_ref) + type;
+		std::align(aligna, aligna, data_start, space);
+		tem->ptr = reinterpret_cast<Implement::system_interface*>(data_start);
+		return tem;
+
+		/*
+		aligna = aligna > alignof(Implement::system_ref) ? aligna : alignof(Implement::system_ref);
+		size_t ref_size = resize_aligna(sizeof(Implement::system_ref), aligna);
+		size_t imp_size = resize_aligna(type, aligna);
+		size_t total_size = 
+		std::byte* data = new std::byte[ref_size + imp_size];
 		Implement::system_ptr tem = new (data) Implement::system_ref{};
 		size_t space;
-		void* init_data;
+		void* init_data = data + ref_size;
 		std::align(aligna, type, init_data, space);
 		tem->ptr = reinterpret_cast<Implement::system_interface*>(init_data);
+		return tem;
+		*/
+	}
+
+	Implement::singleton_component_ptr context_implement::allocate_singleton_component(std::type_index ti, size_t type, size_t aligna, void(*deleter)(void*) noexcept)
+	{
+		assert(type % aligna == 0);
+		size_t aligna_ref = alignof(Implement::singleton_component_ref);
+		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
+		size_t da = alignof(void*);
+		assert(aligna_ref == da);
+		if (aligna <= aligna_ref)
+		{
+			type = resize_aligna(type, aligna_ref);
+		}
+		else {
+			size_t mulity = aligna / aligna_ref;
+			mulity -= 1;
+			type += mulity * aligna_ref;
+		}
+		std::byte* data = new std::byte[sizeof(Implement::singleton_component_ref) + type];
+		Implement::singleton_component_ptr tem = new(data) Implement::singleton_component_ref{ti, deleter};
+		void* data_start = data + sizeof(Implement::singleton_component_ref);
+		size_t space = type;
+		std::align(aligna, aligna, data_start, space);
+		tem->data = data_start;
 		return tem;
 	}
 
@@ -788,29 +899,26 @@ namespace PO::ECSFramework
 
 	void context_implement::load_form_context(Implement::context_temporary& c)
 	{
-		insert_vertex(c.destory_component_list, destory_component_list);
-		insert_vertex(c.destory_entity_list, destory_entity_list);
-		insert_vertex(c.destory_singleton_component_list, destory_singleton_component_list);
-		insert_vertex(c.destory_system_list, destory_system_list);
-		insert_vertex(c.init_component_list, init_component_list);
-		insert_vertex(c.init_system_list, init_system_list);
+		insert_vertex(c.context_event, context_event);
 	}
 
 	entity context_implement::create_entity()
 	{
-		std::byte* da = new std::byte[sizeof(Implement::entity_ref) + sizeof(Implement::entity_implement)];
-		new (da + sizeof(sizeof(Implement::entity_ref))) Implement::entity_implement{};
+		assert(alignof(Implement::entity_ref) == alignof(Implement::entity_implement));
+		void* allocated_data = pool.allocate(typeid(Implement::entity_ref), sizeof(Implement::entity_ref) + sizeof(Implement::entity_implement), alignof(Implement::entity_ref));
+		std::byte* da = reinterpret_cast<std::byte*>(allocated_data);
+		new (da + sizeof(Implement::entity_ref)) Implement::entity_implement{};
 		Implement::entity_ptr ptr = new(da) Implement::entity_ref{};
 		return entity{ ptr };
 	}
 
-	void context_implement::set_filter(std::shared_ptr<Implement::filter_storage_interface> wp)
+	void context_implement::set_filter(std::shared_ptr<Implement::pre_filter_storage_interface> wp)
 	{
 		if (wp)
 			all_component.insert(std::move(wp));
 	}
 
-	Implement::component_ptr context_implement::get_singleton_component(std::type_index ti) noexcept
+	Implement::singleton_component_ptr context_implement::get_singleton_component(std::type_index ti) noexcept
 	{
 		auto ite = singleton_component.find(ti);
 		if (ite != singleton_component.end())
@@ -834,78 +942,63 @@ namespace PO::ECSFramework
 		for (size_t i = 0; i < process_count; ++i)
 			threads.create_thread([this]() {return thread_execute(); });
 		std::set<std::type_index> destory_component;
+
+		struct context_event_handler
+		{
+			context_implement* context;
+			std::set<std::type_index>& destory_component;
+			void operator()(Implement::component_holder& ref)
+			{
+				assert(ref.entity && * ref.entity);
+				if (ref.entity->insert(ref.componenet))
+					destory_component.insert(ref.componenet->id());
+				context->all_component.insert(std::move(ref));
+			}
+			void operator()(Implement::singleton_component_ptr& ref) {
+				auto id = ref->id();
+				auto ite2 = context->singleton_component.find(id);
+				if (ite2 != context->singleton_component.end())
+				{
+					ite2->second->destory();
+					ite2->second = std::move(ref);
+				}
+				else
+					context->singleton_component.insert({ id, std::move(ref) });
+			}
+			void operator()(Implement::system_ptr& ref) {
+				ref->init(*context);
+				context->all_system.insert(std::move(ref));
+			}
+			void operator()(Implement::component_destory& ref) {
+				if (ref.entity->destory_component(ref.id))
+					destory_component.insert(ref.id);
+			}
+			void operator()(Implement::entity_ptr& ref) {
+				if (ref && *ref)
+					ref->destory_all_component(destory_component);
+			}
+			void operator()(Implement::singleton_component_destory& ref) {
+				std::type_index id = ref.id;
+				auto ite2 = context->singleton_component.find(id);
+				if (ite2 != context->singleton_component.end())
+				{
+					if (ite2->second && *ite2->second)
+						ite2->second->destory();
+					context->singleton_component.erase(ite2);
+				}
+			}
+			void operator()(Implement::system_destory& cp) {
+				std::type_index id = cp.id;
+				context->all_system.destory_system(id);
+			}
+		};
+
 		while (avalible)
 		{
-			init_system_list.lock([this](decltype(init_system_list)::type& t) {
-				if (!t.empty())
-				{
-					for (auto& ite : t)
-					{
-						ite->init(*this);
-						all_system.insert(std::move(ite));
-					}
-					t.clear();
-				}
-			});
 
-			init_component_list.lock([&, this](decltype(init_component_list)::type& t) {
-				if (!t.empty())
-				{
-					for (auto& ite : t)
-					{
-						if (ite.entity)
-						{
-							if (*ite.entity)
-								if (ite.entity->insert(ite.componenet))
-								{
-									destory_component.insert(ite.componenet->id());
-									all_component.insert(std::move(ite));
-								}
-						}
-						else {
-							auto id = ite.componenet->id();
-							auto ite2 = singleton_component.find(id);
-							if (ite2 != singleton_component.end())
-							{
-								ite2->second->destory();
-								ite2->second = std::move(ite.componenet);
-							}
-							else
-								singleton_component.insert({ id, std::move(ite.componenet) });
-						}
-					}
-					t.clear();
-				}
-			});
-
-			destory_component_list.lock([&](decltype(destory_component_list)::type& t) {
+			context_event.lock([&, this](decltype(context_event)::type& t) {
 				for (auto& ite : t)
-				{
-					if (ite.first->destory_component(ite.second))
-						destory_component.insert(ite.second);
-				}
-				t.clear();
-			});
-
-			destory_singleton_component_list.lock([&](decltype(destory_singleton_component_list)::type& t) {
-				for (auto& ite : t)
-				{
-					auto ite2 = singleton_component.find(ite);
-					if (ite2 != singleton_component.end())
-					{
-						if (ite2->second && *ite2->second)
-							ite2->second->destory();
-						singleton_component.erase(ite2);
-					}
-				}
-				t.clear();
-			});
-
-			destory_system_list.lock([&](decltype(destory_system_list)::type& t) {
-				for (auto& ite : t)
-				{
-					all_system.destory_system(ite);
-				}
+					std::visit(context_event_handler{this, destory_component}, ite);
 				t.clear();
 			});
 
@@ -923,7 +1016,6 @@ namespace PO::ECSFramework
 				while (all_system.execute_one(ct))
 				{
 					std::this_thread::yield();
-					//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				}
 				load_form_context(ct);
 

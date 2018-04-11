@@ -1,5 +1,6 @@
 #pragma once
 #include "context.h"
+#include <variant>
 namespace PO::ECSFramework
 {
 	namespace Error
@@ -37,32 +38,47 @@ namespace PO::ECSFramework
 			struct element
 			{
 				std::vector<component_holder> ptr;
-				std::vector<std::weak_ptr<filter_storage_interface>> accosiate_filter;
+				std::vector<std::weak_ptr<pre_filter_storage_interface>> accosiate_filter;
 			};
 
 			std::unordered_map<std::type_index, element> all_component_map;
 			void insert(component_holder c);
 			void reflesh(std::type_index ti);
-			void insert(std::shared_ptr<filter_storage_interface> filter);
+			void insert(std::shared_ptr<pre_filter_storage_interface> filter);
 		};
 	}
 
 	// component_temporary *****************************
 	namespace Implement
 	{
+
+		struct component_destory
+		{
+			entity_ptr entity;
+			std::type_index id;
+		};
+
+		struct singleton_component_destory
+		{
+			std::type_index id;
+		};
+
+		struct system_destory
+		{
+			std::type_index id;
+		};
+
+		using context_event_type = std::variant<component_holder, singleton_component_ptr, system_ptr, component_destory, entity_ptr, singleton_component_destory, system_destory>;
+
 		struct context_temporary : public context
 		{
-			std::vector<component_holder> init_component_list;
-			std::vector<system_ptr> init_system_list;
-			std::vector<std::pair<entity_ptr, std::type_index>> destory_component_list;
-			std::vector<entity_ptr> destory_entity_list;
-			std::vector<std::type_index> destory_singleton_component_list;
-			std::vector<std::type_index> destory_system_list;
+			std::vector<context_event_type> context_event;
 			using context::context;
 
-			virtual void insert(component_ptr, entity_ptr) override;
-			virtual void insert(system_ptr) override;
-			virtual void destory(entity_ptr) override;
+			virtual void insert_component(component_ptr, entity_ptr) override;
+			virtual void insert_system(system_ptr) override;
+			virtual void insert_singleton_component(Implement::singleton_component_ptr) override;
+			virtual void destory_entity(entity_ptr) override;
 			virtual void destory_component(entity_ptr, std::type_index) override;
 			virtual void destory_singleton_component(std::type_index) override;
 			virtual void destory_system(std::type_index) override;
@@ -141,11 +157,13 @@ namespace PO::ECSFramework
 
 			std::vector<system_relationship_iterator_t> start_system_temporary;
 			std::map<std::type_index, system_relationship_iterator_t> waitting_list;
-
+			std::map<std::type_index, std::vector<Tool::intrusive_ptr<event_pool_interface>>> event_pool;
 			void remove_relation(system_relationship_iterator_t ite);
 			Implement::system_ptr pop_one(bool& finish);
 			void finish_operating(std::type_index ti);
 		public:
+			const Tool::intrusive_ptr<event_pool_interface>* get_event_pool(std::type_index, size_t& count) const noexcept;
+			void set_event_pool(Tool::intrusive_ptr<event_pool_interface> pool);
 			bool reflesh_unavalible_map();
 			bool update_waitting_list();
 			void insert(system_ptr);
@@ -167,12 +185,7 @@ namespace PO::ECSFramework
 		std::atomic_bool avalible;
 		std::chrono::milliseconds duration_ms;
 
-		Tool::scope_lock<std::vector<Implement::component_holder>> init_component_list;
-		Tool::scope_lock<std::vector<Implement::system_ptr>> init_system_list;
-		Tool::scope_lock<std::vector<std::pair<Implement::entity_ptr, std::type_index>>> destory_component_list;
-		Tool::scope_lock<std::vector<Implement::entity_ptr>> destory_entity_list;
-		Tool::scope_lock<std::vector<std::type_index>> destory_singleton_component_list;
-		Tool::scope_lock<std::vector<std::type_index>> destory_system_list;
+		Tool::scope_lock<std::vector<Implement::context_event_type>> context_event;
 
 		Implement::component_map all_component;
 		Implement::system_map all_system;
@@ -180,16 +193,22 @@ namespace PO::ECSFramework
 
 		std::mutex waitting_list_mutex;
 
-		std::map<std::type_index, Implement::component_ptr> singleton_component;
+		std::map<std::type_index, Implement::singleton_component_ptr> singleton_component;
 
 		virtual Implement::component_ptr allocate_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) override;
 		virtual Implement::system_ptr allocate_system(std::type_index, size_t type, size_t aligna) override;
+		virtual Implement::singleton_component_ptr allocate_singleton_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) override;
 
-		virtual void set_filter(std::shared_ptr<Implement::filter_storage_interface>) override;
-		virtual Implement::component_ptr get_singleton_component(std::type_index) noexcept override;
+		virtual void set_filter(std::shared_ptr<Implement::pre_filter_storage_interface>) override;
+		virtual Implement::singleton_component_ptr get_singleton_component(std::type_index) noexcept override;
+
+		virtual void set_event_pool(Tool::intrusive_ptr<Implement::event_pool_interface> in) override { all_system.set_event_pool(std::move(in)); }
+		virtual const Tool::intrusive_ptr<Implement::event_pool_interface>* get_event_pool(std::type_index id, size_t& size) noexcept override { return all_system.get_event_pool(id, size); }
 
 		bool thread_execute();
 		size_t thread_reserved = 0;
+
+		friend class context_event_handler;
 
 	public:
 
@@ -206,7 +225,7 @@ namespace PO::ECSFramework
 		template<typename fun> void init(fun&& f)
 		{
 			Implement::context_temporary ct(*this);
-			f(ct);
+			f(static_cast<context&>(ct));
 			load_form_context(ct);
 		}
 

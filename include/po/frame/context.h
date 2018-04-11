@@ -54,8 +54,7 @@ namespace PO::ECSFramework
 	// component **************************************************
 	namespace Implement
 	{
-		struct component_ref :
-			object_pool_base_deleter<component_ref>
+		struct singleton_component_ref
 		{
 			mutable PO::Tool::atomic_reference_count ref;
 			bool avalible = true;
@@ -67,10 +66,18 @@ namespace PO::ECSFramework
 			void destory() noexcept;
 			operator bool() const noexcept { return avalible; }
 			std::type_index id() const noexcept { return defined_id; }
-			template<typename T> T& cast() noexcept { return *static_cast<T*>(data); }
-			template<typename T> const T& cast() const noexcept { return *static_cast<T*>(data); }
-			~component_ref();
-			component_ref(std::type_index ti, void(*deleter)(void*) noexcept);
+			template<typename T> T& cast() noexcept { return *(static_cast<T*>(data)); }
+			template<typename T> const T& cast() const noexcept { return *(static_cast<const T*>(data)); }
+			~singleton_component_ref();
+			singleton_component_ref(std::type_index ti, void(*deleter)(void*) noexcept);
+		};
+
+		using singleton_component_ptr = Tool::intrusive_ptr<singleton_component_ref>;
+
+		struct component_ref :
+			object_pool_base_deleter<component_ref>, singleton_component_ref
+		{
+			using singleton_component_ref::singleton_component_ref;
 		};
 
 		using component_ptr = ecs_intrusive_ptr<component_ref>;
@@ -90,6 +97,7 @@ namespace PO::ECSFramework
 			bool check_exist(std::type_index) const noexcept;
 			component_ptr get_component(std::type_index ti) const noexcept;
 			bool destory_component(std::type_index id) noexcept;
+			void destory_all_component(std::set<std::type_index>& s);
 			//void destory() noexcept;
 			~entity_implement();
 		};
@@ -111,23 +119,24 @@ namespace PO::ECSFramework
 			bool reflesh() noexcept { return shift()->reflesh(); }
 			void destory() noexcept;
 			operator bool() const noexcept { return avalible; }
+			void destory_all_component(std::set<std::type_index>& s) { return shift()->destory_all_component(s); }
 			~entity_ref();
 		};
 
 		using entity_ptr = Implement::ecs_intrusive_ptr<entity_ref>;
 	}
 
-	template<typename ...implement> class filter;
+	template<typename ...implement> struct filter;
 
 	class entity
 	{
 		Implement::entity_ptr ptr;
 		friend class context_implement;
 		friend class context;
-		template<typename ...implement> friend class filter;
-		entity(Implement::entity_ptr eip) : ptr(std::move(eip)) {}
+		template<typename ...implement> friend struct filter;
 	public:
 		entity(const entity&) = default;
+		entity(Implement::entity_ptr p) : ptr(std::move(p)) {}
 		entity() = default;
 		entity(entity&&) = default;
 		entity& operator=(entity e) { ptr = std::move(e.ptr); return *this; }
@@ -143,28 +152,20 @@ namespace PO::ECSFramework
 			component_ptr ptr;
 			operator bool() const noexcept { assert(ptr); return *ptr; }
 			bool able_extract_component(entity_ptr e) noexcept { ptr = e->get_component(typeid(T)); return ptr; }
-			T& get() noexcept { return ptr->cast<T>(); }
+			T get() noexcept { return ptr->cast<std::remove_reference_t<T>>(); }
 			system_requirement_storage& operator=(const system_requirement_storage&) = default;
 		};
-
+		/*
 		template<typename T> struct system_requirement_storage<const T>
 		{
 			component_ptr ptr;
 			operator bool() const noexcept { assert(ptr); return *ptr; }
 			bool able_extract_component(entity_ptr e) noexcept { ptr = e->get_component(typeid(T)); return ptr; }
-			const T& get() const noexcept { return ptr->cast<T>(); }
+			const T& get() const noexcept { return ptr->cast<std::remove_reference_t<T>>(); }
 			system_requirement_storage& operator=(const system_requirement_storage&) = default;
 		};
+		*/
 	}
-
-	// component_map **************************************************
-	namespace Implement
-	{
-		
-
-		
-	}
-
 
 	// filter **************************************************
 	namespace Implement
@@ -180,25 +181,25 @@ namespace PO::ECSFramework
 		}
 		struct context_interface;
 
-		struct filter_storage_interface
+		struct pre_filter_storage_interface
 		{
 			virtual void insert(entity_ptr) = 0;
 			virtual void reflesh(size_t vision) = 0;
-			virtual ~filter_storage_interface() = default;
+			virtual ~pre_filter_storage_interface() = default;
 			virtual type_index_view needed() = 0;
 		};
 
 
-		template<typename index, typename ...component> struct filter_storage_implement;
+		template<typename index, typename ...component> struct pre_filter_storage_implement;
 		template<size_t ...index, typename ...component>
-		class filter_storage_implement<std::integer_sequence<size_t, index...>, component...>
+		class pre_filter_storage_implement<std::integer_sequence<size_t, index...>, component...>
 		{
 			std::tuple<entity_ptr, system_requirement_storage<component>...> storage;
 		public:
-			filter_storage_implement() = default;
-			filter_storage_implement(const filter_storage_implement&) = default;
-			filter_storage_implement(filter_storage_implement&&) = default;
-			filter_storage_implement& operator=(const filter_storage_implement&) = default;
+			pre_filter_storage_implement() = default;
+			pre_filter_storage_implement(const pre_filter_storage_implement&) = default;
+			pre_filter_storage_implement(pre_filter_storage_implement&&) = default;
+			pre_filter_storage_implement& operator=(const pre_filter_storage_implement&) = default;
 			operator bool() const noexcept { 
 				return is_all_true(std::get<0>(storage)->operator bool(), std::get<index + 1>(storage)...);
 			}
@@ -215,9 +216,9 @@ namespace PO::ECSFramework
 		};
 
 		template<typename ...component>
-		class filter_storage : public filter_storage_interface
+		class pre_filter_storage : public pre_filter_storage_interface
 		{
-			using storage_type = filter_storage_implement<std::make_integer_sequence<size_t, sizeof...(component)>, component...>;
+			using storage_type = pre_filter_storage_implement<std::make_integer_sequence<size_t, sizeof...(component)>, component...>;
 			size_t current_vision = 0;
 			std::vector<storage_type> storage;
 
@@ -246,36 +247,128 @@ namespace PO::ECSFramework
 					storage.push_back(std::move(temporary));
 			}
 
-			template<typename callable> void operator()(callable&& c, size_t vision)
+			template<typename callable> void operator()(callable&& c)
 			{
-				for (auto& ite : storage)
-				{
-					assert(ite && *ite);
-					ite(c);
-				}
+				storage.erase(std::remove_if(storage.begin(), storage.end(), [&](storage_type& storage) {
+					if (storage)
+					{
+						storage(std::forward<callable>(c));
+						return false;
+					}
+					return true;
+				}), storage.end());
 			}
 
 		};
 
+		template<typename ...component> 
+		class filter_with_entity
+		{
+			template<typename ...component> friend struct filter;
+			bool avalible = false;
+			pre_filter_storage_implement<std::make_index_sequence<sizeof...(component)>, component...> storage;
+			filter_with_entity(entity_ptr e)
+			{
+				avalible = storage.able_extract_component(e);
+			}
+			filter_with_entity(filter_with_entity&& e) = default;
+		public:
+			
+			template<typename callable> filter_with_entity& operator<<(callable&& c)
+			{
+				if (avalible)
+				{
+					storage(std::forward<callable>(c));
+					return true;
+				}
+				return false;
+			}
+		};
+
 	}
 
-	template<typename ...component> class filter
+	template<typename ...component> class pre_filter
 	{
-		Implement::filter_storage<component...>& storage;
+		Implement::pre_filter_storage<component...>& storage;
 	public:
-		filter(Implement::filter_storage<component...>& s) : storage(s) {}
-		filter(const filter&) = default;
-		template<typename callable> void operator()(callable&& c) { storage(std::forwrd<callable>(c)); }
+		pre_filter(Implement::pre_filter_storage<component...>& s) : storage(s) {}
+		pre_filter(const pre_filter&) = default;
+		template<typename callable> pre_filter& operator << (callable&& c) { storage(std::forward<callable>(c)); return *this; }
+	};
+
+	template<typename ...component> struct filter
+	{
+		template<typename ...other_component>
+		filter<component..., other_component...> operator*(filter<other_component...>) const noexcept { return filter<component..., other_component...>{}; }
+		Implement::filter_with_entity<component...> operator<<(entity e) const noexcept { return Implement::filter_with_entity<component...>{std::move(e)}; }
 	};
 
 	// event **************************************************
 	namespace Implement
 	{
-		struct event_manager {};
+		struct event_pool_interface : Tool::atomic_reference_count
+		{
+			bool avalible;
+			void* data;
+			size_t element_count;
+			std::type_index id;
+			const size_t elemnt_size;
+			const size_t element_align;
+			operator bool() const noexcept { return avalible; }
+			event_pool_interface(std::type_index i, size_t size, size_t align) : avalible(true), element_count(0), data(nullptr), id(i), elemnt_size(size), element_align(align) {}
+		};
+
+		template<typename component>
+		Tool::intrusive_ptr<event_pool_interface> make_event_pool_interface() {
+			return new event_pool_interface{typeid(component), sizeof(component), alignof(component)};
+		}
+
+		template<typename event_t> struct event_pool
+		{
+			std::vector<event_t> pool;
+			void clear() { pool.clear(); }
+			void push_back(event_t e) { pool.push_back(std::move(e)); }
+			void update(event_pool_interface& p) noexcept { p.data = pool.data(); p.element_count = pool.size(); }
+		};
 	}
 
-	template<typename componenet> struct event_provider {};
-	template<typename componenet> struct event_receiver {};
+	template<typename componenet> class provider 
+	{
+		Implement::event_pool<std::decay_t<componenet>> & pool;
+	public:
+		provider(Implement::event_pool<std::decay_t<componenet>> &p) : pool(p) {}
+		void clear() { pool.clear(); }
+		void push_back(std::decay_t<componenet> e) { pool.push_back(std::move(e)); }
+	};
+
+	template<typename componenet> class receiver 
+	{
+		const Tool::intrusive_ptr<Implement::event_pool_interface>* all_interface;
+		size_t interface_size;
+	public:
+		receiver(const Tool::intrusive_ptr<Implement::event_pool_interface>* a, size_t count) :all_interface(a), interface_size(count) {}
+		template<typename callable> receiver& operator<<(callable&& c)
+		{
+			if (all_interface != nullptr)
+			{
+				for (size_t i = 0; i < interface_size; ++i)
+				{
+					assert(all_interface[i]->elemnt_size == sizeof(componenet));
+					assert(all_interface[i]->element_align == alignof(componenet));
+					assert(all_interface[i]->id == typeid(componenet));
+					if (all_interface[i]->avalible)
+					{
+						const componenet* ptr = reinterpret_cast<const componenet*>(all_interface[i]->data);
+						for (size_t k = 0; k < all_interface[i]->element_count; ++k)
+						{
+							std::forward<callable>(c)(ptr[k]);
+						}
+					}
+				}
+			}
+			return *this;
+		}
+	};
 
 
 	// system detected *************************************************
@@ -326,7 +419,23 @@ namespace PO::ECSFramework
 			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, filter_requirement..., other_requirement...>::type;
 		};
 
+		template<typename ...write_output, typename ...read_output, typename ...filter_requirement, typename ...other_requirement>
+		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, pre_filter<filter_requirement...>, other_requirement...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, filter_requirement..., other_requirement...>::type;
+		};
 
+		template<typename ...write_output, typename ...read_output, typename event_t, typename ...other_requirement>
+		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, provider<event_t>, other_requirement...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<write_output..., std::decay_t<event_t>>, ctl<read_output...>, other_requirement...>::type;
+		};
+
+		template<typename ...write_output, typename ...read_output, typename event_t, typename ...other_requirement>
+		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, receiver<event_t>, other_requirement...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output..., std::decay_t<event_t>>, other_requirement...>::type;
+		};
 
 		template<typename ...requirement> struct system_requirement_detect;
 		template<typename ...requirement> struct system_requirement_detect<context&, requirement...> {
@@ -355,8 +464,6 @@ namespace PO::ECSFramework
 		{
 			type_array<write_t...> write;
 			type_array<read_t...> read;
-			//type_array<sr...> single_read;
-			//type_array<sw...> single_write;
 			system_requirement_info view() const noexcept { return  system_requirement_info{ write.view(), read.view() }; }
 		};
 
@@ -407,6 +514,7 @@ namespace PO::ECSFramework
 			virtual system_requirement_info info() noexcept = 0;
 			virtual std::type_index id() const noexcept = 0;
 			virtual void init(context_interface& ci) = 0;
+			virtual ~system_interface() = default;
 		};
 
 		struct system_ref : Tool::atomic_reference_count
@@ -414,55 +522,101 @@ namespace PO::ECSFramework
 			SystemLayout layout;
 			system_interface* ptr;
 			void call(context& c) { ptr->call(c); }
-			void destory();
+			void destory() noexcept;
 			operator bool() const noexcept { return ptr != nullptr; }
 			std::type_index id() const noexcept { return ptr->id(); }
 			system_requirement_info info() noexcept { return ptr->info(); }
 			void init(context_interface& ci) { ptr->init(ci); }
 			SystemSequence check_sequence(std::type_index ti) { return ptr->check_sequence(ti); }
+			~system_ref();
 		};
 
 		using system_ptr = Tool::intrusive_ptr<system_ref>;
 
 		template<typename component> struct system_storage_element
 		{
-			component_ptr ptr;
+			singleton_component_ptr ptr;
 			bool update(context_interface& ci)
 			{
 				ptr = ci.get_singleton_component(typeid(component));
 				return ptr && *ptr;
 			}
 			bool init(context_interface& ci) { return true; }
-			component& get() { return ptr->cast<component>(); }
+			bool pos_update(context_interface& ci) { return true; }
+			component get() { return ptr->cast<std::decay_t<component>>(); }
 		};
 
-		template<typename ...component> struct system_storage_element<filter<component...>>
+		template<typename ...component> struct system_storage_element<pre_filter<component...>>
 		{
-			std::shared_ptr<filter_storage<component...>> filter;
-			bool update(context_interface& ci)
-			{
-				return true;
-			}
-			system_storage_element() : filter(std::make_shared<filter_storage<component...>>()){}
+			std::shared_ptr<pre_filter_storage<component...>> filter;
+			bool update(context_interface& ci) { return true; }
+			system_storage_element() : filter(std::make_shared<pre_filter_storage<component...>>()){}
 			bool init(context_interface& ci) {
 				ci.set_filter(filter);
 				return true;
 			}
-			std::shared_ptr<filter_storage<component...>> get() { return filter; }
+			bool pos_update(context_interface& ci) { return true; }
+			pre_filter_storage<component...>& get() { return *filter; }
 		};
+
+		template<typename ...component> struct system_storage_element<filter<component...>>
+		{
+			system_storage_element(){}
+			bool init(context_interface& ci) { return true; }
+			bool update(context_interface& ci) { return true; }
+			bool pos_update(context_interface& ci) { return true; }
+			filter<component...> get() { return filter<component...>{}; }
+		};
+
+		template<typename component> struct system_storage_element<provider<component>>
+		{
+			Tool::intrusive_ptr<Implement::event_pool_interface> pool_interface;
+			Implement::event_pool<std::decay_t<component>> pool;
+			system_storage_element() : pool_interface(make_event_pool_interface<component>()) {}
+			bool update(context_interface& ci) { ci.set_event_pool(pool_interface); return true; }
+			bool init(context_interface& ci) { return true; }
+			bool pos_update(context_interface& ci) { pool.update(*pool_interface);  return true; }
+			provider<component> get() { return provider<component>{pool}; }
+			~system_storage_element() { pool_interface->avalible = false; }
+		};
+
+		template<typename component> struct system_storage_element<receiver<component>>
+		{
+			const Tool::intrusive_ptr<event_pool_interface>* array_ptr;
+			size_t count;
+			system_storage_element() {}
+			bool update(context_interface& ci) { array_ptr = ci.get_event_pool(typeid(component), count); return true; }
+			bool init(context_interface& ci) {  return true; }
+			bool pos_update(context_interface& ci) { return true; }
+			receiver<component> get() { return receiver<component>{array_ptr, count}; }
+		};
+
 		template<typename index, typename ...other_type>
 		struct system_storage_implement;
 		template<size_t ...index, typename ...other_type>
 		struct system_storage_implement<std::integer_sequence<size_t, index...>, other_type...>
 		{
 			std::tuple<system_storage_element<other_type>...> storage;
-			bool update(context_interface& ci) { return std::get<index>(storage).update(ci) && ... && true; }
+			bool update(context_interface& ci) { return is_all_true(std::get<index>(storage).update(ci)..., true); }
+			void pos_update(context_interface& ci) { is_all_true(std::get<index>(storage).pos_update(ci)..., true);}
 			void init(context_interface& ci) { is_all_true(true, std::get<index>(storage).init(ci)...); }
 			template<typename callable> void call(context& c, callable&& cb)
 			{
 				std::forward<callable>(cb)(c, std::get<index>(storage).get()...);
 			}
 		};
+		template<>
+		struct system_storage_implement<std::integer_sequence<size_t>>
+		{
+			bool update(context_interface& ci) { return true; }
+			void init(context_interface& ci) { }
+			void pos_update(context_interface& ci) {  }
+			template<typename callable> void call(context& c, callable&& cb)
+			{
+				std::forward<callable>(cb)(c);
+			}
+		};
+
 
 		template<typename context_t, typename ...other_type>
 		struct system_storage : system_storage_implement<std::make_index_sequence<sizeof...(other_type)>, other_type...> {};
@@ -478,18 +632,17 @@ namespace PO::ECSFramework
 			{
 				storage.init(ci);
 			}
-			void debug() { std::cout << typeid(storage_type).name() << std::endl; }
 			virtual std::type_index id() const noexcept { return typeid(implement); }
 			virtual void call(context& c) override {
-				/*
+				
 				if (storage.update(c.ref))
 				{
-					storage(c, [&, this](auto&& ...at) {
-						//implment::operator()(std::forward<decltype(at) && >(at)...);
+					storage.call(c, [this](auto&& ...at) {
+						(*static_cast<implement*>(this))(std::forward<decltype(at) && >(at)...);
 						//implment::operator()(c);
 					});
+					storage.pos_update(c.ref);
 				}
-				*/
 			}
 			virtual SystemSequence check_sequence(std::type_index ti) noexcept override { return implement::check_sequence(ti); }
 			virtual system_requirement_info info() noexcept override 
@@ -510,48 +663,49 @@ namespace PO::ECSFramework
 		struct context_interface
 		{
 			virtual component_ptr allocate_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) = 0;
+			virtual singleton_component_ptr allocate_singleton_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) = 0;
 			virtual system_ptr allocate_system(std::type_index, size_t type, size_t aligna) = 0;
 			virtual entity create_entity() = 0;
 			virtual void close_context() noexcept = 0;
-			virtual void set_filter(std::shared_ptr<filter_storage_interface>) = 0;
-			virtual component_ptr get_singleton_component(std::type_index) noexcept = 0;
+			virtual void set_filter(std::shared_ptr<pre_filter_storage_interface>) = 0;
+			virtual singleton_component_ptr get_singleton_component(std::type_index) noexcept = 0;
+			virtual void set_event_pool(Tool::intrusive_ptr<event_pool_interface> in) = 0;
+			virtual const Tool::intrusive_ptr<event_pool_interface>* get_event_pool(std::type_index id, size_t& size) noexcept = 0;
 		};
 	}
+
 	class context
 	{
 		Implement::context_interface& ref;
 
 		friend class context_implement;
 		template<typename implement> friend class Implement::system_implement;
-		virtual void insert(Implement::component_ptr, Implement::entity_ptr) = 0;
-		virtual void insert(Implement::system_ptr) = 0;
-		virtual void destory(Implement::entity_ptr) = 0;
+		virtual void insert_component(Implement::component_ptr, Implement::entity_ptr) = 0;
+		virtual void insert_singleton_component(Implement::singleton_component_ptr) = 0;
+		virtual void insert_system(Implement::system_ptr) = 0;
+		virtual void destory_entity(Implement::entity_ptr) = 0;
 		virtual void destory_component(Implement::entity_ptr, std::type_index) = 0;
+
 	public:
+
+		virtual void destory_singleton_component(std::type_index) = 0;
+		virtual void destory_system(std::type_index) = 0;
 
 		void close_context() noexcept { ref.close_context(); }
 		entity create_entity() { return ref.create_entity(); }
 		context(Implement::context_interface& ci) : ref(ci) {}
 		context(const context&) = delete;
 
-		void destory_entity(entity e) { destory(std::move(e.ptr)); }
+		void destory_entity(entity e) { destory_entity(std::move(e.ptr)); }
 		void destory_component(entity e, std::type_index ti) { destory_component(std::move(e.ptr), ti); }
-		virtual void destory_singleton_component(std::type_index) = 0;
-		virtual void destory_system(std::type_index) = 0;
+		
+		
 		template<typename componenet_t>
 		void destory_component(entity e) { destory_component(std::move(e), typeid(componenet_t)); }
 		template<typename componenet_t>
-		void destory_singleton_component(entity e) { destory_singleton_component(typeid(componenet_t)); }
+		void destory_singleton_component() { destory_singleton_component(typeid(componenet_t)); }
 		template<typename system_t>
 		void destory_system() { destory_system(typeid(system_t)); }
-		template<typename T>
-		bool find_component_ref(T& t)
-		{
-			auto ptr = ref.find_component_ref(&t);
-			if (ptr)
-				return (destory(ptr), true);
-			return false;
-		}
 
 		template<typename component_type, typename ...construction_para> void create_component(const entity& ep, construction_para&& ...cp)
 		{
@@ -559,25 +713,25 @@ namespace PO::ECSFramework
 			{
 				auto holder = ref.allocate_component(typeid(component_type), sizeof(component_type), alignof(component_type), [](void* da) noexcept  { static_cast<component_type*>(da)->~component_type(); });
 				new(holder->data) component_type{std::forward<construction_para>(cp)...};
-				insert(std::move(holder), ep.ptr);
+				insert_component(std::move(holder), ep.ptr);
 			}
 		}
 
 		template<typename component_type, typename ...construction_para> void create_singleton_component(construction_para&& ...cp)
 		{
-			auto holder = ref.allocate_component(typeid(component_type), sizeof(component_type), alignof(component_type), [](void* da) noexcept { static_cast<component_type*>(da)->~component_type(); });
+			auto holder = ref.allocate_singleton_component(typeid(component_type), sizeof(component_type), alignof(component_type), [](void* da) noexcept { static_cast<component_type*>(da)->~component_type(); });
 			new(holder->data) component_type{ std::forward<construction_para>(cp)... };
-			insert(std::move(holder), nullptr);
+			insert_singleton_component(std::move(holder));
 		}
 
 		template<typename system_type, typename ...construction_para> void create_system(construction_para&& ...cp)
 		{
 			using final_type = Implement::system_implement<std::decay_t<system_type>>;
-			void* system_out;
 			auto holder = ref.allocate_system(typeid(final_type), sizeof(final_type), alignof(final_type));
-			new(holder->ptr) final_type{ std::forward<construction_para>(cp)... };
+			final_type* ptr = new(holder->ptr) final_type{ std::forward<construction_para>(cp)... };
+			holder->ptr = ptr;
 			holder->layout = system_type::layout();
-			insert(std::move(holder));
+			insert_system(std::move(holder));
 			//temporary_system_context_holder.emplace_back(Implement::context_system_holder{ std::move(holder) });
 		}
 	};
