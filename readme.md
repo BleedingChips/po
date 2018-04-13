@@ -44,9 +44,9 @@
 		});
 		```
 	* Component，自定义类型，纯数据，有专门的对象池进行管理。其必须要绑定Entity后才能被System捕获。
-		```
+		```cpp
 		struct component1{  component1(int){} };
-		...cpp
+		...
 		imp.init([](PO::context& con){
 			PO::entity ent = con.create_entity();
 			// 创建一个普通 component1 并绑定到该 entity。
