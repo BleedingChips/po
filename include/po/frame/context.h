@@ -39,7 +39,17 @@ namespace PO::ECSFramework
 			type_index_view view() const noexcept { return type_index_view{ nullptr, 0 }; }
 		};
 
-		template<typename T> struct is_const;
+#ifdef _DEBUG
+		inline std::ostream& operator<<(std::ostream& o, type_index_view view)
+		{
+			o << "[";
+			for (size_t i = 0; i < view.view_count; ++i)
+				o << view.view[i].name() << ',';
+			return o << "]";
+		}
+#endif
+
+		template<typename T> struct is_const : std::true_type {};
 		template<typename T> struct is_const<T&> : std::false_type {};
 		template<typename T> struct is_const<T&&> : std::false_type {};
 		template<typename T> struct is_const<const T&> : std::true_type {};
@@ -142,6 +152,8 @@ namespace PO::ECSFramework
 		entity& operator=(entity e) { ptr = std::move(e.ptr); return *this; }
 		operator bool() const noexcept { return ptr && *ptr; }
 		bool check_exist(std::type_index ti) const noexcept { return ptr->check_exist(ti); }
+		template<typename component>
+		bool check_exist() const noexcept { return check_exist(typeid(component)); }
 	};
 
 	// system_requirement_storage **************************************************
@@ -155,16 +167,6 @@ namespace PO::ECSFramework
 			T get() noexcept { return ptr->cast<std::remove_reference_t<T>>(); }
 			system_requirement_storage& operator=(const system_requirement_storage&) = default;
 		};
-		/*
-		template<typename T> struct system_requirement_storage<const T>
-		{
-			component_ptr ptr;
-			operator bool() const noexcept { assert(ptr); return *ptr; }
-			bool able_extract_component(entity_ptr e) noexcept { ptr = e->get_component(typeid(T)); return ptr; }
-			const T& get() const noexcept { return ptr->cast<std::remove_reference_t<T>>(); }
-			system_requirement_storage& operator=(const system_requirement_storage&) = default;
-		};
-		*/
 	}
 
 	// filter **************************************************
@@ -194,7 +196,7 @@ namespace PO::ECSFramework
 		template<size_t ...index, typename ...component>
 		class pre_filter_storage_implement<std::integer_sequence<size_t, index...>, component...>
 		{
-			std::tuple<entity_ptr, system_requirement_storage<component>...> storage;
+			std::tuple<entity_ptr, system_requirement_storage<std::add_lvalue_reference_t<component>>...> storage;
 		public:
 			pre_filter_storage_implement() = default;
 			pre_filter_storage_implement(const pre_filter_storage_implement&) = default;
@@ -381,68 +383,135 @@ namespace PO::ECSFramework
 			using write = write_t;
 			using read = read_t;
 		};
-
-		template<typename write_type, typename read_output, typename ...requirement> struct system_requirement_detect_step2;
-		template<typename ...write_type, typename ...read_output> struct system_requirement_detect_step2<ctl<write_type...>, ctl<read_output...>>
+		
+		template<typename write_type, typename read_output, typename ...requirement> struct remove_repeat_read;
+		template<typename ...write_type, typename ...read_output> struct remove_repeat_read<ctl<write_type...>, ctl<read_output...>>
 		{
 			using type = ctl<read_output...>;
 		};
-		template<typename ...write_type, typename ...read_output, typename this_requirement, typename ...other_requirement> 
-		struct system_requirement_detect_step2<ctl<write_type...>, ctl<read_output...>, this_requirement, other_requirement...>
+		template<typename ...write_type, typename ...read_output, typename this_requirement, typename ...other_requirement>
+		struct remove_repeat_read<ctl<write_type...>, ctl<read_output...>, this_requirement, other_requirement...>
 		{
-			using type = typename system_requirement_detect_step2<ctl<write_type...>,
+			using type = typename remove_repeat_read<ctl<write_type...>,
 				std::conditional_t<Tmp::is_one_of<this_requirement, write_type...>::value, ctl<read_output...>, ctl<read_output..., this_requirement>>,
 				other_requirement...
 			>::type;
 		};
 
-		template<typename write_output, typename read_output, typename ...requirement> struct system_requirement_detect_step1;
-
-		template<typename ...write_output, typename ...read_output> struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>>
+		template<bool, typename write_output, typename read_output, typename component> struct add_write_read;
+		template<typename ...write_output, typename ...read_output, typename component> struct add_write_read<true, ctl<write_output...>, ctl<read_output...>, component>
 		{
-			using type = rw_type<ctl<write_output...>, typename system_requirement_detect_step2<ctl<write_output...>, ctl<>, read_output...>::type>;
+			using write = std::conditional_t<!Tmp::is_one_of<std::decay_t<component>, write_output...>::value, ctl<write_output..., std::decay_t<component>>, ctl<write_output...>>;
+			using read = ctl<read_output...>;
+		};
+		template<typename ...write_output, typename ...read_output, typename component> struct add_write_read<false, ctl<write_output...>, ctl<read_output...>, component>
+		{
+			using write = ctl<write_output...>;
+			using read = std::conditional_t<!Tmp::is_one_of<std::decay_t<component>, read_output...>::value, ctl<read_output..., std::decay_t<component>>, ctl<read_output...>>;
 		};
 
-		template<typename ...write_output, typename ...read_output, typename this_requirement, typename ...other_requirement> 
-		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, this_requirement, other_requirement...>
+		template<typename write_out, typename read_out, typename ...input> struct entity_analyze;
+		template<typename ...write_out, typename ...read_out> struct entity_analyze<ctl<write_out...>, ctl<read_out...>>
 		{
-			using type = typename system_requirement_detect_step1<
-				std::conditional_t<!is_const<this_requirement>::value && !Tmp::is_one_of<std::decay_t<this_requirement>, write_output...>::value, ctl<write_output..., std::decay_t<this_requirement>>, ctl<write_output...>>,
-				std::conditional_t<is_const<this_requirement>::value && !Tmp::is_one_of<std::decay_t<this_requirement>, read_output...>::value, ctl<read_output..., std::decay_t<this_requirement>>, ctl<read_output...>>,
-				other_requirement...
+			using type = rw_type<ctl<write_out...>, typename remove_repeat_read<ctl<write_out...>, ctl<>, read_out...>::type>;
+		};
+		template<typename ...write_out, typename ...read_out, typename this_component, typename ...other_input> struct entity_analyze<ctl<write_out...>, ctl<read_out...>, this_component, other_input...>
+		{
+			static_assert(!std::is_reference_v<std::remove_const_t<this_component>>, "not wellcom reference");
+			using result = add_write_read<!std::is_const_v<this_component>, ctl<write_out...>, ctl<read_out...>, this_component>;
+			using type = typename entity_analyze<
+				typename result::write,
+				typename result::read,
+				other_input...
 			>::type;
 		};
 
-		template<typename ...write_output, typename ...read_output, typename ...filter_requirement, typename ...other_requirement>
-		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, filter<filter_requirement...>, other_requirement...>
+		template<typename write_out, typename read_out, typename ...input> struct singleton_analyze;
+		template<typename ...write_out, typename ...read_out> struct singleton_analyze<ctl<write_out...>, ctl<read_out...>>
 		{
-			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, filter_requirement..., other_requirement...>::type;
+			using type = rw_type<ctl<write_out...>, typename remove_repeat_read<ctl<write_out...>, ctl<>, read_out...>::type>;
+		};
+		template<typename ...write_out, typename ...read_out, typename this_component, typename ...other_input> struct singleton_analyze<ctl<write_out...>, ctl<read_out...>, this_component, other_input...>
+		{
+			using result = add_write_read<!std::is_const_v<std::remove_reference_t<this_component>> && std::is_reference_v<std::remove_const_t<this_component>>, ctl<write_out...>, ctl<read_out...>, this_component>;
+			using type = typename singleton_analyze<
+				typename result::write,
+				typename result::read,
+				other_input...
+			>::type;
 		};
 
-		template<typename ...write_output, typename ...read_output, typename ...filter_requirement, typename ...other_requirement>
-		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, pre_filter<filter_requirement...>, other_requirement...>
+		template<typename write_out, typename read_out, typename ...input> struct event_analyze;
+		template<typename ...write_out, typename ...read_out> struct event_analyze<ctl<write_out...>, ctl<read_out...>>
 		{
-			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, filter_requirement..., other_requirement...>::type;
+			using type = rw_type<ctl<write_out...>, typename remove_repeat_read<ctl<write_out...>, ctl<>, read_out...>::type>;
+		};
+		template<typename ...write_out, typename ...read_out, typename this_component, typename ...other_input> struct event_analyze<ctl<write_out...>, ctl<read_out...>, provider<this_component>, other_input...>
+		{
+			using result = add_write_read<true, ctl<write_out...>, ctl<read_out...>, this_component>;
+			using type = typename event_analyze<
+				typename result::write,
+				typename result::read,
+				other_input...
+			>::type;
+		};
+		template<typename ...write_out, typename ...read_out, typename this_component, typename ...other_input> struct event_analyze<ctl<write_out...>, ctl<read_out...>, receiver<this_component>, other_input...>
+		{
+			using result = add_write_read<false, ctl<write_out...>, ctl<read_out...>, this_component>;
+			using type = typename event_analyze<
+				typename result::write,
+				typename result::read,
+				other_input...
+			>::type;
 		};
 
-		template<typename ...write_output, typename ...read_output, typename event_t, typename ...other_requirement>
-		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, provider<event_t>, other_requirement...>
+		template<typename entity, typename singleton, typename event_t> struct system_requirement_detect_step1_template;
+		template<typename ...entity_t, typename ...singleton_t, typename ...event_t> 
+		struct system_requirement_detect_step1_template<ctl<entity_t...>, ctl<singleton_t...>, ctl<event_t...>>
 		{
-			using type = typename system_requirement_detect_step1<ctl<write_output..., std::decay_t<event_t>>, ctl<read_output...>, other_requirement...>::type;
+			using entity = typename entity_analyze<ctl<>, ctl<>, entity_t...>::type;
+			using singleton = typename singleton_analyze<ctl<>, ctl<>, singleton_t...>::type;
+			using event = typename event_analyze<ctl<>, ctl<>, event_t...>::type;
 		};
 
-		template<typename ...write_output, typename ...read_output, typename event_t, typename ...other_requirement>
-		struct system_requirement_detect_step1<ctl<write_output...>, ctl<read_output...>, receiver<event_t>, other_requirement...>
+
+		template<typename entity, typename singleton, typename event_t, typename ...other> struct system_requirement_detect_step1;
+		template<typename ...entity, typename ...singleton, typename ...event_t> struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>>
 		{
-			using type = typename system_requirement_detect_step1<ctl<write_output...>, ctl<read_output..., std::decay_t<event_t>>, other_requirement...>::type;
+			using type = system_requirement_detect_step1_template<ctl<entity...>, ctl<singleton...>, ctl<event_t...>>;
+		};
+		template<typename ...entity, typename ...singleton, typename ...event_t, typename this_component, typename ...other_component> 
+		struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>, this_component, other_component...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<entity...>, ctl<singleton..., this_component>, ctl<event_t...>, other_component...>::type;
+		};
+		template<typename ...entity, typename ...singleton, typename ...event_t, typename this_component, typename ...other_component>
+		struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>, provider<this_component>, other_component...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t..., provider<this_component>>, other_component...>::type;
+		};
+		template<typename ...entity, typename ...singleton, typename ...event_t, typename this_component, typename ...other_component>
+		struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>, receiver<this_component>, other_component...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t..., receiver<this_component>>, other_component...>::type;
+		};
+		template<typename ...entity, typename ...singleton, typename ...event_t, typename ...this_component, typename ...other_component>
+		struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>, filter<this_component...>, other_component...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<entity..., this_component...>, ctl<singleton...>, ctl<event_t...>, other_component...>::type;
+		};
+		template<typename ...entity, typename ...singleton, typename ...event_t, typename ...this_component, typename ...other_component>
+		struct system_requirement_detect_step1<ctl<entity...>, ctl<singleton...>, ctl<event_t...>, pre_filter<this_component...>, other_component...>
+		{
+			using type = typename system_requirement_detect_step1<ctl<entity..., this_component...>, ctl<singleton...>, ctl<event_t...>, other_component...>::type;
 		};
 
 		template<typename ...requirement> struct system_requirement_detect;
 		template<typename ...requirement> struct system_requirement_detect<context&, requirement...> {
-			using type = typename system_requirement_detect_step1<ctl<>, ctl<>, requirement...>::type;
+			using type = typename system_requirement_detect_step1<ctl<>, ctl<>, ctl<>, requirement...>::type;
 		};
 		template<typename ...requirement> struct system_requirement_detect<const context&, requirement...> {
-			using type = typename system_requirement_detect_step1<ctl<>, ctl<>, requirement...>::type;
+			using type = typename system_requirement_detect_step1<ctl<>, ctl<>, ctl<>, requirement...>::type;
 		};
 	}
 
@@ -452,25 +521,34 @@ namespace PO::ECSFramework
 
 		struct system_requirement_info
 		{
-			const type_index_view write;
-			const type_index_view read;
-			//const type_index_view singleton_read;
-			//const type_index_view singleton_write;
+			const type_index_view entity_write;
+			const type_index_view entity_read;
+			const type_index_view singleton_write;
+			const type_index_view singleton_read;
+			const type_index_view event_write;
+			const type_index_view event_read;
 		};
 
-		template<typename write_t, typename read_t> struct system_requirement_info_initializer;
-		template<typename ...write_t, typename ...read_t>
-		struct system_requirement_info_initializer<ctl<write_t...>, ctl<read_t...>>
+		template<typename entity_t, typename singleton_t, typename event_t> 
+		struct system_requirement_info_initializer
 		{
-			type_array<write_t...> write;
-			type_array<read_t...> read;
-			system_requirement_info view() const noexcept { return  system_requirement_info{ write.view(), read.view() }; }
+			Tmp::replace_t<typename entity_t::write, type_array> entity_write;
+			Tmp::replace_t<typename entity_t::read, type_array> entity_read;
+			Tmp::replace_t<typename singleton_t::write, type_array> singleton_write;
+			Tmp::replace_t<typename singleton_t::read, type_array> singleton_read;
+			Tmp::replace_t<typename event_t::write, type_array> event_write;
+			Tmp::replace_t<typename event_t::read, type_array> event_read;
+			system_requirement_info view() const noexcept { return  system_requirement_info{ 
+				entity_write.view(), entity_read.view(),
+				singleton_write.view(),singleton_read.view(),
+				event_write.view(),event_read.view() };
+			}
 		};
 
-		template<typename write_t, typename read_t>
+		template<typename entity_t, typename singleton_t, typename event_t>
 		const system_requirement_info& system_requirement_info_instance()
 		{
-			static system_requirement_info_initializer<write_t, read_t> init;
+			static system_requirement_info_initializer<entity_t, singleton_t, event_t> init;
 			static system_requirement_info info(init.view());
 			return info;
 		}
@@ -498,7 +576,7 @@ namespace PO::ECSFramework
 		NOT_CARE
 	};
 
-	struct system_default_define 
+	struct system_default
 	{
 		SystemSequence check_sequence(std::type_index ti) noexcept { return SystemSequence::UNDEFINE; }
 		static SystemLayout layout() noexcept { return SystemLayout::UPDATE; }
@@ -648,8 +726,9 @@ namespace PO::ECSFramework
 			virtual system_requirement_info info() noexcept override 
 			{ 
 				return system_requirement_info_instance<
-					typename true_type::write,
-					typename true_type::read
+					typename true_type::entity,
+					typename true_type::singleton,
+					typename true_type::event
 				>();
 			}
 			template<typename ...CP>
@@ -729,6 +808,17 @@ namespace PO::ECSFramework
 			using final_type = Implement::system_implement<std::decay_t<system_type>>;
 			auto holder = ref.allocate_system(typeid(final_type), sizeof(final_type), alignof(final_type));
 			final_type* ptr = new(holder->ptr) final_type{ std::forward<construction_para>(cp)... };
+
+#ifdef _DEBUG
+			std::cout << "system info : " << ptr->id().name() << std::endl;
+			auto info = ptr->info();
+			std::cout << "entity write :" << info.entity_write << std::endl;
+			std::cout << "entity read :" << info.entity_read << std::endl;
+			std::cout << "singleton write :" << info.singleton_write << std::endl;
+			std::cout << "singleton read :" << info.singleton_read << std::endl;
+			std::cout << "event write :" << info.event_write << std::endl;
+			std::cout << "event read :" << info.event_read << std::endl;
+#endif
 			holder->ptr = ptr;
 			holder->layout = system_type::layout();
 			insert_system(std::move(holder));

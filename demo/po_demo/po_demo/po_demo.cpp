@@ -3,7 +3,11 @@
 #include <iostream>
 
 struct component_1 { ~component_1() { std::cout << "~component_1" << std::endl; } };
-struct component_2 { ~component_2() { std::cout << "~component_2" << std::endl; } };
+struct component_2 { 
+	~component_2() { 
+		std::cout << "~component_2" << std::endl; 
+	} 
+};
 
 std::mutex cout_mutex;
 
@@ -12,7 +16,7 @@ struct event_1
 	int id;
 };
 
-struct system_1 : PO::system_default_define
+struct system_1 : PO::system_default
 {
 	void operator()(PO::context& c, component_1& c1, PO::provider<event_1> p) {
 		std::lock_guard<decltype(cout_mutex)> lg(cout_mutex);
@@ -25,35 +29,37 @@ struct system_1 : PO::system_default_define
 	}
 };
 
-
-
-
-struct system_2 : PO::system_default_define
+struct system_2 : PO::system_default
 {
-	void operator()(PO::context& c, PO::pre_filter<component_2&> f, component_2& c1, PO::receiver<event_1> r) {
+	void operator()(PO::context& c, PO::pre_filter<component_2> f, component_2& c1, PO::receiver<event_1> r) {
 		std::lock_guard<decltype(cout_mutex)> lg(cout_mutex);
-		f << [&](PO::entity e, const component_2& da) {
-			std::cout << "1" << std::endl;
+		f << [&](PO::entity e, component_2& da) {
+			//std::cout << "1" << std::endl;
 			//c.destory_component<component_2>(e);
 			//c.destory_system<system_1>();
 			//c.destory_singleton_component<component_1>();
 		};
 
-		r << [](const event_1& t) { std::cout << "event id" << t.id << std::endl;  };
+		r << [](const event_1& t) { /*std::cout << "event id" << t.id << std::endl*/;  };
 
 		std::cout << "call system_2 : " << std::this_thread::get_id() << std::endl;
 	}
 };
 
-struct system_3 : PO::system_default_define
+struct system_3 : PO::system_default
 {
-	size_t count = 0;
+	std::size_t count = 0;
 	void operator()(PO::context& c, PO::provider<event_1> p) {
 		std::lock_guard<decltype(cout_mutex)> lg(cout_mutex);
 		std::cout << "call system_3 : " << std::this_thread::get_id() << std::endl;
+		p.clear();
 		p.push_back(event_1{3});
+		//c.close_context();
 	}
-	static PO::SystemLayout layout() noexcept { return PO::SystemLayout::PRE_UPDATE; }
+	static PO::SystemLayout layout() noexcept { 
+		// advoid confuse with system_1 because of PO::provider<event_1>
+		return PO::SystemLayout::PRE_UPDATE;
+	}
 };
 
 

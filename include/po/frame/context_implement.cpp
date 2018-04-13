@@ -49,7 +49,7 @@ namespace PO::ECSFramework
 			assert(filter);
 			auto info = filter->needed();
 			decltype(all_component_map)::iterator min_ite = all_component_map.end();
-			for (size_t i = 0; i < info.view_count; ++i)
+			for (std::size_t i = 0; i < info.view_count; ++i)
 			{
 				auto ite = all_component_map.find(info[i]);
 				if (ite == all_component_map.end())
@@ -136,11 +136,11 @@ namespace PO::ECSFramework
 			return false;
 		if (view[0] > ti || view[view.view_count - 1] < ti)
 			return false;
-		size_t Start = 0;
-		size_t End = view.view_count;
+		std::size_t Start = 0;
+		std::size_t End = view.view_count;
 		for (; Start != End; )
 		{
-			size_t C = (Start + End) / 2;
+			std::size_t C = (Start + End) / 2;
 			if (view[C] == ti)
 				return true;
 			else if (view[C] < ti)
@@ -159,7 +159,7 @@ namespace PO::ECSFramework
 	{
 		if (ti1.view_count != 0 && ti2.view_count != 0 && ti1.view[ti1.view_count - 1] >= ti2.view[0] && ti1.view[0] <= ti2.view[ti2.view_count - 1])
 		{
-			for (size_t index = 0; index <= ti1.view_count; ++index)
+			for (std::size_t index = 0; index <= ti1.view_count; ++index)
 			{
 				if (have(ti2, ti1.view[index]))
 					return true;
@@ -444,10 +444,16 @@ namespace PO::ECSFramework
 				auto info2 = ref2.ptr->info();
 				SystemLayout layout2 = ref2.ptr->layout;
 				auto id2 = ref2.ptr->id();
-
-				bool write_conflict = is_collided(info1.write, info2.write);
-				bool e1_rw_conflict = is_collided(info1.write, info2.read);
-				bool e2_rw_conflict = is_collided(info2.write, info1.read);
+				
+				bool write_conflict = is_collided(info1.entity_write, info2.entity_write) 
+					|| is_collided(info1.singleton_write, info2.singleton_write) 
+					|| is_collided(info1.event_write, info2.event_write);
+				bool e1_rw_conflict = is_collided(info1.entity_write, info2.entity_read)
+					|| is_collided(info1.singleton_write, info2.singleton_read)
+					|| is_collided(info1.event_write, info2.event_read);
+				bool e2_rw_conflict = is_collided(info1.entity_read, info2.entity_write)
+					|| is_collided(info1.singleton_read, info2.singleton_write)
+					|| is_collided(info1.event_read, info2.event_write);
 				
 				if (write_conflict || e1_rw_conflict || e2_rw_conflict)
 				{
@@ -490,7 +496,7 @@ namespace PO::ECSFramework
 				}
 				//深度优先，加上时间戳
 				search.clear();
-				size_t step = 1;
+				std::size_t step = 1;
 				for (auto ite : start_system_temporary)
 				{
 					//入栈
@@ -731,7 +737,7 @@ namespace PO::ECSFramework
 			}
 		}
 
-		const Tool::intrusive_ptr<event_pool_interface>* system_map::get_event_pool(std::type_index id, size_t& count) const noexcept
+		const Tool::intrusive_ptr<event_pool_interface>* system_map::get_event_pool(std::type_index id, std::size_t& count) const noexcept
 		{
 			auto ite = event_pool.find(id);
 			if (ite != event_pool.end())
@@ -771,34 +777,24 @@ namespace PO::ECSFramework
 		}
 	}
 
-	context_implement::context_implement() : avalible(true) {
-		/*
-		size_t process_count = Platform::platform_info_instance().cpu_count();
-		process_count -= 1;
-		process_count = process_count * 2 + 1;
-		for (size_t i = 0; i < process_count; ++i)
-		{
-			threads.create_thread([this]() {return thread_execute(); });
-		}
-		*/
-	}
+	context_implement::context_implement() : avalible(true) {}
 
-	size_t resize_aligna(size_t size, size_t aligna)
+	std::size_t resize_aligna(std::size_t size, std::size_t aligna)
 	{
 		return (size % aligna == 0) ? size : (size - (size % aligna) + aligna);
 	}
 
-	Implement::component_ptr context_implement::allocate_component(std::type_index ti, size_t type, size_t aligna, void(*deleter)(void*) noexcept)
+	Implement::component_ptr context_implement::allocate_component(std::type_index ti, std::size_t type, std::size_t aligna, void(*deleter)(void*) noexcept)
 	{
 		assert(type % aligna == 0);
-		size_t aligna_ref = alignof(Implement::component_ref);
+		std::size_t aligna_ref = alignof(Implement::component_ref);
 		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
 		if (aligna <= aligna_ref)
 		{
 			type = resize_aligna(type, aligna_ref);
 		}
 		else {
-			size_t mulity = aligna / aligna_ref;
+			std::size_t mulity = aligna / aligna_ref;
 			mulity -= 1;
 			type += mulity * aligna_ref;
 		}
@@ -808,21 +804,12 @@ namespace PO::ECSFramework
 		size_t space = sizeof(Implement::component_ref) + type;
 		std::align(aligna, aligna, tem->data, space);
 		return tem;
-		/*
-		aligna = aligna > alignof(Implement::component_ref) ? aligna : alignof(Implement::component_ref);
-		size_t component_ref_size = resize_aligna(sizeof(Implement::component_ref), aligna);
-		type = resize_aligna(type, aligna);
-		void* data = pool.allocate(ti, component_ref_size + type, aligna);
-		Implement::component_ptr tem = new(data) Implement::component_ref{ti, deleter};
-		tem->data = reinterpret_cast<std::byte*>(data) + component_ref_size;
-		return tem;
-		*/
 	}
 
-	Implement::system_ptr context_implement::allocate_system(std::type_index ti, size_t type, size_t aligna)
+	Implement::system_ptr context_implement::allocate_system(std::type_index ti, std::size_t type, std::size_t aligna)
 	{
 		assert(type % aligna == 0);
-		size_t aligna_ref = alignof(Implement::system_ref);
+		std::size_t aligna_ref = alignof(Implement::system_ref);
 		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
 		assert(aligna_ref == alignof(void*));
 		if (aligna <= aligna_ref)
@@ -830,53 +817,39 @@ namespace PO::ECSFramework
 			type = resize_aligna(type, aligna_ref);
 		}
 		else {
-			size_t mulity = aligna / aligna_ref;
+			std::size_t mulity = aligna / aligna_ref;
 			mulity -= 1;
 			type += mulity * aligna_ref;
 		}
 		std::byte* data = new std::byte[sizeof(Implement::system_ref) + type];
 		Implement::system_ptr tem = new(data) Implement::system_ref{};
 		void* data_start = data + sizeof(Implement::system_ref);
-		size_t space = sizeof(Implement::system_ref) + type;
+		std::size_t space = sizeof(Implement::system_ref) + type;
 		std::align(aligna, aligna, data_start, space);
 		tem->ptr = reinterpret_cast<Implement::system_interface*>(data_start);
 		return tem;
-
-		/*
-		aligna = aligna > alignof(Implement::system_ref) ? aligna : alignof(Implement::system_ref);
-		size_t ref_size = resize_aligna(sizeof(Implement::system_ref), aligna);
-		size_t imp_size = resize_aligna(type, aligna);
-		size_t total_size = 
-		std::byte* data = new std::byte[ref_size + imp_size];
-		Implement::system_ptr tem = new (data) Implement::system_ref{};
-		size_t space;
-		void* init_data = data + ref_size;
-		std::align(aligna, type, init_data, space);
-		tem->ptr = reinterpret_cast<Implement::system_interface*>(init_data);
-		return tem;
-		*/
 	}
 
-	Implement::singleton_component_ptr context_implement::allocate_singleton_component(std::type_index ti, size_t type, size_t aligna, void(*deleter)(void*) noexcept)
+	Implement::singleton_component_ptr context_implement::allocate_singleton_component(std::type_index ti, std::size_t type, std::size_t aligna, void(*deleter)(void*) noexcept)
 	{
 		assert(type % aligna == 0);
-		size_t aligna_ref = alignof(Implement::singleton_component_ref);
+		std::size_t aligna_ref = alignof(Implement::singleton_component_ref);
 		assert(aligna_ref % aligna == 0 || aligna % aligna_ref == 0);
-		size_t da = alignof(void*);
+		std::size_t da = alignof(void*);
 		assert(aligna_ref == da);
 		if (aligna <= aligna_ref)
 		{
 			type = resize_aligna(type, aligna_ref);
 		}
 		else {
-			size_t mulity = aligna / aligna_ref;
+			std::size_t mulity = aligna / aligna_ref;
 			mulity -= 1;
 			type += mulity * aligna_ref;
 		}
 		std::byte* data = new std::byte[sizeof(Implement::singleton_component_ref) + type];
 		Implement::singleton_component_ptr tem = new(data) Implement::singleton_component_ref{ti, deleter};
 		void* data_start = data + sizeof(Implement::singleton_component_ref);
-		size_t space = type;
+		std::size_t space = type;
 		std::align(aligna, aligna, data_start, space);
 		tem->data = data_start;
 		return tem;
@@ -930,16 +903,16 @@ namespace PO::ECSFramework
 	{
 		avalible = true;
 		Platform::thread_pool threads;
-		size_t process_count = Platform::platform_info_instance().cpu_count();
+		std::size_t process_count = Platform::platform_info_instance().cpu_count();
 		process_count -= 1;
-		process_count = process_count * 2 + 1;
+		process_count = process_count * 2;
 
 		if (thread_reserved > process_count)
 			process_count = 0;
 		else
 			process_count = process_count - thread_reserved;
 
-		for (size_t i = 0; i < process_count; ++i)
+		for (std::size_t i = 0; i < process_count + 1; ++i)
 			threads.create_thread([this]() {return thread_execute(); });
 		std::set<std::type_index> destory_component;
 
@@ -992,10 +965,10 @@ namespace PO::ECSFramework
 				context->all_system.destory_system(id);
 			}
 		};
-
+		bool ready = false;
+		auto last_tick = std::chrono::system_clock::now();
 		while (avalible)
 		{
-
 			context_event.lock([&, this](decltype(context_event)::type& t) {
 				for (auto& ite : t)
 					std::visit(context_event_handler{this, destory_component}, ite);
@@ -1011,6 +984,20 @@ namespace PO::ECSFramework
 			{
 				all_system.update_waitting_list();
 
+				if (ready)
+				{
+					auto current_tick = std::chrono::system_clock::now();
+					auto dura = std::chrono::duration_cast<std::chrono::milliseconds>(current_tick - last_tick);
+#ifdef _DEBUG
+					std::cout << "frame count (ms):" << dura.count() << std::endl;
+#endif // _DEBUG
+					if(dura < duration_ms)
+						std::this_thread::sleep_for(duration_ms - dura);
+					last_tick = std::chrono::system_clock::now();
+				}
+				else
+					ready = true;
+
 				threads.notity_all();
 				Implement::context_temporary ct(*this);
 				while (all_system.execute_one(ct))
@@ -1018,10 +1005,6 @@ namespace PO::ECSFramework
 					std::this_thread::yield();
 				}
 				load_form_context(ct);
-
-				// destory thing
-				if (duration_ms != std::chrono::milliseconds{ 0 })
-					std::this_thread::sleep_for(duration_ms);
 			}
 		}
 	}
