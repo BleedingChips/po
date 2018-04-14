@@ -435,7 +435,7 @@ namespace PO::ECSFramework
 				ite = systems.insert({ id1, system_relationship{ std::move(shp) } }).first;
 			}
 			auto& ref1 = ite->second;
-			// 计算各system之间的关系
+			// calculate relation ship between each system
 			for (auto ite2 = systems.begin(); ite2 != systems.end(); ++ite2)
 			{
 				if (ite2 == ite) continue;
@@ -457,7 +457,6 @@ namespace PO::ECSFramework
 				
 				if (write_conflict || e1_rw_conflict || e2_rw_conflict)
 				{
-					// 0 : 相等， 1 : 1 在 2 之前 2 : 2 在1 之前。
 					SequenceResult result = (layout1 == layout2 ? SequenceResult::UNDEFINE : (layout1 < layout2 ? SequenceResult::FIRST : SequenceResult::SECOND));
 					if (result == SequenceResult::UNDEFINE)
 					{
@@ -481,7 +480,7 @@ namespace PO::ECSFramework
 			if (system_need_update)
 			{
 				start_system_temporary.clear();
-				//先清空
+				//clear all state
 				for (auto ite = systems.begin(); ite != systems.end(); ++ite)
 				{
 					assert(ite->second.ptr && *ite->second.ptr);
@@ -494,12 +493,12 @@ namespace PO::ECSFramework
 					if (ite->second.before.empty())
 						start_system_temporary.push_back(ite);
 				}
-				//深度优先，加上时间戳
+				//dsf and add reach time
 				search.clear();
 				std::size_t step = 1;
 				for (auto ite : start_system_temporary)
 				{
-					//入栈
+					//call buffer
 					search.push_back({ ite, (ite)->second.after.begin() });
 					ite->second.state = SystemOperatorState::OPERATING;
 					ite->second.graph_time.reach = step++;
@@ -508,11 +507,11 @@ namespace PO::ECSFramework
 						auto& ite2 = *search.rbegin();
 						if ((ite2.first)->second.after.end() == ite2.second)
 						{
-							//查找所有子节点
+							//find all child node
 							(ite2.first)->second.state = SystemOperatorState::FINISH;
 							ite2.first->second.graph_time.finish = step++;
 							auto& sys_ref = ite2.first->second;
-							//合并依赖，去除重复依赖
+							//combine dependence, and remove repeat dependence
 							for (auto ite_s = sys_ref.simplify_after.begin(); ite_s != sys_ref.simplify_after.end();)
 							{
 								auto& sys_ref1 = ite_s->second->second;
@@ -548,7 +547,7 @@ namespace PO::ECSFramework
 							auto ite3 = ite2.second++;
 							auto& ref = *ite3;
 							if (ite3->second->second.state == SystemOperatorState::OPERATING)
-								//有环
+								//circle dependence
 								throw Error::system_dependence_circle(ite3->first, "system dependence as a circle");
 							else if (ite3->second->second.state == SystemOperatorState::READY)
 							{
@@ -557,16 +556,16 @@ namespace PO::ECSFramework
 								search.push_back({ ite3->second, (*ite3).second->second.after.begin() });
 								auto size = search.size();
 							}
-							//遇上终止点，不管了。
+							//reach end, do not handled this
 						}
 					}
 				}
 				for (auto ite = systems.begin(); ite != systems.end(); ++ite)
 				{
-					//重置
+					//repeat
 					auto& ref = ite->second;
 					ref.state = SystemOperatorState::READY;
-					//查找未定义对
+					//search undefine pair
 					for (auto& ite2 : ref.undefine)
 					{
 						auto& ref2 = ite2.second->second;
@@ -578,7 +577,7 @@ namespace PO::ECSFramework
 							throw Error::system_dependence_confuse(ite->first, ite2.first, "system is dependence buy did not set");
 						}
 					}
-					//查找互斥对
+					//search mutex pair
 					for (auto ite2 = ref.simplify_mutex.begin(); ite2 != ref.simplify_mutex.end();)
 					{
 						auto& ref2 = ite2->second->second;
@@ -591,7 +590,7 @@ namespace PO::ECSFramework
 							ref2.simplify_mutex.erase(ite->first);
 						}
 					}
-					//依赖链补全。
+					//finish dependence list
 					for (auto& ite2 : ref.simplify_after)
 						ite2.second->second.simplify_before.insert({ ite->first, ite });
 				}
@@ -605,7 +604,7 @@ namespace PO::ECSFramework
 			}
 			else {
 				for (auto& ite : systems)
-					//标志位重置
+					//clear state
 					ite.second.state = SystemOperatorState::READY;
 			}
 			for (auto & ite : start_system_temporary)

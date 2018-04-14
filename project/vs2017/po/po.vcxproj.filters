@@ -39,9 +39,6 @@
     <ClCompile Include="..\..\..\include\po\tool\math.cpp">
       <Filter>po\tool</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\include\po\tool\event.cpp">
-      <Filter>po\tool</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\include\po\frame\context.cpp">
       <Filter>po\frame</Filter>
     </ClCompile>
@@ -87,9 +84,6 @@
       <Filter>po\tool</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\tool\mail.h">
-      <Filter>po\tool</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\po\tool\event.h">
       <Filter>po\tool</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\po\tool\auto_adapter.h">
