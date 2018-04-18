@@ -79,12 +79,7 @@ namespace PO::Graphic
 		};
 	}
 
-	struct texture_agent
-	{
-		virtual bool insert_agent(std::shared_ptr<Implement::texture_request_implement>) = 0;
-		virtual bool direct_load(TextureStyle, std::experimental::filesystem::path, size_t, Implement::texture_scription&) = 0;
-		virtual ~texture_agent() = default;
-	};
+	
 
 	struct texture
 	{
@@ -100,6 +95,6 @@ namespace PO::Graphic
 		bool create_rt(FormatTexRT style, std::variant<Tex1, Tex2, Tex3> size, size_t mipmap, std::shared_ptr<std::byte[]>);
 		bool create_ds(FormatTexDS style, std::variant<Tex1, Tex2, Tex3> size, size_t mipmap, std::shared_ptr<std::byte[]>);
 		bool create_op(FormatTexOP style, std::variant<Tex1, Tex2, Tex3> size, size_t mipmap, std::shared_ptr<std::byte[]>);
-		bool load(texture_agent&,TextureStyle, std::experimental::filesystem::path, size_t mipmap);
+		//bool load(texture_agent&,TextureStyle, std::experimental::filesystem::path, size_t mipmap);
 	};
 }

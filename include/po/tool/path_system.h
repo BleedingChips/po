@@ -19,6 +19,8 @@ namespace PO::Tool
 	};
 	*/
 	using path = std::experimental::filesystem::path;
+	inline auto current_path() { return std::experimental::filesystem::current_path(); }
+	using directory_iterator = std::experimental::filesystem::directory_iterator;
 
 	class path_system
 	{
@@ -28,5 +30,7 @@ namespace PO::Tool
 		std::ifstream load(const path& p, std::ios_base::openmode mode = std::ios_base::in);
 		std::ifstream load(const path& p, path& result_path, std::ios_base::openmode mode = std::ios_base::in);
 	};
+
+	namespace filesystem = std::experimental::filesystem;
 
 }

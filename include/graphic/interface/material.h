@@ -2,12 +2,13 @@
 #include "../../po/tool/tool.h"
 #include "../../po/tool/path_system.h"
 #include "property.h"
+#include "grid.h"
 namespace PO::Graphic
 {
 
 	struct material_binding
 	{
-		void bind() {}
+		virtual void bind() = 0;
 	};
 
 	enum class BlendMode
@@ -23,31 +24,9 @@ namespace PO::Graphic
 		DONWRITE
 	};
 
-	enum class VertexFormat
-	{
-		UINT32_4,
-		
-		FLOAT4
-	};
-
 	enum class Primitive
 	{
 		TRA
-	};
-
-	struct vertex_scriprion
-	{
-		VertexFormat fromat;
-		const char* semantics;
-		size_t solt;
-		size_t offset;
-	};
-
-	struct grid
-	{
-		std::array<std::unique_ptr<std::byte[]>, 32> data;
-		size_t element_count;
-		std::vector<vertex_scriprion> format;
 	};
 
 	struct pixel_generator

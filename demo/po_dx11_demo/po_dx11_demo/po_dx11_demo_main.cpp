@@ -3,7 +3,10 @@
 #include "../../../include/graphic/dx/hlsl_reflection.h"
 #include "..\..\..\..\DirectXTex\DirectXTex\DirectXTex.h"
 #include <iostream>
-
+#include "../../../include/graphic/interface/resource.h"
+#include <limits>
+#include <deque>
+#include <time.h>
 using namespace PO;
 using namespace PO::Dx11;
 using namespace PO::Dx;
@@ -57,7 +60,6 @@ struct event_picker_system : public PO::system_default
 					//form.destory();
 					c.close_context();
 				}
-
 			}
 		};
 	}
@@ -67,8 +69,35 @@ struct event_picker_system : public PO::system_default
 };
 
 
+#undef max
 int main()
 {
+	std::cout << PO::Tool::current_path() << std::endl;
+	std::cout << (PO::Tool::current_path() / PO::Tool::path{"sadasd"}) << std::endl;
+	std::cout << std::numeric_limits<uint16_t>::max() << std::endl;
+	std::deque<PO::Tool::filesystem::path> direction;
+	direction.push_back(PO::Tool::current_path());
+	while (!direction.empty())
+	{
+		auto path = *direction.begin();
+		direction.pop_front();
+		for (auto& ite : PO::Tool::directory_iterator{ path })
+		{
+			std::cout << ite << std::endl;
+			auto time = std::chrono::system_clock::to_time_t(PO::Tool::filesystem::last_write_time(ite));
+			char time_buffer[1000];
+			ctime_s(time_buffer, 1000, &time);
+			std::cout << time_buffer;
+			if (PO::Tool::filesystem::is_directory(ite))
+				direction.push_back(ite);
+		}
+	}
+
+	
+	PO::Graphic::tex_size size = { 1 };
+	PO::Graphic::tex_size size2 = { 1, 1 };
+	PO::Graphic::tex_size size3 = { 1, 1, 1 };
+
 	/*
 	auto current = ptr + 28;
 	uint32_t chunk_count = *(uint32_t*)current;

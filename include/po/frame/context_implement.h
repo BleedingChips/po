@@ -38,13 +38,14 @@ namespace PO::ECSFramework
 			struct element
 			{
 				std::vector<component_holder> ptr;
-				std::vector<std::weak_ptr<pre_filter_storage_interface>> accosiate_filter;
+				std::vector<Tool::intrusive_ptr<pre_filter_storage_interface>> accosiate_filter;
 			};
 
 			std::unordered_map<std::type_index, element> all_component_map;
 			void insert(component_holder c);
 			void reflesh(std::type_index ti);
-			void insert(std::shared_ptr<pre_filter_storage_interface> filter);
+			void insert(Tool::intrusive_ptr<pre_filter_storage_interface> filter);
+			void update_temporary(Tool::intrusive_ptr<pre_filter_storage_interface> filter);
 		};
 	}
 
@@ -68,7 +69,13 @@ namespace PO::ECSFramework
 			std::type_index id;
 		};
 
-		using context_event_type = std::variant<component_holder, singleton_component_ptr, system_ptr, component_destory, entity_ptr, singleton_component_destory, system_destory>;
+		struct temporary_system
+		{
+			system_ptr ptr;
+		};
+
+		using context_event_type = std::variant<component_holder, singleton_component_ptr, system_ptr, component_destory, 
+			entity_ptr, singleton_component_destory, system_destory, temporary_system>;
 
 		struct context_temporary : public context
 		{
@@ -82,6 +89,7 @@ namespace PO::ECSFramework
 			virtual void destory_component(entity_ptr, std::type_index) override;
 			virtual void destory_singleton_component(std::type_index) override;
 			virtual void destory_system(std::type_index) override;
+			virtual void insert_temporary_system(system_ptr) override;
 		};
 	}
 
@@ -120,7 +128,7 @@ namespace PO::ECSFramework
 		class implicit_after_t
 		{
 			std::vector<graph_time_t> v;
-			friend std::ostream& operator<<(std::ostream& s, const implicit_after_t& gt);
+			//friend std::ostream& operator<<(std::ostream& s, const implicit_after_t& gt);
 		public:
 			bool is_include(graph_time_t ia) const noexcept;
 			void include(graph_time_t gtt);
@@ -157,27 +165,25 @@ namespace PO::ECSFramework
 
 			std::vector<system_relationship_iterator_t> start_system_temporary;
 			std::map<std::type_index, system_relationship_iterator_t> waitting_list;
-			std::map<std::type_index, std::vector<Tool::intrusive_ptr<event_pool_interface>>> event_pool;
+			using event_pool_tank = std::vector<Tool::intrusive_ptr<event_pool_interface>>;
+			std::map<std::type_index, event_pool_tank> event_pool;
 			void remove_relation(system_relationship_iterator_t ite);
 			Implement::system_ptr pop_one(bool& finish);
 			void finish_operating(std::type_index ti);
 		public:
-			const Tool::intrusive_ptr<event_pool_interface>* get_event_pool(std::type_index, size_t& count) const noexcept;
-			void set_event_pool(Tool::intrusive_ptr<event_pool_interface> pool);
+			viewer<const Tool::intrusive_ptr<event_pool_interface>> get_event_pool(std::type_index) const noexcept;
+			void insert_event_pool(Tool::intrusive_ptr<event_pool_interface> pool);
 			bool reflesh_unavalible_map();
 			bool update_waitting_list();
 			void insert(system_ptr);
 			void destory_system(std::type_index id);
-			bool execute_one(context& c);
-			bool execute_one_other_thread(context& c, bool& finish);
+			bool execute_one(context& c, system_update& su);
+			bool execute_one_other_thread(context& c, system_update& su, bool& finish);
 		};
-
-		
-
 	}
 
 	// component *******************
-	class context_implement : public Implement::context_interface
+	class context_implement : public Implement::context_interface, public Implement::system_update, public Implement::system_initializer
 	{
 		object_pool pool;
 		//Platform::thread_pool threads;
@@ -194,16 +200,16 @@ namespace PO::ECSFramework
 		std::mutex waitting_list_mutex;
 
 		std::map<std::type_index, Implement::singleton_component_ptr> singleton_component;
+		std::vector<Tool::intrusive_ptr<Implement::event_pool_interface>> temporary_event_pool;
 
 		virtual Implement::component_ptr allocate_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) override;
 		virtual Implement::system_ptr allocate_system(std::type_index, size_t type, size_t aligna) override;
 		virtual Implement::singleton_component_ptr allocate_singleton_component(std::type_index, size_t type, size_t aligna, void(*deleter)(void*) noexcept) override;
-
-		virtual void set_filter(std::shared_ptr<Implement::pre_filter_storage_interface>) override;
-		virtual Implement::singleton_component_ptr get_singleton_component(std::type_index) noexcept override;
-
-		virtual void set_event_pool(Tool::intrusive_ptr<Implement::event_pool_interface> in) override { all_system.set_event_pool(std::move(in)); }
-		virtual const Tool::intrusive_ptr<Implement::event_pool_interface>* get_event_pool(std::type_index id, size_t& size) noexcept override { return all_system.get_event_pool(id, size); }
+		virtual Implement::singleton_component_ptr get_singleton_component(std::type_index) const noexcept;
+		virtual Implement::viewer<const Tool::intrusive_ptr<Implement::event_pool_interface>> get_normal_event_pool(std::type_index) const noexcept override;
+		virtual Implement::viewer<const Tool::intrusive_ptr<Implement::event_pool_interface>> get_temporary_event_pool() const noexcept override;
+		virtual void insert_filter(Tool::intrusive_ptr<Implement::pre_filter_storage_interface>);
+		virtual void insert_event_pool(Tool::intrusive_ptr<Implement::event_pool_interface>);
 
 		bool thread_execute();
 		size_t thread_reserved = 0;

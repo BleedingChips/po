@@ -149,6 +149,7 @@
     <ClCompile Include="..\..\..\include\graphic\interface\event.cpp" />
     <ClCompile Include="..\..\..\include\graphic\interface\material.cpp" />
     <ClCompile Include="..\..\..\include\graphic\interface\texture.cpp" />
+    <ClCompile Include="..\..\..\include\graphic\interface\grid.cpp" />
     <ClCompile Include="..\..\..\include\graphic\win32\win32_event.cpp" />
     <ClCompile Include="..\..\..\include\graphic\win32\win32_form.cpp" />
     <ClCompile Include="..\..\..\include\graphic\win32\win32_log.cpp" />
@@ -173,8 +174,10 @@
     <ClInclude Include="..\..\..\include\graphic\interface\material.h" />
     <ClInclude Include="..\..\..\include\graphic\interface\po_graphic.h" />
     <ClInclude Include="..\..\..\include\graphic\interface\property.h" />
+    <ClInclude Include="..\..\..\include\graphic\interface\resource.h" />
     <ClInclude Include="..\..\..\include\graphic\interface\texture.h" />
     <ClInclude Include="..\..\..\include\graphic\interface\variable.h" />
+    <ClInclude Include="..\..\..\include\graphic\interface\grid.h" />
     <ClInclude Include="..\..\..\include\graphic\win32\win32_define.h" />
     <ClInclude Include="..\..\..\include\graphic\win32\win32_event.h" />
     <ClInclude Include="..\..\..\include\graphic\win32\win32_form.h" />

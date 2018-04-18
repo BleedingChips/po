@@ -20,11 +20,10 @@ namespace PO::ECSFramework
 				ite = all_component_map.insert({ id, element{} }).first;
 			}
 			auto& ref = ite->second;
-			ref.accosiate_filter.erase(std::remove_if(ref.accosiate_filter.begin(), ref.accosiate_filter.end(), [&](std::weak_ptr<pre_filter_storage_interface>& wp) {
-				auto ptr = wp.lock();
-				if (ptr)
+			ref.accosiate_filter.erase(std::remove_if(ref.accosiate_filter.begin(), ref.accosiate_filter.end(), [&](Tool::intrusive_ptr<pre_filter_storage_interface>& wp) {
+				if (wp && *wp)
 				{
-					ptr->insert(c.entity);
+					wp->insert(c.entity);
 					return false;
 				}
 				return true;
@@ -44,12 +43,12 @@ namespace PO::ECSFramework
 			}
 		}
 
-		void component_map::insert(std::shared_ptr<pre_filter_storage_interface> filter)
+		void component_map::insert(Tool::intrusive_ptr<pre_filter_storage_interface> filter)
 		{
-			assert(filter);
+			assert(filter && *filter);
 			auto info = filter->needed();
 			decltype(all_component_map)::iterator min_ite = all_component_map.end();
-			for (std::size_t i = 0; i < info.view_count; ++i)
+			for (std::size_t i = 0; i < info.size(); ++i)
 			{
 				auto ite = all_component_map.find(info[i]);
 				if (ite == all_component_map.end())
@@ -59,6 +58,40 @@ namespace PO::ECSFramework
 				}
 				else {
 					ite->second.accosiate_filter.push_back(filter);
+					if (min_ite == all_component_map.end())
+						min_ite = ite;
+					else if (ite->second.ptr.size() < min_ite->second.ptr.size())
+						min_ite = ite;
+				}
+			}
+			if (min_ite != all_component_map.end())
+			{
+				auto& ref = min_ite->second.ptr;
+				ref.erase(std::remove_if(ref.begin(), ref.end(), [&](component_holder& ch) {
+					if (ch.componenet && *ch.componenet)
+					{
+						filter->insert(ch.entity);
+						return false;
+					}
+					return true;
+				}), ref.end());
+			}
+		}
+
+		void component_map::update_temporary(Tool::intrusive_ptr<pre_filter_storage_interface> filter)
+		{
+			assert(filter);
+			auto info = filter->needed();
+			decltype(all_component_map)::iterator min_ite = all_component_map.end();
+			for (std::size_t i = 0; i < info.size(); ++i)
+			{
+				auto ite = all_component_map.find(info[i]);
+				if (ite == all_component_map.end())
+				{
+					min_ite = all_component_map.end();
+					break;
+				}
+				else {
 					if (min_ite == all_component_map.end())
 						min_ite = ite;
 					else if (ite->second.ptr.size() < min_ite->second.ptr.size())
@@ -118,6 +151,11 @@ namespace PO::ECSFramework
 		{
 			context_event.push_back(system_destory{ ti });
 		}
+
+		void context_temporary::insert_temporary_system(system_ptr pt)
+		{
+			context_event.push_back(temporary_system{ std::move(pt) });
+		}
 	}
 	
 	// system map **********************************
@@ -130,14 +168,14 @@ namespace PO::ECSFramework
 		NOT_CARE
 	};
 
-	bool have(Implement::type_index_view view, std::type_index ti)
+	bool have(Implement::type_viewer view, std::type_index ti)
 	{
-		if (view.view_count == 0)
+		if (view.size() == 0)
 			return false;
-		if (view[0] > ti || view[view.view_count - 1] < ti)
+		if (view[0] > ti || view[view.size() - 1] < ti)
 			return false;
 		std::size_t Start = 0;
-		std::size_t End = view.view_count;
+		std::size_t End = view.size();
 		for (; Start != End; )
 		{
 			std::size_t C = (Start + End) / 2;
@@ -155,13 +193,13 @@ namespace PO::ECSFramework
 		return false;
 	}
 
-	bool is_collided(Implement::type_index_view ti1, Implement::type_index_view ti2)
+	bool is_collided(Implement::type_viewer ti1, Implement::type_viewer ti2)
 	{
-		if (ti1.view_count != 0 && ti2.view_count != 0 && ti1.view[ti1.view_count - 1] >= ti2.view[0] && ti1.view[0] <= ti2.view[ti2.view_count - 1])
+		if (ti1.size() != 0 && ti2.size() != 0 && ti1[ti1.size() - 1] >= ti2[0] && ti1[0] <= ti2[ti2.size() - 1])
 		{
-			for (std::size_t index = 0; index <= ti1.view_count; ++index)
+			for (std::size_t index = 0; index <= ti1.size(); ++index)
 			{
-				if (have(ti2, ti1.view[index]))
+				if (have(ti2, ti1[index]))
 					return true;
 			}
 		}
@@ -463,7 +501,11 @@ namespace PO::ECSFramework
 						result = calculate_sequence(ref1.ptr->check_sequence(id2), ref2.ptr->check_sequence(id1));
 						if (result == SequenceResult::UNDEFINE || result == SequenceResult::NOT_CARE)
 						{
-							if (e1_rw_conflict && !e2_rw_conflict)
+							if(write_conflict && e1_rw_conflict && !e2_rw_conflict)
+								result = SequenceResult::FIRST;
+							else if (write_conflict && e2_rw_conflict && !e1_rw_conflict)
+								result = SequenceResult::SECOND;
+							else if (e1_rw_conflict && !e2_rw_conflict)
 								result = SequenceResult::FIRST;
 							else if (e2_rw_conflict && !e1_rw_conflict)
 								result = SequenceResult::SECOND;
@@ -479,6 +521,18 @@ namespace PO::ECSFramework
 			std::lock_guard<decltype(mutex)> lg(mutex);
 			if (system_need_update)
 			{
+
+				// clear event_pool
+				for (auto& ite : event_pool)
+				{
+					ite.second.erase(
+						std::remove_if(ite.second.begin(), ite.second.end(), [](Tool::intrusive_ptr<Implement::event_pool_interface>& p) {
+						return !(p && *p);
+					}),
+						ite.second.end()
+					);
+				}
+
 				start_system_temporary.clear();
 				//clear all state
 				for (auto ite = systems.begin(); ite != systems.end(); ++ite)
@@ -574,7 +628,7 @@ namespace PO::ECSFramework
 								ref.implicit_after.is_include(ref2.graph_time) || ref2.implicit_after.is_include(ref.graph_time))
 							)
 						{
-							throw Error::system_dependence_confuse(ite->first, ite2.first, "system is dependence buy did not set");
+							throw Error::system_dependence_confuse(ite->first, ite2.first, "system is dependence but did not set");
 						}
 					}
 					//search mutex pair
@@ -670,7 +724,7 @@ namespace PO::ECSFramework
 			finished_system += 1;
 		}
 
-		bool system_map::execute_one_other_thread(context& c, bool& finish)
+		bool system_map::execute_one_other_thread(context& c, system_update& su, bool& finish)
 		{
 			Implement::system_ptr ptr;
 			if (mutex.try_lock())
@@ -681,7 +735,7 @@ namespace PO::ECSFramework
 			if (ptr)
 			{
 				assert(*ptr);
-				ptr->call(c);
+				ptr->call(c, su);
 				std::lock_guard<decltype(mutex)> ld(mutex);
 				finish_operating(ptr->id());
 				return true;
@@ -700,7 +754,7 @@ namespace PO::ECSFramework
 			}
 		}
 
-		bool system_map::execute_one(context& c)
+		bool system_map::execute_one(context& c, system_update& su)
 		{
 			bool finish;
 			Implement::system_ptr ptr;
@@ -712,41 +766,33 @@ namespace PO::ECSFramework
 			if (ptr)
 			{
 				assert(*ptr);
-				ptr->call(c);
+				ptr->call(c, su);
 				std::lock_guard<decltype(mutex)> ld(mutex);
 				finish_operating(ptr->id());
 			}
 			return true;
 		}
 
-		void system_map::set_event_pool(Tool::intrusive_ptr<event_pool_interface> pool)
+		void system_map::insert_event_pool(Tool::intrusive_ptr<event_pool_interface> pool)
 		{
 			if (pool && *pool)
 			{
 				auto ite = event_pool.find(pool->id);
-				if (ite != event_pool.end())
-				{
-					ite->second.erase(std::remove_if(ite->second.begin(), ite->second.end(), [&](Tool::intrusive_ptr<event_pool_interface>& ptr) {
-						return ptr == pool || (!ptr) || (!*ptr);
-					}), ite->second.end());
-				}
-				else
-					ite = event_pool.insert({ pool->id , std::vector<Tool::intrusive_ptr<event_pool_interface>> {} }).first;
+				if (ite == event_pool.end())
+					ite = event_pool.insert({ pool->id , event_pool_tank{} }).first;
 				ite->second.push_back(std::move(pool));
 			}
 		}
 
-		const Tool::intrusive_ptr<event_pool_interface>* system_map::get_event_pool(std::type_index id, std::size_t& count) const noexcept
+		viewer<const Tool::intrusive_ptr<event_pool_interface>> system_map::get_event_pool(std::type_index id) const noexcept
 		{
 			auto ite = event_pool.find(id);
 			if (ite != event_pool.end())
 			{
-				count = ite->second.size();
-				return ite->second.data();
+				return { ite->second.data(), ite->second.size() };
 			}
 			else {
-				count = 0;
-				return nullptr;
+				return {};
 			}
 		}
 	}
@@ -756,7 +802,7 @@ namespace PO::ECSFramework
 	{
 		Implement::context_temporary ct(*this);
 		bool finish;
-		if (all_system.execute_one_other_thread(ct, finish))
+		if (all_system.execute_one_other_thread(ct, *this, finish))
 		{
 			load_form_context(ct);
 			return false;
@@ -774,6 +820,15 @@ namespace PO::ECSFramework
 			else
 				return false;
 		}
+	}
+
+	Implement::viewer<const Tool::intrusive_ptr<Implement::event_pool_interface>> context_implement::get_normal_event_pool(std::type_index id) const noexcept
+	{
+		return all_system.get_event_pool(id);
+	}
+	Implement::viewer<const Tool::intrusive_ptr<Implement::event_pool_interface>> context_implement::get_temporary_event_pool() const noexcept
+	{
+		return Implement::viewer<const Tool::intrusive_ptr<Implement::event_pool_interface>>{ temporary_event_pool.data(), temporary_event_pool.size() };
 	}
 
 	context_implement::context_implement() : avalible(true) {}
@@ -884,13 +939,27 @@ namespace PO::ECSFramework
 		return entity{ ptr };
 	}
 
+	void context_implement::insert_filter(Tool::intrusive_ptr<Implement::pre_filter_storage_interface> ptr)
+	{
+		assert(ptr && *ptr);
+		all_component.insert(std::move(ptr));
+	}
+
+	void context_implement::insert_event_pool(Tool::intrusive_ptr<Implement::event_pool_interface> ptr)
+	{
+		assert(ptr && *ptr);
+		all_system.insert_event_pool(std::move(ptr));
+	}
+
+	/*
 	void context_implement::set_filter(std::shared_ptr<Implement::pre_filter_storage_interface> wp)
 	{
 		if (wp)
 			all_component.insert(std::move(wp));
 	}
+	*/
 
-	Implement::singleton_component_ptr context_implement::get_singleton_component(std::type_index ti) noexcept
+	Implement::singleton_component_ptr context_implement::get_singleton_component(std::type_index ti) const noexcept
 	{
 		auto ite = singleton_component.find(ti);
 		if (ite != singleton_component.end())
@@ -913,12 +982,12 @@ namespace PO::ECSFramework
 
 		for (std::size_t i = 0; i < process_count + 1; ++i)
 			threads.create_thread([this]() {return thread_execute(); });
-		std::set<std::type_index> destory_component;
 
 		struct context_event_handler
 		{
 			context_implement* context;
 			std::set<std::type_index>& destory_component;
+			std::vector<Implement::system_ptr>& temporary_system_buffer;
 			void operator()(Implement::component_holder& ref)
 			{
 				assert(ref.entity && * ref.entity);
@@ -963,20 +1032,51 @@ namespace PO::ECSFramework
 				std::type_index id = cp.id;
 				context->all_system.destory_system(id);
 			}
+			void operator()(Implement::temporary_system& cp) {
+				temporary_system_buffer.push_back(std::move(cp.ptr));
+			}
 		};
+		std::set<std::type_index> destory_component;
+		std::vector<Implement::system_ptr> temporary_system;
 		bool ready = false;
 		auto last_tick = std::chrono::system_clock::now();
+		Implement::context_temporary ct(*this);
 		while (avalible)
 		{
 			context_event.lock([&, this](decltype(context_event)::type& t) {
 				for (auto& ite : t)
-					std::visit(context_event_handler{this, destory_component}, ite);
+					std::visit(context_event_handler{this, destory_component, temporary_system}, ite);
 				t.clear();
 			});
 
 			for (auto& ite : destory_component)
 				all_component.reflesh(ite);
 			destory_component.clear();
+
+			if (!temporary_system.empty())
+			{
+				struct temporary_initializer : public Implement::system_initializer
+				{
+					Implement::component_map& cm;
+					std::vector<Tool::intrusive_ptr<Implement::event_pool_interface>>& pool;
+					virtual void insert_filter(Tool::intrusive_ptr<Implement::pre_filter_storage_interface> ptr) override
+					{
+						cm.update_temporary(std::move(ptr));
+					}
+					virtual void insert_event_pool(Tool::intrusive_ptr<Implement::event_pool_interface> ptr) override
+					{
+						pool.push_back(std::move(ptr));
+					}
+					temporary_initializer(Implement::component_map& r, std::vector<Tool::intrusive_ptr<Implement::event_pool_interface>>& p)
+						: cm(r), pool(p) {}
+				};
+				temporary_initializer temporary{ all_component, temporary_event_pool };
+				for (auto& ite : temporary_system)
+				{
+					ite->init(temporary);
+					ite->call(ct, *this);
+				}
+			}
 
 			avalible = all_system.reflesh_unavalible_map();
 			if (avalible)
@@ -998,12 +1098,13 @@ namespace PO::ECSFramework
 					ready = true;
 
 				threads.notity_all();
-				Implement::context_temporary ct(*this);
-				while (all_system.execute_one(ct))
+				while (all_system.execute_one(ct, *this))
 				{
 					std::this_thread::yield();
 				}
 				load_form_context(ct);
+				temporary_system.clear();
+				temporary_event_pool.clear();
 			}
 		}
 	}

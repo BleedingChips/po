@@ -2,9 +2,10 @@
 
 namespace PO ::Graphic
 {
-
-	
-
+	enum FormatPixel
+	{
+		RGBA_FLOAT32
+	};
 
 
 

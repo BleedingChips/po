@@ -229,10 +229,11 @@ namespace PO
 
 			template<typename other_type, typename = std::void_t<std::enable_if_t<std::is_base_of_v<type, other_type>>>>
 			
-			intrusive_ptr(const intrusive_ptr<other_type>& ip) noexcept : data(ip.data), del(ip.del) {
+			/*
+			intrusive_ptr(const intrusive_ptr<other_type>& ip) noexcept : data(ip.data), del(deleter_type{}) {
 				if (data != nullptr)
 					data->add_ref();
-			}
+			}*/
 
 			intrusive_ptr(intrusive_ptr&& ip) noexcept : data(ip.data), del(std::move(ip.del))
 			{
@@ -271,7 +272,7 @@ namespace PO
 			const type* operator->() const noexcept { return data; }
 			type& operator* () noexcept { return *data; }
 			const type& operator*() const noexcept { return *data; }
-			template<typename other_type> operator intrusive_ptr<other_type>() const noexcept { return intrusive_ptr<other_type>{data, del }; }
+			template<typename other_type> operator intrusive_ptr<other_type>() const noexcept { return intrusive_ptr<other_type>{data }; }
 		};
 
 		template<typename T> class stack_ref;

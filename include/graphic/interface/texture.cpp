@@ -1,6 +1,7 @@
 #include "texture.h"
 namespace PO::Graphic
 {
+	/*
 	bool texture::load(texture_agent& ta, TextureStyle style, std::experimental::filesystem::path name, size_t mipmap)
 	{
 		scription = {};
@@ -14,6 +15,6 @@ namespace PO::Graphic
 			return false;
 		}
 	}
-
+	*/
 
 }

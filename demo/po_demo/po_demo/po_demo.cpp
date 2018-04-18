@@ -40,7 +40,7 @@ struct system_2 : PO::system_default
 			//c.destory_singleton_component<component_1>();
 		};
 
-		r << [](const event_1& t) { /*std::cout << "event id" << t.id << std::endl*/;  };
+		r << [](const event_1& t) { std::cout << "event id" << t.id << std::endl;  };
 
 		std::cout << "call system_2 : " << std::this_thread::get_id() << std::endl;
 	}
@@ -52,7 +52,7 @@ struct system_3 : PO::system_default
 	void operator()(PO::context& c, PO::provider<event_1> p) {
 		std::lock_guard<decltype(cout_mutex)> lg(cout_mutex);
 		std::cout << "call system_3 : " << std::this_thread::get_id() << std::endl;
-		p.clear();
+		//p.clear();
 		p.push_back(event_1{3});
 		//c.close_context();
 	}
@@ -82,7 +82,7 @@ int main()
 		c.create_system<system_2>();
 		c.create_system<system_3>();
 	});
-	imp.set_duration(PO::duration_ms{ 2000 });
+	imp.set_duration(PO::duration_ms{ 5000 });
 	//imp.set_thread_reserved(100);
 	imp.loop();
 	system("pause");
