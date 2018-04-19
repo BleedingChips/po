@@ -1076,35 +1076,33 @@ namespace PO::ECSFramework
 					ite->init(temporary);
 					ite->call(ct, *this);
 				}
-			}
-
-			avalible = all_system.reflesh_unavalible_map();
-			if (avalible)
-			{
-				all_system.update_waitting_list();
-
-				if (ready)
-				{
-					auto current_tick = std::chrono::system_clock::now();
-					auto dura = std::chrono::duration_cast<std::chrono::milliseconds>(current_tick - last_tick);
-#ifdef _DEBUG
-					std::cout << "frame count (ms):" << dura.count() << std::endl;
-#endif // _DEBUG
-					if(dura < duration_ms)
-						std::this_thread::sleep_for(duration_ms - dura);
-					last_tick = std::chrono::system_clock::now();
-				}
-				else
-					ready = true;
-
-				threads.notity_all();
-				while (all_system.execute_one(ct, *this))
-				{
-					std::this_thread::yield();
-				}
-				load_form_context(ct);
 				temporary_system.clear();
-				temporary_event_pool.clear();
+				load_form_context(ct);
+			}
+			else {
+				if (all_system.reflesh_unavalible_map())
+				{
+					all_system.update_waitting_list();
+
+					if (ready)
+					{
+						auto current_tick = std::chrono::system_clock::now();
+						auto dura = std::chrono::duration_cast<std::chrono::milliseconds>(current_tick - last_tick);
+						if (dura < duration_ms)
+							std::this_thread::sleep_for(duration_ms - dura);
+						last_tick = std::chrono::system_clock::now();
+					}
+					else
+						ready = true;
+
+					threads.notity_all();
+					while (all_system.execute_one(ct, *this))
+					{
+						std::this_thread::yield();
+					}
+					load_form_context(ct);
+					temporary_event_pool.clear();
+				}
 			}
 		}
 	}

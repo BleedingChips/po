@@ -7,6 +7,7 @@
 #include <limits>
 #include <deque>
 #include <time.h>
+
 using namespace PO;
 using namespace PO::Dx11;
 using namespace PO::Dx;
@@ -68,10 +69,41 @@ struct event_picker_system : public PO::system_default
 	}
 };
 
+struct material_interface
+{
+
+};
+
+struct material
+{
+	Tool::intrusive_ptr<material_interface> ptr;
+	Tool::intrusive_ptr<material_interface> buffer_hold;
+	template<typename T>
+	material& operator <<(T&& t)
+	{
+		using type = 
+	}
+};
+
+
+struct static_mesh
+{
+	material mater;
+};
+
+struct system
+{
+	void operator()(PO::context& v, static_mesh& sm)
+	{
+
+	}
+};
+
 
 #undef max
 int main()
 {
+
 	std::cout << PO::Tool::current_path() << std::endl;
 	std::cout << (PO::Tool::current_path() / PO::Tool::path{"sadasd"}) << std::endl;
 	std::cout << std::numeric_limits<uint16_t>::max() << std::endl;
@@ -92,7 +124,6 @@ int main()
 				direction.push_back(ite);
 		}
 	}
-
 	
 	PO::Graphic::tex_size size = { 1 };
 	PO::Graphic::tex_size size2 = { 1, 1 };

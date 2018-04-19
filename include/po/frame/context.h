@@ -224,7 +224,7 @@ namespace PO::ECSFramework
 			template<typename callable> decltype(auto) operator()(callable&& f)
 			{
 				assert(*this);
-				return std::forward<callable>(f)(std::get<0>(storage), std::get<index + 1>(storage).get()...);
+				return std::forward<callable>(f)(entity{ std::get<0>(storage) }, std::get<index + 1>(storage).get()...);
 			}
 		};
 
@@ -250,16 +250,19 @@ namespace PO::ECSFramework
 					storage.push_back(std::move(temporary));
 			}
 
-			template<typename callable> void operator()(callable&& c)
+			template<typename callable> size_t operator()(callable&& c)
 			{
+				size_t count = 0;
 				storage.erase(std::remove_if(storage.begin(), storage.end(), [&](storage_type& storage) {
 					if (storage)
 					{
+						++count;
 						storage(std::forward<callable>(c));
 						return false;
 					}
 					return true;
 				}), storage.end());
+				return count;
 			}
 
 		};
@@ -272,16 +275,16 @@ namespace PO::ECSFramework
 			pre_filter_storage_implement<std::make_index_sequence<sizeof...(component)>, component...> storage;
 			filter_with_entity(entity_ptr e)
 			{
-				avalible = storage.able_extract_component(e);
+				avalible = e && *e && storage.able_extract_component(e);
 			}
 			filter_with_entity(filter_with_entity&& e) = default;
 		public:
 			
-			template<typename callable> filter_with_entity& operator<<(callable&& c)
+			template<typename callable> bool operator<<(callable&& c)
 			{
 				if (avalible)
-					storage(std::forward<callable>(c));
-				return *this;
+					return (storage(std::forward<callable>(c)), true);
+				return false;
 			}
 		};
 
@@ -293,14 +296,14 @@ namespace PO::ECSFramework
 	public:
 		pre_filter(Implement::pre_filter_storage<component...>& s) : storage(s) {}
 		pre_filter(const pre_filter&) = default;
-		template<typename callable> pre_filter& operator << (callable&& c) { storage(std::forward<callable>(c)); return *this; }
+		template<typename callable> size_t operator << (callable&& c) { return storage(std::forward<callable>(c)); }
 	};
 
 	template<typename ...component> struct filter
 	{
 		template<typename ...other_component>
 		filter<component..., other_component...> operator*(filter<other_component...>) const noexcept { return filter<component..., other_component...>{}; }
-		Implement::filter_with_entity<component...> operator<<(entity e) const noexcept { return Implement::filter_with_entity<component...>{std::move(e)}; }
+		Implement::filter_with_entity<component...> operator[](entity e) const noexcept { return Implement::filter_with_entity<component...>{std::move(e.ptr)}; }
 	};
 
 	// event **************************************************
@@ -344,11 +347,12 @@ namespace PO::ECSFramework
 		view_t normal_viewer;
 	public:
 		receiver(view_t temp, view_t nor) :template_viewer(temp), normal_viewer(nor) {}
-		template<typename callable> receiver& operator<<(callable&& c)
+		template<typename callable> size_t operator<<(callable&& c)
 		{
+			size_t count = 0;
 			for (auto& ite : template_viewer)
 			{
-				assert(ite && *ite);
+				assert(ite);
 				if (ite->id == typeid(componenet))
 				{
 					assert(ite->elemnt_size == sizeof(componenet));
@@ -357,22 +361,27 @@ namespace PO::ECSFramework
 					auto final_view = view.cast<const componenet>();
 					for (auto& ite2 : final_view)
 					{
+						++count;
 						std::forward<callable>(c)(ite2);
 					}
 				}
 			}
 			for (auto& ite2 : normal_viewer)
 			{
-				assert(ite2);
+				assert(ite2 && *ite2);
 				assert(ite2->elemnt_size == sizeof(componenet));
 				assert(ite2->element_align == alignof(componenet));
 				assert(ite2->id == typeid(componenet));
 				auto view = ite2->get_data();
 				auto final_view = view.cast<const componenet>();
-				for(auto& ite : final_view)
+				for (auto& ite : final_view)
+				{
+					++count;
 					std::forward<callable>(c)(ite);
+				}
+					
 			}
-			return *this;
+			return count;
 
 
 

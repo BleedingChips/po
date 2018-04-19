@@ -85,9 +85,24 @@
 			// SystemSequence = UNDEFINE; SystemLayout = UPDATE;
 			void operator()(PO::context&, .../*捕获器*/){ /*logic code here*/}
 		};
+		ci.init([](PO::context& c)
+		{
+			//创建一个System
+			c.create_system<SystemDemo>(...);
+		};
 		```
 		`operator()`的参数是用来收集System对Component的读写属性，以决定各System的依赖，其函数内部为执行的逻辑。
+	
+	* Temporary System 只运行一次的System。
+		创建效率比System要高，只在主线程种按创建顺序运行一次，没有唯一性要求，其运行顺序在下一帧种领先于所有的system
 
+		```
+		ci.init([](PO::context& c)
+		{
+			//创建一个Temporary System
+			c.create_temporary_system<SystemDemo>(...);
+		};
+		```
 
 	* 捕获器
 		* `template<typeanme ...component> class pre_filter`预捕获器。
@@ -96,7 +111,7 @@
 			// 对component1写，对component2读
 			void operator()(PO::context& c, PO::pre_filter<component1, const component2> f)
 			{
-				//参数类型必须在前加entity，其余与预捕器一致。
+				//参数类型必须在前加entity，其余与预捕器一致，返回捕获到多少个Entity
 				f << [](entity e, component1& c1, const component2&){
 					//执行多次，直到所有符合要求的entity被轮询完毕后。
 				};
@@ -108,8 +123,8 @@
 			```cpp
 			void operator()(PO::context& c, PO::filter<component1, const component2> f)
 			{
-				entity e = ...//从其他位置获取到的一个entity。
-				f << e <<[](entity e, component1& c1, const component2&){
+				entity e = ...//从其他位置获取到的一个entity，返回是否捕获该Enity
+				f[e]<<[](entity e, component1& c1, const component2&){
 					//如果该entity带有所示组合，则会调用一次，否则不调用。
 				};
 			}
@@ -122,22 +137,24 @@
 			void operator()(PO::context& c, component1& c1, const component2& c2, component3 c3);
 			```
 
-		* `template<typename component> class provider`事件提供者。
-			对 component 为写。每次使用需手动清空。
+		* `template<typename event_t> class provider`事件提供者。
+			对 event_t 为写。每次使用需手动清空。
 			```cpp
-			void operator()(PO::context& c, PO::receiver<component1> r)
+			void operator()(PO::context& c, PO::provider<event_t> r)
 			{
+				//清空所有该System产生的所有event
 				r.clear();
-				r.push_back(component1{});
+				r.push_back(event_t{});
 			}
 			```
 
-		* `template<typename component> class provider`事件接受者。
-			对 component 为读。
+		* `template<typename event_t> class receiver`事件接受者。
+			对 event_t 为读。
 			```cpp
-			void operator()(PO::context& c, PO::provider<component1> r)
+			void operator()(PO::context& c, PO::receiver<event_t> r)
 			{
-				r << [](const component1& t) { ... };
+				//轮询所有System产生的所有event_t，单个System产生的event的顺序是固定的，但是不同System之间则不固定。
+				r << [](const event_t& t) { ... };
 			}
 			``` 
 * 依赖判定
