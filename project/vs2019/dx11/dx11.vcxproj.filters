@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="win32">
+      <UniqueIdentifier>{b0d7a5de-cbb3-4091-8371-5e416c2ba70b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dx11">
+      <UniqueIdentifier>{3e3e6106-a0b5-46d4-83f1-548ee5f24b93}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\win32\form.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\dx11\context.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\include\win32\form.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\dx11\context.cpp">
+      <Filter>dx11</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

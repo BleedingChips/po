@@ -12,7 +12,7 @@ namespace PO::Platform
 		GetSystemInfo(&info);
 	}
 
-	const platform_info& platform_info_instance()
+	const platform_info& platform_info::instance()
 	{
 		static platform_info info;
 		return info;

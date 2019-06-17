@@ -67,6 +67,7 @@ Temporary Items
 *.iobj
 *.ipdb
 *.bin
+*.pch
 
 #Texture
 *.dds
@@ -74,3 +75,14 @@ Temporary Items
 *.tga
 *.png
 *.JPEG
+
+#mscf file
+*.mscfc
+*.mscfbdx
+*.mscfbdx_d
+*.mscfbdx_time
+*.time_mark
+*.pre_code
+
+
+*.txt

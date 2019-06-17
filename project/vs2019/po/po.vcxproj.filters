@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="tool">
+      <UniqueIdentifier>{eea3215c-8fcd-411b-a19d-d1221a45602c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="frame">
+      <UniqueIdentifier>{01dfc34a-bdaa-4bff-9879-be9a7eb57ade}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="platform">
+      <UniqueIdentifier>{5e1a7c98-5152-49c8-97b5-975e9f96b82f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="frame\ecs">
+      <UniqueIdentifier>{c6623bc3-3d6e-4159-9681-bbc4badfff7b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\include\po\tool\assert.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\character_encoding.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\document.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\lexical.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\path.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\syntax.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\tool\tool.cpp">
+      <Filter>tool</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\platform\platform.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\component_pool.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\entity.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\event_pool.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\gobal_component_pool.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\implement.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\memory.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\include\po\frame\ecs\system_pool.cpp">
+      <Filter>frame\ecs</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\po\tool\asset.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\auto_adapter.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\character_encoding.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\document.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\intrusive_ptr.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\lexical.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\mail.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\path.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\syntax.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tmp.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tmpcall.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\tool\tool.h">
+      <Filter>tool</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\platform\platform.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\component_pool.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\entity.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\event_pool.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\gobal_component_pool.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\implement.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\interface.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\memory.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\po\frame\ecs\system_pool.h">
+      <Filter>frame\ecs</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

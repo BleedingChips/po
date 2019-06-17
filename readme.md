@@ -1,185 +1,291 @@
-#PO - 异步ECS框架
+# PO
+Some Toys
 
-需要编译器开启`C++17`与`RTTI`
+### Contents
 
-##例子
-见 demo/po_demo/po_demo.sln (vs2017)
+1. Automatic Parallelization ECS FrameWork
 
-##教程
 
-1. 包含头文件
-	```
-	#include "po/po_implement.h"
-	```
+### Automatic Parallelization ECS FrameWork
 
-1. 主循环
+Demo code in `po/demo/ecs_demo/ecs_demo.sln (vs2019)`.
+
+#### How to use
+
+1. Include `po/include/frame/ecs/implement.h` and link `po.lib`.
+
+1. Define your Components and Systems.
+
 	```cpp
-	PO::context_implement imp;
-	imp.init([](PO::context& con){
-		//在这里创建你的ECS资源，并且最少添加一个System。
-	});
-	//设置每个循环后等待2000毫秒，若设置为0则不等待。
-	imp.set_duration(PO::duration_ms{ 2000 });
-	//设置预留的线程数。最终线程数为CPU核数*2 - 预留数，并至少拥有本线程加上一个额外的线程。
-	imp.set_thread_reserved(100);
-	//创建线程并开始主循环，除非调用PO::context::destory()或者system数为0，否则一直循环。
-	//创建的所有外部线程会在loop()返回时关闭。
-	imp.loop();
-	```
-
-1. 资源接口`PO::context`
-	通过`PO::context_implement`构建的线程安全的资源操作接口，所有的ECS资源分配均需要通过该接口。该接口只能在 `void PO::context_implement::init(callable_object&&)`中与System中被访问。
-	使用该接口创建资源时，会立即对资源进行初始化，并且将其放入到指令缓冲中，在下一帧的开始加入到主循环中。
-	使用该接口销毁资源时，并**不会**对资源立即析构，只是将其放入到指令缓冲中，在下一帧的开始执行。
-	不同线程的指令缓冲相互独立，并且按线程依次执行。执行的顺序依赖于System的执行完毕的顺序。
-
-1. ECS资源
-	* Entity，内置类型。作为一个集合保存Component的所属关系。对于一个Entity，其绑定的同一种类型的Component的实例只能有一个。用户拿到的只有一个指针，并且必须保证在`PO::context_implement`析构时，所有的指针必须为空。
-		```cpp
-		imp.init([](PO::context& con){
-			//创建 entity
-			PO::entity ent = con.create_entity();
-			//销毁 entity，该entity所关联的所有component均会被销毁，
-			con.destory_entity(ent);
-		});
-		```
-	* Component，自定义类型，纯数据，有专门的对象池进行管理。其必须要绑定Entity后才能被System捕获。
-		```cpp
-		struct component1{  component1(int){} };
-		...
-		imp.init([](PO::context& con){
-			PO::entity ent = con.create_entity();
-			// 创建一个普通 component1 并绑定到该 entity。
-			con.create_component<component1>(ent, 1);
-			// 删除 ent 中的component1
-			// con.destory_component<component1>(ent);
-			...
-		});
-		```
-	* 全局Component，不需要以来于Entity，但是一个主循环中，每一种类型只允许拥有一个实例。
-		```cpp
-		imp.init([](PO::context& con){
-			...
-			// 创建一个全局 component1 ，不需要绑定。
-			con.create_singleton_component<component1>();
-			// 删除 全局 component1 
-			// con.destory_singleton_component<component1>();
-			...
-		});
-		```
-	* System ，捕获Component，执行逻辑。
-		System要求提供三个成员函数，分别是:
-		```cpp
-		struct SystemDemo
-		{
-			PO::SystemSequence check_sequence(std::type_index ti) noexcept;
-			static PO::SystemLayout layout() noexcept;
-			void operator()(PO::context&, .../*捕获器*/){ /*logic code here*/}
-		};
-		```
-		其中`PO::SystemSequence`用来控制两个System之间的执行顺序，`PO::SystemLayout`用来定义System的层次，这两个均用来判定System之间的依赖关系，以方便异步执行。
-		可以继承一个 `PO::system_default` 来启用默认值
-		```cpp
-		struct SystemDemo : public PO::system_default
-		{
-			// SystemSequence = UNDEFINE; SystemLayout = UPDATE;
-			void operator()(PO::context&, .../*捕获器*/){ /*logic code here*/}
-		};
-		ci.init([](PO::context& c)
-		{
-			//创建一个System
-			c.create_system<SystemDemo>(...);
-		};
-		```
-		`operator()`的参数是用来收集System对Component的读写属性，以决定各System的依赖，其函数内部为执行的逻辑。
-	
-	* Temporary System 只运行一次的System。
-		创建效率比System要高，只在主线程种按创建顺序运行一次，没有唯一性要求，其运行顺序在下一帧种领先于所有的system
-
-		```
-		ci.init([](PO::context& c)
-		{
-			//创建一个Temporary System
-			c.create_temporary_system<SystemDemo>(...);
-		};
-		```
-
-	* 捕获器
-		* `template<typeanme ...component> class pre_filter`预捕获器。
-			其类型不能带`&`与`&&`属性，其中带`const`属性的类型为读，否则为写。其直接捕获所有的entity，挑选出其中带有给定Component组合的，并且提取出对应的Component。
-			```cpp
-			// 对component1写，对component2读
-			void operator()(PO::context& c, PO::pre_filter<component1, const component2> f)
-			{
-				//参数类型必须在前加entity，其余与预捕器一致，返回捕获到多少个Entity
-				f << [](entity e, component1& c1, const component2&){
-					//执行多次，直到所有符合要求的entity被轮询完毕后。
-				};
-			}
-			```
-
-		* `template<typeanme ...component> class filter`捕获器。
-			与预捕获器类似，但是其只对一个entity有效。
-			```cpp
-			void operator()(PO::context& c, PO::filter<component1, const component2> f)
-			{
-				entity e = ...//从其他位置获取到的一个entity，返回是否捕获该Enity
-				f[e]<<[](entity e, component1& c1, const component2&){
-					//如果该entity带有所示组合，则会调用一次，否则不调用。
-				};
-			}
-			```
-
-		* 全局Component捕获器。
-			```cpp
-			// component1 为写，component2 与 component3 均为读。
-			// 如果有任意一个全局component不存在的话，即该operator()不会被执行。
-			void operator()(PO::context& c, component1& c1, const component2& c2, component3 c3);
-			```
-
-		* `template<typename event_t> class provider`事件提供者。
-			对 event_t 为写。每次使用需手动清空。
-			```cpp
-			void operator()(PO::context& c, PO::provider<event_t> r)
-			{
-				//清空所有该System产生的所有event
-				r.clear();
-				r.push_back(event_t{});
-			}
-			```
-
-		* `template<typename event_t> class receiver`事件接受者。
-			对 event_t 为读。
-			```cpp
-			void operator()(PO::context& c, PO::receiver<event_t> r)
-			{
-				//轮询所有System产生的所有event_t，单个System产生的event的顺序是固定的，但是不同System之间则不固定。
-				r << [](const event_t& t) { ... };
-			}
-			``` 
-* 依赖判定
-	* 如果存在读写冲突或者写写冲突（其中filter与pre_filter一个通道，singleton一个通道，event一个通道，互不影响），则需要计算依赖，否则不需要。
-	* 若需要计算依赖，且`PO::SystemLayout`优先级不同，则按优先级计算依赖。(`PRE_UPDATE > UPDATE > POS_UPDATE`)
-	* 若`PO::SystemLayout`优先级相同，则按各自的`PO::SystemSequence`中优先级最大的计算依赖。(`BEFORE == AFTER >  NOT_CARE > UNDE
-	FINE`，若同时为`BEFORE`或者同时为`AFTER`，则抛出异常`PO::Error::system_dependence_confuse`) 
-	* 若`PO::SystemSequence`为`UNDEFINE`或者`NOT_CARE`，且为写读冲突，则按读依赖于写。
-	* 若`PO::SystemSequence`为`NOT_CARE`，且为写写冲突，则为互斥但无依赖关系。
-	* 若`PO::SystemSequence`为`UNDEFINE`，且为写写冲突，则抛出异常`PO::Error::system_dependence_confuse`。
-	* 若存在循环依赖，则抛出异常`PO::Error::system_dependence_circle`。
-
-* 异常
-	```cpp
-	try
+	struct Component1;
+	struct Component2;
+	struct GobalComponent;
+	struct System1
 	{
+
+		//Defines system's priority layout. It could be ignored. 
+		//Default Priority is PO::ECS::TickPriority::Normal
+		PO::ECS::TickPriority tick_layout();
+
+		//Defines system's priority. It could be ignored. 
+		//Default Priority is PO::ECS::TickPriority::Normal
+		PO::ECS::TickPriority tick_priority();
+
+		//Defines system's priority with specific system. It could be ignored.
+		//Use PO::ECS::TypeLayout::create<X>() to create typelayout for specific system.
+		//Default Order is PO::ECS::TickOrder Undefine.
+		PO::ECS::TickOrder tick_order(const PO::ECS::TypeLayout& layout);
+
+		//Define operator() function with special Filter.
+		void operator()(PO::ECS::Filter<const Component1>&, PO::ECS::Context&);
+
+		//Would be call before operator(). It could be ignored.
+		void pre_tick(PO::ECS::Context&);
+
+		//Would be call after operator() and no matter wheather operator() has been call or not. It could be ignored.
+		void pos_tick(PO::ECS::Context&);
+	};
+
+	// lambda or normal function are also an acceptable system.
+	```
+
+1. Define and set up ecs context
+
+	```cpp
+	PO::ECS::ContextImplement imp;
+	// Setting up minimum duration with each cycle. Default value is 16ms
+	imp.set_duration(PO::ECS::duration_ms{16});
+
+	// Setting up reserve threads for other uses. Default value is 0;
+	imp.set_thread_reserved(2);
+	```
+
+1. Create Components and Systems
+
+	```cpp
+	PO::ECS::Entity entity = imp.create_entity();
+	Component1& ref1 = imp.create_component<Component1>(entity, /*contructional parameter*/);
+	Component2& ref2 = imp.create_component<Component2>(entity, /*contructional parameter*/);
+	GobalComponent& ref2 = imp.create_gobal_component<Component2>(entity, /*contructional parameter*/);
+	System1& sys1 = imp.create_system<System1>(/*contructional parameter*/);
+	//Callable object
+	imp.create_system([](Filter<Component1>& f){});
+	```
+
+1. Have Fun!
+
+	```cpp
+	try{
 		imp.loop();
-	}
-	catch(const PO::Error::system_dependence_circle&)
+	}catch(const PO::ECS::Error::SystemOrderConflig&)
 	{
-		//循环依赖
-	}
-	catch(const PO::Error::system_dependence_confuse&)
+		//Handle system order conflig
+	}catch(const PO::ECS::Error::SystemOrderRecursion&)
 	{
-		//依赖冲突
+		//Handle system order recursion
 	}
 	```
 
+#### For Dynamic Link Library
+
+* in DLL:
+
+	```cpp
+	// Include interface
+	#include "po/include/frame/ecs/interface.h"
+	// Define Components or Systems
+	extern "C" {
+		void __declspec(dllexport) init(PO::ECS::Context*);
+	}
+	void __declspec(dllexport) init(PO::ECS::Context*)
+	{
+		// Createing Systems and Components
+	}
+	```
+
+* in EXE
+
+	```cpp
+	PO::ECS::ContextImplement imp;
+	/*
+	Do some thing here
+	*/
+	auto handle = LoadLibrary(...);
+	auto init = (void(*)(PO::ECS::Context*))GetProcAddress(handle, "init");
+	init(imp);
+	imp.loop();
+	//You must free library after imp.loop() to make sure that every data has been destructed.
+	FreeLibrary(handle);
+	```
+
+#### Special Filter
+
+* EntityFilter
+
+	Access components form specific Entity only if it has those components.
+
+	```cpp
+	void s1::operator()(PO::ECS::EntityFilter<const Component1, Component2>& f)
+	{
+		PO::ECS::Entity entity;
+		f(entity) << [](const Component1&, Component2&){};
+	}
+	```
+	
+
+* Filter
+
+	Access components form all Entity only if it has those components.
+
+	```cpp
+	void s1::operator()(PO::ECS::Filter<const Component1, Component2>& f)
+	{
+		for(auto ite = f.begin(); ite != f.end(); ++ ite)
+		{
+			PO::ECS::Entity entity = std::get<0>(*ite);
+			std::tuple<const Component1&, Component2&> ref_tuple = std::get<1>(*ite);
+			...
+		}
+	}
+
+	void s1::operator()(PO::ECS::Filter<const Component1>& f)
+	{
+		for(auto ite = f.begin(); ite != f.end(); ++ ite)
+		{
+			PO::ECS::Entity entity = std::get<0>(*ite);
+			const Component1& ref = std::get<1>(*ite);
+			...
+		}
+	}
+	```
+
+* EventProvider
+
+	Provide event to next frame for other systems to access.
+
+	```cpp
+	void s1::operator()(PO::ECS::EventProvider<int>& f)
+	{
+		f.push(1);
+	}
+	```
+
+* EventViewer
+
+	Access event form last frame.
+
+	```cpp
+	void s1::operator()(PO::ECS::EventProvider<int>& f)
+	{
+		for(auto ite = f.begin(); ite != f.end(); ++ite)
+		{
+			const int& event = *ite;
+		}
+	}
+	```
+
+* Context
+
+	Access ecs context.
+
+	```cpp
+	void s1::operator()(PO::ECS::Context& f)
+	{
+		//Jump out of the loop
+		f.exit();
+	}
+	```
+
+* SystemWrapper
+
+	Access other system. Functions would be call only if those systems exist.
+
+	```cpp
+	void s1::operator()(PO::ECS::SystemWrapper<System2>& f, PO::ECS::SystemWrapper<const System2>& f2)
+	{
+		System2* sys = f.operator->();
+		const System2* sys = f2.operator->();
+	}
+	```
+
+* Other
+
+	Access gobal component. Functions would be call only if those gobal components exist.
+
+	```cpp
+	void s1::operator()(GobalComponent& g1, const GobalComponent2& g2);
+	```
+
+
+#### System Parallelized
+
+Framework uses the type of special filter from system's `operator()` funtion to detect read-write-property of specific data type, and those read-write-property will be used to make a order graphic, which control the order of system calling and whether two system will be parallelized or not. 
+
+|Filter Type|Read-Write-Property|
+|:---:|:---:|
+|`Filter<A>`or`EntityFilter<A>`|Write To ComponentA|
+|`Filter<const A>`or`EntityFilter<const A>`|Read From ComponentA|
+|`SystemWrapper<A>`| Write To SystemA|
+|`SystemWrapper<const A>`|Read From SystemA|
+|`A&`|Write To GobalComponentA|
+|`const A&`|Read From GobalComponentA|
+|`EntityProvider<A>`|Write To EventA|
+|`EntityViewer<A>`|None|
+
+Framework uses the following step to decide system order of two specific system.
+
+1. Compares system layout priority.
+
+	System layout priority comes from function `PO::ECS::TickPriority s1::tick_layout()`. `PO::ECS::TickPriority` has following 5 values which sorted by its priority.
+	> **HighHigh** > **High** > **Normal** > **Low** > **LowLow**
+
+	System with higher priority will be called **Before** system with lower priority. In the same time, two systems with difference priority will never be parallelized. 
+	
+	If is the same, jump to step 2.
+
+2. Calculate system's read-write-property
+
+	If system s1 needs to write to s2, like `void s1::operator(PO::ECS::SystemWrapper<s2>)`, means s1 **may** be called **Before** s2, while if system s1 needs to read from s2, like `void s1::operator(const PO::ECS::SystemWrapper<s2>)`, means s1 **may** be called **After** s2. 
+
+	If two systems need to write to each other, an exception of `PO::ECS::Error::SystemOrderConflig` **may** be threw. 
+
+	In fact, if those situations occurr, framework will jume to step 4 to calculate user-define priority. If undefine, framework will use the reault from this step, else will use the result of user-define priority.
+
+	If thos situations is not occurred, jump to step 3.
+
+3. Calculate read-write-property of same data type.
+
+	Data type is sperated into following 4 independent channels, sorted by calculating order.
+
+	> **System** > **GobalComponent** > **Component** > **Event**
+
+	If s1 needs to write to DataTypeA, and s2 needs to read from DataTypeA, means s1 **may** be called **Before** s2. 
+	
+	If s1 needs to write to DataTypeA, read from DataTypeB, and s2 needs to write to DataTypeB, read from DataTypeA, or both of s1 and s2 need to write to s3, an exception of `PO::ECS::Error::SystemOrderConflig` **may** be threw. 
+
+	Just like step 2, if those situations occurr, framework will jume to step 4 to calculate user-define priority. 
+	
+	But event channle has little different. If s1 needs to write to EventA and s2 needs to write to EventB, s1 and s2 **will** not be call at the same time.
+
+	If thos situations is not occurred, those two system **may** be parallelized.
+	
+4. User-define priority
+
+	System priority just like system layout priority but it came from `PO::ECS::TickPriority s1::tick_priority()`. If is the same, framework will call following two functions to get the order.
+	
+	```cpp
+	auto t1 = PO::ECS::TickOrder s1::tick_order(PO::ECS::TypeLayout::create<s2>());
+	auto t2 = PO::ECS::TickOrder s2::tick_order(PO::ECS::TypeLayout::create<s1>());
+	```
+
+	If t1 and t2 is `PO::ECS::TickOrder::Undefine`, will not overwrite order.
+	
+	If t1 and t2 is conflig, an exception of `PO::ECS::Error::SystemOrderConflig` **will** be threw.
+
+	Else, overwrite order.
+
+After system order is beening decide, an order graphic will be made. But if s1 before s2, s2 before s3 and s3 before s1, an exception of `PO::ECS::Error::SystemOrderRecursion` will be threw.
+
+With the help of order graphic, systems can be Parallelized.
+
+> PS: 英语不太好的我实在是尽力了。。。

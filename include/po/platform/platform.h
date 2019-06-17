@@ -27,13 +27,12 @@ namespace PO::Platform
 	struct platform_info
 	{
 		SYSTEM_INFO  info;
-		friend const platform_info& platform_info_instance();
+		static const platform_info& instance();
+	public:
 		platform_info();
 		platform_info(const platform_info&) = delete;
-	public:
 		size_t cpu_count() const noexcept { return static_cast<size_t>(info.dwNumberOfProcessors); }
 	};
-	const platform_info& platform_info_instance();
 
 #endif // _WIN32
 }

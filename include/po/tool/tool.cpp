@@ -29,6 +29,7 @@ namespace PO::Tool
 
 	namespace Implement
 	{
+		/*
 		void stack_ref_control_block::start_destruction() noexcept
 		{
 			state.store(State::Destruction, std::memory_order::memory_order_release);
@@ -67,6 +68,8 @@ namespace PO::Tool
 		{
 			block->finish_destruction();
 		}
+		*/
 
 	}
+
 }

@@ -12,10 +12,12 @@ namespace PO
 		template<typename T, typename ...AT> struct is_one_of : std::false_type {};
 		template<typename T, typename I, typename ...AT> struct is_one_of<T, I, AT...> : is_one_of<T, AT...> {};
 		template<typename T, typename ...AT> struct is_one_of<T, T, AT...> : std::true_type {};
+		template<typename T, typename ...AT> constexpr bool is_one_of_v = is_one_of<T, AT...>::value;
 
 		template<typename T, typename ...AT> struct is_not_one_of : std::true_type {};
 		template<typename T, typename I, typename ...AT> struct is_not_one_of<T, I, AT...> : is_not_one_of<T, AT...> {};
 		template<typename T, typename ...AT> struct is_not_one_of<T, T, AT...> : std::false_type {};
+		
 
 
 		/* value_add */
@@ -340,5 +342,293 @@ namespace PO
 		};
 
 		template<typename f> using remove_repeat_t = typename remove_repeat<f>::type;
+
+		template<typename t> using rm_c_t = std::remove_const_t<t>;
+		template<typename t> using rm_r_t = std::remove_reference_t<t>;
+		template<typename t> using rm_rc_t = rm_c_t<rm_r_t<t>>;
+		template<typename t> using rm_cr_t = rm_r_t<rm_c_t<t>>;
+
+		template<typename T, typename K, typename = void> struct comparable_less : std::false_type {};
+		template<typename T, typename K> struct comparable_less<T, K, std::void_t<decltype(std::declval<T>() < std::declval<K>())>> : std::true_type {};
+
+		template<typename T, typename K> constexpr bool comparable_less_v = comparable_less<T, K>::value;
+
+		template<typename T, typename K, typename = void> struct comparable_equate : std::false_type {};
+		template<typename T, typename K> struct comparable_equate<T, K, std::void_t<decltype(std::declval<T>() == std::declval<K>())> > : std::true_type {};
+
+		template<typename T, typename K> constexpr bool comparable_equate_v = comparable_equate<T, K>::value;
+
 	}
+}
+
+namespace PO::Tmp
+{
+	namespace Implement
+	{
+		template<typename Type> struct function_type_extractor_implement;
+		template<typename ReturnType, typename ...Parameter> struct function_type_extractor_implement<ReturnType(Parameter...)> {
+			using pure_type = ReturnType(Parameter...);
+			using return_t = ReturnType;
+			template<template<typename ...> class output> using extract_parameter = output<Parameter...>;
+			static constexpr bool is_memory_function = false;
+			static constexpr bool is_const = false;
+			static constexpr bool is_volatile = false;
+			static constexpr bool is_noexcept = false;
+			static constexpr bool is_move_reference = false;
+			static constexpr bool is_reference = false;
+			static constexpr bool is_variadic = false;
+			static constexpr size_t parameter_count = sizeof...(Parameter);
+		};
+
+		// variadic functions such as std::printf
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...)> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_variadic = true;
+		};
+
+		// cv qualifiers
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile> : function_type_extractor_implement<ReturnType(Parameter...) const> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const> : function_type_extractor_implement<ReturnType(Parameter..., ...)> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile> : function_type_extractor_implement<ReturnType(Parameter..., ...)> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile> : function_type_extractor_implement<ReturnType(Parameter..., ...) const> {
+			static constexpr bool is_volatile = true;
+		};
+
+		// ref qualifiers
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...)&> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_reference = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const &> : function_type_extractor_implement<ReturnType(Parameter...)&> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile &> : function_type_extractor_implement<ReturnType(Parameter...)&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile &> : function_type_extractor_implement<ReturnType(Parameter...) const &> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...)&> : function_type_extractor_implement<ReturnType(Parameter...)&> {
+			static constexpr bool is_variadic = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const &> : function_type_extractor_implement<ReturnType(Parameter..., ...)&> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile &> : function_type_extractor_implement<ReturnType(Parameter..., ...)&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile &> : function_type_extractor_implement<ReturnType(Parameter..., ...) const &> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) &&> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_move_reference = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const &&> : function_type_extractor_implement<ReturnType(Parameter...) &&> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile &&> : function_type_extractor_implement<ReturnType(Parameter...) &&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile &&> : function_type_extractor_implement<ReturnType(Parameter...) const &&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) &&> : function_type_extractor_implement<ReturnType(Parameter...) &&> {
+			static constexpr bool is_variadic = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const &&> : function_type_extractor_implement<ReturnType(Parameter..., ...) &&> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile &&> : function_type_extractor_implement<ReturnType(Parameter..., ...) &&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile &&> : function_type_extractor_implement<ReturnType(Parameter..., ...) const &&> {
+			static constexpr bool is_volatile = true;
+		};
+
+		// noexcept versions
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) noexcept> : function_type_extractor_implement<ReturnType(Parameter...)> {
+			static constexpr bool is_noexcept = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) noexcept> : function_type_extractor_implement<ReturnType(Parameter...) noexcept> {
+			static constexpr bool is_variadic = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const noexcept> : function_type_extractor_implement<ReturnType(Parameter...) noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile noexcept> : function_type_extractor_implement<ReturnType(Parameter...) noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile noexcept> : function_type_extractor_implement<ReturnType(Parameter...) const noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) const noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) & noexcept> : function_type_extractor_implement<ReturnType(Parameter...)noexcept> {
+			static constexpr bool is_reference = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const & noexcept> : function_type_extractor_implement<ReturnType(Parameter...) & noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile & noexcept> : function_type_extractor_implement<ReturnType(Parameter...) & noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile & noexcept> : function_type_extractor_implement<ReturnType(Parameter...) const & noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) & noexcept> : function_type_extractor_implement<ReturnType(Parameter...) & noexcept> {
+			static constexpr bool is_variadic = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const & noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) & noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile & noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) & noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile & noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) const & noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) && noexcept> : function_type_extractor_implement<ReturnType(Parameter...)noexcept> {
+			static constexpr bool is_move_reference = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const && noexcept> : function_type_extractor_implement<ReturnType(Parameter...) && noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) volatile && noexcept> : function_type_extractor_implement<ReturnType(Parameter...) && noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter...) const volatile && noexcept> : function_type_extractor_implement<ReturnType(Parameter...) const && noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) && noexcept> : function_type_extractor_implement<ReturnType(Parameter...) && noexcept> {
+			static constexpr bool is_variadic = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const && noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) && noexcept> {
+			static constexpr bool is_const = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) volatile && noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) && noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename ReturnType, typename ...Parameter>
+		struct function_type_extractor_implement<ReturnType(Parameter..., ...) const volatile && noexcept> : function_type_extractor_implement<ReturnType(Parameter..., ...) const && noexcept> {
+			static constexpr bool is_volatile = true;
+		};
+
+		template<typename FuncType, typename Owner>
+		struct function_type_extractor_implement<FuncType Owner::*> : function_type_extractor_implement<FuncType> {
+			static constexpr bool is_memory_function = true;
+			using member_type = Owner;
+		};
+	}
+
+	template<typename FuncType, typename = std::void_t<>> struct function_type_extractor : Implement::function_type_extractor_implement<FuncType> {};
+	template<typename FuncType> struct function_type_extractor<FuncType, std::void_t<decltype(&FuncType::operator())>> : function_type_extractor<decltype(&FuncType::operator())> {};
+
 }

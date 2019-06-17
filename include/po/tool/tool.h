@@ -5,6 +5,7 @@
 #include <mutex>
 #include <typeindex>
 #include <optional>
+#include <type_traits>
 namespace PO
 {
 	namespace Tool
@@ -14,15 +15,27 @@ namespace PO
 			template<typename T> struct base_value_inherit {
 				T data;
 				base_value_inherit() noexcept {}
-				base_value_inherit(T t) noexcept : data(t) {}
+				base_value_inherit(T t) noexcept : data(std::move(t)) {}
+				base_value_inherit(const base_value_inherit&) = default;
+				base_value_inherit(base_value_inherit&&) = default;
+				base_value_inherit& operator=(const base_value_inherit&) = default;
+				base_value_inherit& operator=(base_value_inherit&&) = default;
 				operator T&() noexcept { return data; }
 				operator T() const noexcept  { return data; }
 				base_value_inherit& operator=(T t) noexcept { data = t; return *this; }
 			};
+
+			template<> struct base_value_inherit<void> {
+				base_value_inherit() noexcept {}
+				base_value_inherit& operator= (const base_value_inherit&) = default;
+				base_value_inherit& operator= (base_value_inherit&&) = default;
+				base_value_inherit(const base_value_inherit&) = default;
+				base_value_inherit(base_value_inherit&&) = default;
+			};
 		}
 
 		template<typename T> using inherit_t = std::conditional_t<
-			std::is_arithmetic<T>::value,
+			std::is_arithmetic<T>::value || std::is_same_v<T, void>,
 			Implement::base_value_inherit<T>, T
 		>;
 
@@ -141,41 +154,46 @@ namespace PO
 			return make_stack_list<value_type>(std::forward<callable_function>(ca), &temporary, std::forward<other_type>(ot)...);
 		}
 
-		template<template<typename ...> class implement_t> class deflection_ptr
+		template<typename interface_t = void> struct info_interface : inherit_t<interface_t>
 		{
-			const std::type_index original_info;
+			bool is(std::type_index info) const noexcept { return info == m_info; }
+			template<typename type> bool is() const noexcept { return is(typeid(type)); }
+			std::type_index info() const noexcept { return m_info; }
+			template<typename ...T>
+			info_interface(std::type_index info, T&&... t) : m_info(info), inherit_t<interface_t>(std::forward<T>(t)...) {};
+			template<typename T> T& cast() noexcept { assert(is<T>()); return static_cast<T&>(*this); }
+			template<typename T> const T& cast() const noexcept { assert(is<T>()); return static_cast<const T&>(*this); }
+		protected:
+			info_interface(const info_interface& other) : m_info(m_info), inherit_t<interface_t>(static_cast<const interface_t&>(other)) {}
+			info_interface(info_interface&& other) : m_info(m_info), inherit_t<interface_t>(static_cast<interface_t&&>(other)) {}
+			info_interface& operator=(const info_interface& other) { inherit_t<interface_t>::operator=(static_cast<const interface_t&>(other)); return *this; }
+			info_interface& operator=(info_interface&& other) { inherit_t<interface_t>::operator=(static_cast<interface_t&&>(other)); return *this; }
+		private:
+			std::type_index m_info;
+		};
 
-		public:
+		template<typename Interface, typename HoldType> struct default_deflection_interface : Interface, inherit_t<HoldType>
+		{
+			template<typename ...AT>
+			default_deflection_interface(AT&& ...at) : Interface(typeid(default_deflection_interface)), inherit_t<HoldType>(std::forward<AT>(at)...) {}
+		};
 
-			deflection_ptr(const std::type_index& original) noexcept : original_info(original) {}
-			const std::type_index& id() const noexcept { return original_info; }
-			template<typename T> bool is() const noexcept {
-				using type = std::decay_t<T>;
-				return original_info == typeid(type);
-			}
-
-			template<typename T> std::decay_t<T>& cast() {
-				using type = std::decay_t<T>;
-				return static_cast<type&>(static_cast<implement_t<type>&>(*this));
-			}
-
-			template<typename T> const std::decay_t<T>& cast() const {
-				using type = std::decay_t<T>;
-				return static_cast<const type&>(static_cast<const implement_t<type>&>(*this));
-			}
-
+		template<template<typename...> class implement_t = default_deflection_interface, typename interface_t = void> struct deflection_interface : info_interface<interface_t>
+		{
+			using info_interface<interface_t>::info_interface;
+			template<typename type> type& cast() noexcept { assert(this->is<type>()); return static_cast<type&>(static_cast<implement_t<deflection_interface, type>&>(*this)); }
+			template<typename type> const type& cast() const noexcept { assert(this->is<type>()); return static_cast<const type&>(static_cast<const implement_t<deflection_interface, type>&>(*this)); }
 			template<typename T, typename ...AT> bool cast(T&& t, AT&& ...at) noexcept
 			{
 				using funtype = Tmp::pick_func<typename Tmp::degenerate_func<Tmp::extract_func_t<T>>::type>;
 				static_assert(funtype::size == 1, "only receive one parameter");
 				using true_type = std::decay_t<typename funtype::template out<Tmp::itself>::type>;
 				//static_assert(std::is_base_of<base_interface, true_type>::value, "need derived form base_interface.");
-				if (is<true_type>())
+				if (this->is<true_type>())
 					return (t(cast<true_type>(), std::forward<AT>(at)...), true);
 				return false;
 			}
-			virtual ~deflection_ptr() = default;
-
+			template<typename type> using instance_t = implement_t<deflection_interface, type>;
 		};
 
 		class atomic_reference_count
@@ -200,81 +218,14 @@ namespace PO
 				return ref.fetch_sub(1, std::memory_order_relaxed) == 1;
 			}
 
+			size_t count() const noexcept { return ref.load(std::memory_order_relaxed); }
+
 			atomic_reference_count() noexcept : ref(0) {}
 			atomic_reference_count(const atomic_reference_count&) = delete;
 			atomic_reference_count& operator= (const atomic_reference_count&) = delete;
-			~atomic_reference_count() { assert(ref.load(std::memory_order_relaxed)==0); }
+			~atomic_reference_count() { assert(ref.load(std::memory_order_relaxed) == 0); }
 		};
-
-		template<typename type, typename deleter_type = std::default_delete<type>> 
-		class intrusive_ptr
-		{
-			type* data;
-			deleter_type del;
-		public:
-			const deleter_type& deleter() const { return del; }
-			bool operator== (const intrusive_ptr& ip) const noexcept { return data == ip.data; }
-			bool operator!= (const intrusive_ptr& ip) const noexcept { return data != ip.data; }
-			operator bool() const noexcept { return data != nullptr; }
-			intrusive_ptr(type* t, deleter_type dt = deleter_type{}) : data(t), del(dt) {
-				if (data != nullptr) {
-					data->add_ref();
-				}
-			}
-			intrusive_ptr() noexcept  : data(nullptr) {}
-			intrusive_ptr(const intrusive_ptr& ip) noexcept : data(ip.data), del(ip.del) {
-				if (data != nullptr)
-					data->add_ref();
-			}
-
-			template<typename other_type, typename = std::void_t<std::enable_if_t<std::is_base_of_v<type, other_type>>>>
-			
-			/*
-			intrusive_ptr(const intrusive_ptr<other_type>& ip) noexcept : data(ip.data), del(deleter_type{}) {
-				if (data != nullptr)
-					data->add_ref();
-			}*/
-
-			intrusive_ptr(intrusive_ptr&& ip) noexcept : data(ip.data), del(std::move(ip.del))
-			{
-				ip.data = nullptr;
-			}
-			void reset() noexcept
-			{
-				if (data != nullptr && data->sub_ref())
-				{
-					del(data);
-				}
-				data = nullptr;
-			}
-			~intrusive_ptr() {
-				if (data != nullptr && data->sub_ref())
-				{
-					del(data);
-				}
-			}
-			intrusive_ptr& operator=(intrusive_ptr ip)  noexcept
-			{
-				reset();
-				data = ip.data;
-				del = ip.del;
-				ip.data = nullptr;
-				return *this;
-			}
-			/*
-			template<typename cast_type> intrusive_ptr<cast_type> cast() const {
-				return intrusive_ptr<cast_type> { data, deleter };
-			}
-			*/
-			operator type* () noexcept { return data; }
-			operator const type* () const noexcept { return data; }
-			type* operator->() noexcept { return data; }
-			const type* operator->() const noexcept { return data; }
-			type& operator* () noexcept { return *data; }
-			const type& operator*() const noexcept { return *data; }
-			template<typename other_type> operator intrusive_ptr<other_type>() const noexcept { return intrusive_ptr<other_type>{data }; }
-		};
-
+		/*
 		template<typename T> class stack_ref;
 		template<typename T> class stack_ref_ptr;
 
@@ -451,6 +402,7 @@ namespace PO
 			std::lock_guard<std::remove_extent_t<mutex_t>> lg(m);
 			return simple_lock(std::forward<callable_object_t>(cj), om...);
 		}
+		*/
 
 		template<typename T> struct replace_void { using type = T; };
 		template<> struct replace_void<void> { using type = Tmp::itself<void>; };
@@ -538,6 +490,97 @@ namespace PO
 			}
 
 		};
+
+		
+
+		template<size_t ...index, typename tuple_t, typename callable> decltype(auto) apply(std::integer_sequence<size_t, index...>, tuple_t&& t, callable&& c)
+		{
+			return std::forward<callable>(c)(std::get<index>(std::forward<tuple_t>(t))...);
+		}
+
+		inline size_t adjust_alignas_space(size_t require_space, size_t alignas_size)
+		{
+			size_t sub = require_space % alignas_size;
+			return sub == 0 ? require_space : require_space - sub + alignas_size;
+		}
+
+		template<size_t aligna> struct alignas(aligna)aligna_buffer {
+			static void* allocate(size_t space)
+			{
+				return new aligna_buffer[adjust_alignas_space(space, aligna)];
+			}
+			template<typename T> static T* allocate(size_t space)
+			{
+				return reinterpret_cast<T*>(allocate(space));
+			}
+			template<typename T> static void release(T* data) noexcept
+			{
+				delete[] reinterpret_cast<aligna_buffer<aligna>*>(data);
+			}
+		};
+
+		struct version
+		{
+			uint64_t m_version = 1;
+			version(version&& v) noexcept : m_version(v.m_version) { v.m_version = 1; }
+			version(const version&) noexcept : m_version(1) {}
+			version()noexcept : m_version(1) {}
+			version& operator= (version v) noexcept
+			{
+				version tem(std::move(v));
+				m_version = tem.m_version;
+				tem.m_version = 0;
+				return *this;
+			}
+			bool operator ==(const version& v) const noexcept { return m_version == v.m_version; }
+			bool update_to(const version& v) noexcept {
+				if (m_version != v.m_version)
+				{
+					m_version = v.m_version;
+					return true;
+				}
+				else
+					return false;
+			}
+			void update() noexcept { m_version++;}
+		};
+
+		template<typename T, T default_value> struct integer_moveonly
+		{
+			T value;
+			integer_moveonly() noexcept : value(default_value) {}
+			integer_moveonly(T v) noexcept : value(std::move(v)) {}
+			integer_moveonly(integer_moveonly&& im) noexcept : value(im.value) { im.value = default_value; }
+			operator T () const noexcept { return value; }
+			integer_moveonly& operator=(integer_moveonly&& im) noexcept
+			{
+				integer_moveonly tem(std::move(im));
+				value = tem.value;
+				tem.value = default_value;
+				return *this;
+			}
+		};
+
+		template<typename T> struct viewer
+		{
+			//operator T*() const noexcept { return m_ptr; }
+			operator const T*() const noexcept { return m_ptr; }
+			size_t size() const noexcept { return m_count; }
+			viewer(const T* ptr, size_t size) : m_ptr(ptr), m_count(size) {}
+			const T& operator [](size_t index) const noexcept { return m_ptr[index]; }
+		private:
+			const T* m_ptr;
+			size_t m_count;
+		};
+
+		template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+		template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
+
+		template<typename Ts> struct scope_exit : private Ts {
+			scope_exit(Ts ts) : Ts(std::move(ts)) {}
+			~scope_exit() { this->operator()(); } 
+		};
+		template<typename Ts> scope_exit(Ts)->scope_exit<Ts>;
 
 	} 
 }
