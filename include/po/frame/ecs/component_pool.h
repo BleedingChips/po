@@ -13,20 +13,30 @@ namespace PO::ECS::Implement
 		bool operator==(const TypeLayoutArray&) const noexcept;
 		TypeLayoutArray& operator=(const TypeLayoutArray&) = default;
 		TypeLayoutArray(const TypeLayoutArray&) = default;
+		const TypeLayout& operator[](size_t index) const noexcept
+		{
+			assert(index < count);
+			return layouts[index];
+		}
 	};
+
+	struct TypeGroud;
 
 	struct StorageBlock
 	{
 		struct Control
 		{
-			void (*mover)(void*, void*);
-			void (*destructor)(void*) noexcept;
+			std::tuple<void (*)(void*) noexcept, void (*)(void*, void*)>* tool;
 			void* data;
 		};
-		StorageBlock* next;
-		size_t available_count;
-		Control* control;
-		EntityInterface** entity_start;
+		static StorageBlock* create(const TypeGroud* owner);
+		static void free(StorageBlock* owner) noexcept;
+	private:
+		const TypeGroud* m_owner;
+		StorageBlock* m_next = 0;
+		size_t available_count = 0;
+		Control* control_start = nullptr;
+		EntityInterface** entity_start = nullptr;
 	};
 
 	struct TypeGroud
@@ -34,12 +44,23 @@ namespace PO::ECS::Implement
 		TypeLayoutArray layouts() const noexcept { return m_type_layouts; }
 		static TypeGroud* create(MemoryPageAllocator& allocator, TypeLayoutArray array);
 		static void free(TypeGroud*);
+
+		MemoryPageAllocator::SpaceResult space() const noexcept { return m_space; }
+		size_t max_count() const noexcept { return m_max_count; }
+		MemoryPageAllocator& allocator() const noexcept { return m_allocator; }
+
 	private:
+
 		TypeGroud(MemoryPageAllocator&, TypeLayoutArray);
-		MemoryPageAllocator& m_allocator;
+		~TypeGroud();
+		
 		TypeLayoutArray m_type_layouts;
 		StorageBlock* m_start_block = nullptr;
 		StorageBlock* m_next_block = nullptr;
+
+		MemoryPageAllocator& m_allocator;
+		MemoryPageAllocator::SpaceResult m_space;
+		size_t m_max_count;
 	};
 
 	struct InitHistory

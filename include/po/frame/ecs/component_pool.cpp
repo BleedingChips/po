@@ -10,9 +10,9 @@ namespace PO::ECS::Implement
 		{
 			for (size_t i = 0; i < count; ++i)
 			{
-				if (layouts[i] < input.layouts[i])
+				if (layouts[i] < input[i])
 					return true;
-				else if (!(layouts[i] == input.layouts[i]))
+				else if (!(layouts[i] == input[i]))
 					break;
 			}
 		}
@@ -33,6 +33,25 @@ namespace PO::ECS::Implement
 		return false;
 	}
 
+	StorageBlock* StorageBlock::create(const TypeGroud* owner)
+	{
+		std::byte* buffer = reinterpret_cast<std::byte*>(owner->allocator().allocate(owner->space()));
+		size_t layout_count = owner->layouts().count;
+		StorageBlock* result = new (buffer) StorageBlock{};
+		result->m_owner = owner;
+		buffer += sizeof(StorageBlock);
+		Control* control_start = reinterpret_cast<Control*>(buffer);
+		buffer += sizeof(Control) * layout_count;
+		auto tool = reinterpret_cast<std::tuple<void (*)(void*) noexcept, void (*)(void*, void*)>*>(data);
+		std::byte* data = reinterpret_cast<std::byte*>(tool + owner->max_count() * layout_count);
+		for (size_t i = 0; i < layout_count; ++i)
+		{
+			
+		}
+	}
+
+	void StorageBlock::free(StorageBlock* owner) noexcept;
+
 	TypeGroud* TypeGroud::create(MemoryPageAllocator& allocator, TypeLayoutArray array)
 	{
 		size_t total_size = sizeof(TypeGroud) + array.count * sizeof(TypeLayout);
@@ -43,6 +62,34 @@ namespace PO::ECS::Implement
 		TypeLayoutArray layouts{ layout , array.count};
 		TypeGroud* result = new (data) TypeGroud{allocator, layouts};
 		return result;
+	}
+
+	void TypeGroud::free(TypeGroud* input)
+	{
+		size_t count = input->m_type_layouts.count;
+		for (size_t i = 0; i < count; ++i)
+			input->m_type_layouts.layouts[i].~TypeLayout();
+		input->~TypeGroud();
+		delete[] reinterpret_cast<std::byte*>(input);
+	}
+
+	TypeGroud::TypeGroud(MemoryPageAllocator& allocator, TypeLayoutArray input)
+		: m_allocator(allocator), m_type_layouts(input)
+	{
+		size_t all_size = 0;
+		size_t all_align = 0;
+		for (size_t i = 0; i < m_type_layouts.count; ++i)
+		{
+			all_size += m_type_layouts.layouts[i].size;
+			auto align_size = (m_type_layouts.layouts[i].align > alignof(nullptr_t)) ? m_type_layouts.layouts[i].align : alignof(nullptr_t);
+			all_align += align_size;
+		}
+		size_t element_size = all_size + sizeof(EntityInterface*) + sizeof(nullptr_t) * 2;
+		size_t min_size = sizeof(StorageBlock) + sizeof(StorageBlock::Control) * m_type_layouts.count + 
+			all_align + element_size * min_page_comp_count;
+		m_space = m_allocator.recalculate_space(min_size);
+		m_max_count = (m_space.space - (sizeof(StorageBlock) + sizeof(StorageBlock::Control) * m_type_layouts.count +
+			all_align)) / element_size;
 	}
 
 

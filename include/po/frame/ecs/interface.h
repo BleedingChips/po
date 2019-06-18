@@ -15,6 +15,7 @@ namespace PO::ECS
 		size_t size;
 		size_t align;
 		const char* name;
+		~TypeLayout() = default;
 		template<typename Type> static const TypeLayout& create() noexcept {
 			static TypeLayout type{typeid(Type).hash_code(), sizeof(Type), alignof(Type), typeid(Type).name()};
 			return type;
