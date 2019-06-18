@@ -3,6 +3,50 @@ namespace PO::ECS::Implement
 {
 	static constexpr size_t min_page_comp_count = 32;
 
+	bool TypeLayoutArray::operator<(const TypeLayoutArray& input) const noexcept
+	{
+		if (count < input.count) return true;
+		else if (count == input.count)
+		{
+			for (size_t i = 0; i < count; ++i)
+			{
+				if (layouts[i] < input.layouts[i])
+					return true;
+				else if (!(layouts[i] == input.layouts[i]))
+					break;
+			}
+		}
+		return false;
+	}
+
+	bool TypeLayoutArray::operator==(const TypeLayoutArray& input) const noexcept
+	{
+		if (count == input.count)
+		{
+			for (size_t i = 0; i < count; ++i)
+			{
+				if (!(layouts[i] == input.layouts[i]))
+					return false;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	TypeGroud* TypeGroud::create(MemoryPageAllocator& allocator, TypeLayoutArray array)
+	{
+		size_t total_size = sizeof(TypeGroud) + array.count * sizeof(TypeLayout);
+		std::byte* data = new std::byte[total_size];
+		TypeLayout* layout = reinterpret_cast<TypeLayout*>(data + sizeof(TypeGroud));
+		for (size_t i = 0; i < array.count; ++i)
+			new (layout + i) TypeLayout{array.layouts[i]};
+		TypeLayoutArray layouts{ layout , array.count};
+		TypeGroud* result = new (data) TypeGroud{allocator, layouts};
+		return result;
+	}
+
+
+	/*
 	ComponentMemoryPageDesc::ComponentMemoryPageDesc(const SimilerComponentPool* pool, size_t component_count) noexcept
 		: m_owner(pool), m_layout(pool->layout()), m_component_count(component_count){}
 
@@ -287,6 +331,7 @@ namespace PO::ECS::Implement
 		for (size_t i = 0; i < count; ++i)
 			(ssm + i)->~shared_lock();
 	}
+	*/
 
 	/*
 	ComponentReadWrapperInterface* ComponentPool::lock(const TypeLayout* layout, size_t count) noexcept
@@ -338,7 +383,8 @@ namespace PO::ECS::Implement
 		delete[] reinterpret_cast<std::byte*>(wrapper);
 	}
 	*/
-
+	
+/*
 	void ComponentPool::construct_component(const TypeLayout& layout, void(*constructor)(void*, void*), void* data, EntityInterface* in, void(*deconstructor)(void*) noexcept)
 	{
 		auto* pool = find_pool(layout);
@@ -401,4 +447,5 @@ namespace PO::ECS::Implement
 			return false;
 		}
 	}
+	*/
 }

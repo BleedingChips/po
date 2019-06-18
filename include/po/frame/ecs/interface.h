@@ -88,27 +88,18 @@ namespace PO::ECS
 	namespace Implement
 	{
 
-		struct ComponentMemoryPageDesc;
+		struct TypeGroup;
+		struct StorageBlock;
 
 		struct EntityInterface
 		{
 			virtual void add_ref() const noexcept = 0;
 			virtual void sub_ref() const noexcept = 0;
-			virtual const TypeLayout& layout() const noexcept = 0;
-			template<typename ...CompT> bool read_tuple(std::array<void*, sizeof...(CompT)>& output) const noexcept;
-			virtual bool remove(const TypeLayout& id, ComponentMemoryPageDesc* tap, size_t index) noexcept = 0;
-			virtual void remove_all(ComponentPoolInterface&) noexcept = 0;
-			virtual void insert(const TypeLayout& id, ComponentMemoryPageDesc* desc, size_t index, ComponentMemoryPageDesc*& output_desc, size_t& output_index) = 0;
-			virtual void read(const TypeLayout& id, ComponentMemoryPageDesc*& desc, size_t& index) const noexcept = 0;
-		private:
-			virtual bool read_imp(const TypeLayout* id_list, void** output_list, size_t count) const noexcept = 0;
+			virtual void* owner() const noexcept = 0;
+			virtual void read(TypeGroup*&, StorageBlock*&, size_t& index) const noexcept = 0;
+			virtual void set(TypeGroup*, StorageBlock*, size_t index) const noexcept = 0;
+			virtual bool have(const TypeLayout*, size_t index) const noexcept = 0;
 		};
-
-		template<typename ...CompT> bool EntityInterface::read_tuple(std::array<void*, sizeof...(CompT)>& output) const noexcept
-		{
-			static const std::array<TypeLayout, sizeof...(CompT)> info_list = { TypeLayout::create<CompT>()... };
-			return read_imp(info_list.data(), output.data(), sizeof...(CompT));
-		}
 
 		using EntityInterfacePtr = Tool::intrusive_ptr<EntityInterface>;
 	}
@@ -116,11 +107,11 @@ namespace PO::ECS
 	struct Entity
 	{
 		operator bool() const noexcept { return m_imp; }
-		template<typename Type> bool have() const noexcept
+		template<typename ...Type> bool have() const noexcept
 		{
-			Implement::ComponentMemoryPageDesc* desc; size_t index;
-			m_imp->read(TypeLayout::create<Type>(), desc, index);
-			return desc != nullptr;
+			assert(m_imp);
+			std::array<TypeLayout, sizeof(...Type)> infos = {TypeLayout::create<Type>()...};
+			return m_imp->have(infos.data(), infos.size());
 		}
 		Entity(const Entity&) = default;
 		Entity(Entity&&) = default;
@@ -202,7 +193,7 @@ namespace PO::ECS
 			virtual bool lock(ComponentPoolReadWrapper& wrapper, size_t count, const TypeLayout* layout, uint64_t* version, size_t mutex_size, void* mutex) = 0;
 			virtual void next(ComponentPoolReadWrapper& wrapper) = 0;
 			virtual void unlock(size_t count, size_t mutex_size, void* mutex) noexcept = 0;
-			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept) = 0;
+			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*)) = 0;
 			virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept = 0;
 		};
 

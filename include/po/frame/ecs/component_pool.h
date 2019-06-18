@@ -5,6 +5,92 @@
 #include <deque>
 namespace PO::ECS::Implement
 {
+	struct TypeLayoutArray
+	{
+		const TypeLayout* layouts = nullptr;
+		size_t count = 0;
+		bool operator<(const TypeLayoutArray&) const noexcept;
+		bool operator==(const TypeLayoutArray&) const noexcept;
+		TypeLayoutArray& operator=(const TypeLayoutArray&) = default;
+		TypeLayoutArray(const TypeLayoutArray&) = default;
+	};
+
+	struct StorageBlock
+	{
+		struct Control
+		{
+			void (*mover)(void*, void*);
+			void (*destructor)(void*) noexcept;
+			void* data;
+		};
+		StorageBlock* next;
+		size_t available_count;
+		Control* control;
+		EntityInterface** entity_start;
+	};
+
+	struct TypeGroud
+	{
+		TypeLayoutArray layouts() const noexcept { return m_type_layouts; }
+		static TypeGroud* create(MemoryPageAllocator& allocator, TypeLayoutArray array);
+		static void free(TypeGroud*);
+	private:
+		TypeGroud(MemoryPageAllocator&, TypeLayoutArray);
+		MemoryPageAllocator& m_allocator;
+		TypeLayoutArray m_type_layouts;
+		StorageBlock* m_start_block = nullptr;
+		StorageBlock* m_next_block = nullptr;
+	};
+
+	struct InitHistory
+	{
+		bool is_construction;
+		TypeLayout type;
+		void* data;
+	};
+
+	struct ComponentPool : ComponentPoolInterface
+	{
+
+		virtual void construct_component(
+			const TypeLayout& layout, void(*constructor)(void*, void*), void* data, 
+			EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*)
+		) override;
+		void update();
+		void clean();
+
+	private:
+
+		struct InitBlock
+		{
+			void* start_block;
+			void* last_block;
+			size_t last_available_count;
+		};
+
+		struct InitHistory
+		{
+			bool is_construction;
+			TypeLayout type;
+			void* data;
+		};
+
+		MemoryPageAllocator& m_allocator;
+		std::map<TypeLayoutArray, TypeGroud*> m_data;
+		std::map<EntityInterfacePtr, std::vector<InitHistory>> m_init_history;
+		std::vector<InitBlock> m_init_block;
+	};
+
+
+
+
+
+
+
+
+
+
+	/*
 	struct SimilerComponentPool;
 	struct ComponentMemoryPageDesc
 	{
@@ -96,4 +182,5 @@ namespace PO::ECS::Implement
 		std::shared_mutex m_components_mutex;
 		std::map<TypeLayout, SimilerComponentPool> m_components;
 	};
+	*/
 }
