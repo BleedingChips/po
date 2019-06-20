@@ -3,6 +3,7 @@
 #include "memory.h"
 #include <set>
 #include <deque>
+#include <variant>
 namespace PO::ECS::Implement
 {
 	struct TypeLayoutArray
@@ -18,49 +19,60 @@ namespace PO::ECS::Implement
 			assert(index < count);
 			return layouts[index];
 		}
+		bool hold(const TypeLayoutArray& array) const noexcept { return hold(array.layouts, array.count); }
+		bool hold(const TypeLayout* input, size_t index) const noexcept;
+		size_t locate(const TypeLayout& input) const noexcept;
 	};
 
-	struct TypeGroud;
+	struct TypeGroup;
 
 	struct StorageBlock
 	{
 		struct Control
 		{
-			std::tuple<void (*)(void*) noexcept, void (*)(void*, void*)>* tool;
-			void* data;
+			using FunctionType = std::tuple<void (*)(void*) noexcept, void (*)(void*, void*) noexcept>;
+			FunctionType* function_start;
+			void* data_start;
+			~Control() = default;
 		};
-		static StorageBlock* create(const TypeGroud* owner);
+		static StorageBlock* create(MemoryPageAllocator& allocator, const TypeGroup* owner);
 		static void free(StorageBlock* owner) noexcept;
-	private:
-		const TypeGroud* m_owner;
-		StorageBlock* m_next = 0;
+		void release_element(size_t index);
+		StorageBlock* front = 0;
+		StorageBlock* next = 0;
 		size_t available_count = 0;
-		Control* control_start = nullptr;
-		EntityInterface** entity_start = nullptr;
+		Control* controls = nullptr;
+		EntityInterface** entitys = nullptr;
+	private:
+		const TypeGroup* m_owner;
+		~StorageBlock();
 	};
 
-	struct TypeGroud
+	struct TypeGroup
 	{
 		TypeLayoutArray layouts() const noexcept { return m_type_layouts; }
-		static TypeGroud* create(MemoryPageAllocator& allocator, TypeLayoutArray array);
-		static void free(TypeGroud*);
+		static TypeGroup* create(TypeLayoutArray array);
+		static void free(TypeGroup*);
 
-		MemoryPageAllocator::SpaceResult space() const noexcept { return m_space; }
-		size_t max_count() const noexcept { return m_max_count; }
-		MemoryPageAllocator& allocator() const noexcept { return m_allocator; }
+		size_t element_count() const noexcept { return m_element_count; }
+		size_t page_size() const noexcept { return m_page_size; }
+		
+		std::tuple<StorageBlock*, size_t> allocate_group();
+		void release_group(StorageBlock* block, size_t);
+		void update();
 
 	private:
 
-		TypeGroud(MemoryPageAllocator&, TypeLayoutArray);
-		~TypeGroud();
+		TypeGroup(TypeLayoutArray);
+		~TypeGroup();
 		
 		TypeLayoutArray m_type_layouts;
 		StorageBlock* m_start_block = nullptr;
-		StorageBlock* m_next_block = nullptr;
+		StorageBlock* m_last_block = nullptr;
 
-		MemoryPageAllocator& m_allocator;
-		MemoryPageAllocator::SpaceResult m_space;
-		size_t m_max_count;
+		size_t m_page_size;
+		size_t m_element_count;
+		std::map<StorageBlock*, size_t> m_deleted_page;
 	};
 
 	struct InitHistory
@@ -75,31 +87,44 @@ namespace PO::ECS::Implement
 
 		virtual void construct_component(
 			const TypeLayout& layout, void(*constructor)(void*, void*), void* data, 
-			EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*)
+			EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*) noexcept
 		) override;
+		virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept override;
 		void update();
 		void clean();
+		ComponentPool(MemoryPageAllocator& allocator) noexcept;
+		~ComponentPool();
 
 	private:
 
 		struct InitBlock
 		{
-			void* start_block;
+			std::byte* start_block;
 			void* last_block;
 			size_t last_available_count;
+			~InitBlock();
 		};
 
 		struct InitHistory
 		{
 			bool is_construction;
 			TypeLayout type;
+			StorageBlock::Control::FunctionType functions;
 			void* data;
+			~InitHistory();
 		};
-
+		std::shared_mutex m_type_group_mutex;
 		MemoryPageAllocator& m_allocator;
-		std::map<TypeLayoutArray, TypeGroud*> m_data;
-		std::map<EntityInterfacePtr, std::vector<InitHistory>> m_init_history;
+		std::map<TypeLayoutArray, TypeGroup*> m_data;
+		std::map<TypeLayout, std::variant<size_t, InitHistory*>> m_old_type_template;
+		std::vector<TypeLayout> m_new_type_template;
+		std::vector<std::variant<size_t, InitHistory*>> m_new_type_state_template;
+		std::vector<bool> m_state_template;
+
+		std::mutex m_init_lock;
 		std::vector<InitBlock> m_init_block;
+		std::map<EntityInterfacePtr, std::vector<InitHistory>> m_init_history;
+		
 	};
 
 

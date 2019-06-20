@@ -194,7 +194,7 @@ namespace PO::ECS
 			virtual bool lock(ComponentPoolReadWrapper& wrapper, size_t count, const TypeLayout* layout, uint64_t* version, size_t mutex_size, void* mutex) = 0;
 			virtual void next(ComponentPoolReadWrapper& wrapper) = 0;
 			virtual void unlock(size_t count, size_t mutex_size, void* mutex) noexcept = 0;
-			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*)) = 0;
+			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*) noexcept) = 0;
 			virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept = 0;
 		};
 

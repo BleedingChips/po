@@ -2,12 +2,35 @@
 #include "component_pool.h"
 namespace PO::ECS::Implement
 {
-	constexpr size_t system_memory_control_block_obligate = 200;
+
 	constexpr size_t memory_page_space = 2048;
+	constexpr size_t memory_flag = 0x12345678;
+
+	struct MemoryPageHead
+	{
+		MemoryPageAllocator* owner;
+		size_t index;
+		size_t flag;
+		~MemoryPageHead() = default;
+	};
 
 	MemoryPageAllocator::MemoryPageAllocator(size_t storage_page_count) noexcept
 		: m_require_storage(storage_page_count)
 	{}
+
+	size_t MemoryPageAllocator::reserved_size() noexcept
+	{
+		return sizeof(MemoryPageHead);
+	}
+
+	std::tuple<size_t, size_t> MemoryPageAllocator::pre_calculte_size(size_t target_size) noexcept
+	{
+		target_size += MemoryPageAllocator::reserved_size();
+		size_t index = (target_size + MemoryPageAllocator::reserved_size()) / memory_page_space;
+		if ((target_size + MemoryPageAllocator::reserved_size()) % memory_page_space == 0)
+			index -= 1;
+		return { (index + 1) * memory_page_space - MemoryPageAllocator::reserved_size(), index };
+	}
 
 
 	MemoryPageAllocator::~MemoryPageAllocator()
@@ -27,48 +50,46 @@ namespace PO::ECS::Implement
 		m_pages.clear();
 	}
 
-	MemoryPageAllocator::SpaceResult MemoryPageAllocator::recalculate_space(size_t require_space)
+	std::tuple<std::byte*, size_t> MemoryPageAllocator::allocate(size_t target_sapce)
 	{
-		size_t mulity = 1;
-		while (memory_page_space * mulity < require_space + system_memory_control_block_obligate)
-			mulity *= 1;
-		return { memory_page_space * mulity - system_memory_control_block_obligate, mulity };
-	}
-
-	void* MemoryPageAllocator::allocate(SpaceResult flag)
-	{
-		assert(flag.allocate_flag >= 1);
+		auto [space, index] = pre_calculte_size(target_sapce);
 		std::lock_guard lg(m_page_mutex);
-		if (m_pages.size() < flag.allocate_flag)
-			m_pages.resize(flag.allocate_flag, { nullptr, 0 });
-		auto& [head, count] = m_pages[flag.allocate_flag - 1];
-		if (head == nullptr)
-			return new std::byte[flag.allocate_flag * memory_page_space - system_memory_control_block_obligate];
+		if (m_pages.size() < index)
+			m_pages.resize(index);
+		auto& [head, count] = m_pages[index];
+		std::byte* buffer = nullptr;
+		if (count == 0)
+			buffer = new std::byte[(index + 1) * memory_page_space];
 		else {
-			RawPageHead* old = head;
+			assert(head != nullptr);
+			auto next = head;
 			head = head->m_next_page;
-			old->~RawPageHead();
-			--count;
-			return old;
+			next->~RawPageHead();
+			buffer = reinterpret_cast<std::byte*>(next);
 		}
+		*reinterpret_cast<MemoryPageHead*>(buffer) = MemoryPageHead{this, index, memory_flag };
+		return { buffer + sizeof(MemoryPageHead), space };
 	}
 
-	void MemoryPageAllocator::release(void* input, SpaceResult flag) noexcept
+	void MemoryPageAllocator::release(std::byte* input) noexcept
 	{
-		std::lock_guard lg(m_page_mutex);
-		assert(m_pages.size() >= flag.allocate_flag);
-		auto& [head, count] = m_pages[flag.allocate_flag - 1];
-		if (count >= m_require_storage)
+		assert(input != nullptr);
+		MemoryPageHead* buffer = reinterpret_cast<MemoryPageHead*>(input) - 1;
+		assert(buffer->flag == memory_flag);
+		size_t index = buffer->index;
+		buffer->~MemoryPageHead();
+		std::lock_guard lg(buffer->owner->m_page_mutex);
+		assert(buffer->owner->m_pages.size() > index);
+		auto& [old_head, old_index] = buffer->owner->m_pages[index];
+		if (old_index >= buffer->owner->m_require_storage)
 		{
-			delete[](reinterpret_cast<std::byte*>(input));
+			delete[](buffer);
 		}
 		else {
-			RawPageHead* tar = new (input) RawPageHead{};
-			tar->m_next_page = head;
-			head = tar;
-			++count;
+			RawPageHead* head = new (buffer) RawPageHead{};
+			head->m_next_page = old_head;
+			old_head = head;
+			++old_index;
 		}
 	}
-
-	
 }
