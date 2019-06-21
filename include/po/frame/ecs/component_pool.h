@@ -22,30 +22,7 @@ namespace PO::ECS::Implement
 		bool hold(const TypeLayoutArray& array) const noexcept { return hold(array.layouts, array.count); }
 		bool hold(const TypeLayout* input, size_t index) const noexcept;
 		size_t locate(const TypeLayout& input) const noexcept;
-	};
-
-	struct TypeGroup;
-
-	struct StorageBlock
-	{
-		struct Control
-		{
-			using FunctionType = std::tuple<void (*)(void*) noexcept, void (*)(void*, void*) noexcept>;
-			FunctionType* function_start;
-			void* data_start;
-			~Control() = default;
-		};
-		static StorageBlock* create(MemoryPageAllocator& allocator, const TypeGroup* owner);
-		static void free(StorageBlock* owner) noexcept;
-		void release_element(size_t index);
-		StorageBlock* front = 0;
-		StorageBlock* next = 0;
-		size_t available_count = 0;
-		Control* controls = nullptr;
-		EntityInterface** entitys = nullptr;
-	private:
-		const TypeGroup* m_owner;
-		~StorageBlock();
+		bool locate(const TypeLayout* input, size_t* output, size_t length) const noexcept;
 	};
 
 	struct TypeGroup
@@ -57,11 +34,15 @@ namespace PO::ECS::Implement
 		size_t element_count() const noexcept { return m_element_count; }
 		size_t page_size() const noexcept { return m_page_size; }
 		
-		std::tuple<StorageBlock*, size_t> allocate_group();
+		std::tuple<StorageBlock*, size_t> allocate_group(MemoryPageAllocator& allocator);
 		void release_group(StorageBlock* block, size_t);
 		void update();
 
 	private:
+
+		void remove_page_from_list(StorageBlock*);
+		void insert_page_to_list(StorageBlock*);
+		void inside_move(StorageBlock* source, size_t sindex, StorageBlock* target, size_t tindex);
 
 		TypeGroup(TypeLayoutArray);
 		~TypeGroup();
@@ -109,7 +90,7 @@ namespace PO::ECS::Implement
 		{
 			bool is_construction;
 			TypeLayout type;
-			StorageBlock::Control::FunctionType functions;
+			StorageBlockFunctionPair functions;
 			void* data;
 			~InitHistory();
 		};

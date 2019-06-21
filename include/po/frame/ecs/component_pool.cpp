@@ -67,16 +67,39 @@ namespace PO::ECS::Implement
 		return count;
 	}
 
-	StorageBlock* StorageBlock::create(MemoryPageAllocator& allocator, const TypeGroup* owner)
+	bool TypeLayoutArray::locate(const TypeLayout* input, size_t* output, size_t length) const noexcept
+	{
+		if (count >= length)
+		{
+			size_t i = 0, k = 0;
+			while (i < count && k < length)
+			{
+				if (layouts[i] == input[k])
+				{
+					output[k] = i;
+					++i, ++k;
+				}
+				else if (layouts[i] < input[k])
+					++i;
+				else
+					return false;
+			}
+			return k == length;
+		}
+		return false;
+	}
+
+	StorageBlock* create_storage_block(MemoryPageAllocator& allocator, const TypeGroup* owner)
 	{
 		auto [buffer, page_size] = allocator.allocate(owner->page_size());
 		assert(page_size == owner->page_size());
 		size_t element_count = owner->element_count();
 		size_t layout_count = owner->layouts().count;
 		StorageBlock* result = new (buffer) StorageBlock{};
-		
 		result->m_owner = owner;
 		buffer += sizeof(StorageBlock);
+
+
 		Control* control_start = reinterpret_cast<Control*>(buffer);
 		buffer += sizeof(Control) * layout_count;
 		page_size -= sizeof(StorageBlock) + sizeof(Control) * layout_count;
@@ -88,7 +111,7 @@ namespace PO::ECS::Implement
 			auto& layout = owner->layouts()[i];
 			auto result = std::align(layout.align, layout.size * element_count, tem_buffer, page_size);
 			assert(result != nullptr);
-			new (control_start + i) Control{ tool, tem_buffer };
+			new (control_start + i) Control{ tem_buffer, tool};
 			buffer = reinterpret_cast<std::byte*>(tem_buffer);
 			buffer += layout.size * element_count;
 			page_size -= layout.size * element_count;
@@ -129,6 +152,36 @@ namespace PO::ECS::Implement
 			
 	}
 
+	void TypeGroup::remove_page_from_list(StorageBlock* block)
+	{
+		auto front = block->front;
+		auto next = block->next;
+		if (front != nullptr)
+			front->next = next;
+		else
+			m_start_block = next;
+		if (next != nullptr)
+			next->front = front;
+		else
+			m_last_block = front;
+		block->next = nullptr;
+		block->front = nullptr;
+	}
+
+	void TypeGroup::insert_page_to_list(StorageBlock* block)
+	{
+		if (m_start_block == nullptr)
+		{
+			m_start_block = block;
+			m_last_block = block;
+		}
+		else {
+			m_last_block->next = block;
+			block->front = m_last_block;
+			m_last_block = block;
+		}
+	}
+
 	void StorageBlock::release_element(size_t index)
 	{
 		for (size_t i = 0; i < m_owner->layouts().count; ++i)
@@ -136,7 +189,6 @@ namespace PO::ECS::Implement
 			auto& control = controls[i];
 			auto& layouts = m_owner->layouts()[i];
 			std::get<0>(*(control.function_start + index))(reinterpret_cast<std::byte*>(control.data_start) + layouts.size * index);
-			control.~Control();
 		}
 		auto& entity = entitys[index];
 		if (entity != nullptr)
@@ -147,45 +199,67 @@ namespace PO::ECS::Implement
 		}
 	}
 
-	std::tuple<StorageBlock*, size_t> TypeGroup::allocate_group()
+	std::tuple<StorageBlock*, size_t> TypeGroup::allocate_group(MemoryPageAllocator& allocator)
 	{
-		// todo list
 		if (!m_deleted_page.empty())
 		{
-			StorageBlock* min = nullptr;
-			size_t min_count = 0;
+			auto min = m_deleted_page.end();
 			for (auto ite = m_deleted_page.begin(); ite != m_deleted_page.end(); ++ite)
 			{
-				if (min != nullptr)
+				if (ite->second == 1)
 				{
-					// todo list
+					StorageBlock* block = ite->first;
+					for (size_t i = 0; i < block->available_count; ++i)
+					{
+						if (block->entitys[i] == nullptr)
+						{
+							m_deleted_page.erase(ite);
+							return { block, i };
+						}
+					}
+					assert(false);
+				}else if (ite != m_deleted_page.end())
+				{
+					if (min->second > ite->second)
+						min = ite;
 				}
 				else
-				{
-					min = ite->first;
-					min_count = ite->second;
-				}
+					min = ite;
 			}
+			min->second -= 1;
+			return *min;
+		}
+		else {
+			if (m_start_block == nullptr || m_last_block->available_count == element_count())
+				insert_page_to_list(StorageBlock::create(allocator, this));
+			size_t index = m_last_block->available_count;
+			++m_last_block->available_count;
+			return { m_last_block , index};
 		}
 		
+	}
+
+	void TypeGroup::inside_move(StorageBlock* source, size_t sindex, StorageBlock* target, size_t tindex)
+	{
+		for (size_t i = 0; i < m_type_layouts.count; ++i)
+		{
+			auto& s_control = source->controls[i];
+			auto& e_control = target->controls[i];
+			size_t component_size = m_type_layouts[i].size;
+			auto& func = s_control.function_start[sindex];
+			func = e_control.function_start[tindex];
+			std::get<1>(func)(reinterpret_cast<std::byte*>(s_control.data_start) + component_size * sindex, reinterpret_cast<std::byte*>(e_control.data_start) + component_size * tindex);
+		}
+		source->entitys[sindex] = target->entitys[tindex];
+		target->entitys[tindex] = nullptr;
+		source->entitys[sindex]->set(this, source, sindex);
+		target->release_element(tindex);
 	}
 
 	void TypeGroup::release_group(StorageBlock* block, size_t index)
 	{
 		assert(index < element_count());
-		for (size_t i = 0; i < layouts().count; ++i)
-		{
-			auto& control = block->controls[i];
-			auto& layout = layouts()[i];
-			std::get<0>(*(control.function_start + index))(reinterpret_cast<std::byte*>(control.data_start) + layout.size * index);
-		}
-		auto& entity = block->entitys[index];
-		if (entity != nullptr)
-		{
-			entity->set(nullptr, nullptr, 0);
-			entity->sub_ref();
-			entity = nullptr;
-		}
+		block->release_element(index);
 		if (block == m_last_block && index + 1 == block->available_count)
 			--block->available_count;
 		else {
@@ -193,16 +267,10 @@ namespace PO::ECS::Implement
 			++ite->second;
 			if (block->available_count == ite->second)
 			{
-				auto front = block->front;
-				auto next = block->next;
-				if (front != nullptr)
-					front->next = next;
-				else 
-					m_start_block = next;
-				if (next != nullptr)
-					next->front = front;
-				else
-					m_last_block = front;
+				remove_page_from_list(ite->first);
+				block->available_count = 0;
+				StorageBlock::free(ite->first);
+				m_deleted_page.erase(ite);
 			}
 		}
 	}
@@ -210,6 +278,100 @@ namespace PO::ECS::Implement
 	void TypeGroup::update()
 	{
 		// todo list
+		if (!m_deleted_page.empty())
+		{
+			assert(m_last_block != nullptr);
+			std::deque<std::pair<StorageBlock*, size_t>> all_block;
+			size_t last_page_deleted = 0;
+			for (auto& ite : m_deleted_page)
+			{
+				if (ite.first != m_last_block)
+				{
+					remove_page_from_list(ite.first);
+					all_block.push_back(ite);
+				}
+				else {
+					assert(last_page_deleted == 0);
+					last_page_deleted = ite.second;
+				}
+			}
+			m_deleted_page.clear();
+			last_page_deleted += element_count() - m_last_block->available_count;
+			m_last_block->available_count = element_count();
+			
+			if (last_page_deleted != 0) {
+				all_block.push_back({ m_last_block , last_page_deleted });
+				remove_page_from_list(m_last_block);
+			}
+			std::sort(all_block.begin(), all_block.end(), [](const std::tuple<StorageBlock*, size_t>& in, const std::tuple<StorageBlock*, size_t>& in2) -> bool {
+				return std::get<1>(in) < std::get<1>(in2);
+			});
+			assert(!all_block.empty());
+			size_t start_i = 0, end_i = element_count();
+			while (all_block.size() > 1)
+			{
+				auto start = all_block.begin();
+				auto end = all_block.end() - 1;
+				while (true)
+				{
+					while (start_i < element_count())
+					{
+						if (start->first->entitys[start_i] != nullptr)
+							++start_i;
+						else
+							break;
+					}
+					if (start_i == element_count())
+					{
+						start_i = 0;
+						insert_page_to_list(start->first);
+						all_block.pop_front();
+						break;
+					}
+					while (end_i > 0)
+					{
+						if (end->first->entitys[end_i - 1] == nullptr)
+							++end_i;
+						else
+							break;
+					}
+					if (end_i == 0)
+					{
+						end_i = element_count();
+						end->first->available_count = 0;
+						StorageBlock::free(end->first);
+						all_block.pop_back();
+						break;
+					}
+					inside_move(start->first, start_i, end->first, end_i);
+				}
+			}
+			auto cur = all_block.begin();
+			while (start_i < end_i)
+			{
+				while (start_i < end_i)
+				{
+					if (cur->first->entitys[start_i] != nullptr)
+						++start_i;
+					else
+						break;
+				}
+				while (end_i > start_i)
+				{
+					if (cur->first->entitys[end_i - 1] == nullptr)
+						++end_i;
+					else
+						break;
+				}
+				if (start_i > end_i)
+					break;
+				else
+					inside_move(cur->first, start_i, cur->first, end_i);
+			}
+			cur->first->available_count = start_i;
+			insert_page_to_list(cur->first);
+			all_block.clear();
+		}
 	}
 
 	TypeGroup* TypeGroup::create(TypeLayoutArray array)
@@ -255,13 +417,13 @@ namespace PO::ECS::Implement
 			auto align_size = (m_type_layouts.layouts[i].align > alignof(nullptr_t)) ? m_type_layouts.layouts[i].align - alignof(nullptr_t) : 0;
 			all_align += align_size;
 		}
-		size_t element_size = all_size + sizeof(EntityInterface*) + sizeof(StorageBlock::Control::function_start);
-		size_t min_size = sizeof(StorageBlock) + sizeof(StorageBlock::Control) * m_type_layouts.count + 
-			all_align + element_size * min_page_comp_count;
+		size_t element_size = all_size + sizeof(EntityInterface*) + sizeof(StorageBlockFunctionPair);
+		size_t fixed_size = sizeof(StorageBlock) + (sizeof(StorageBlockFunctionPair*) + sizeof(void*)) * m_type_layouts.count + all_align;
+		size_t min_size = fixed_size + element_size * min_page_comp_count;
 		size_t bound_size = 1024 * 8 - MemoryPageAllocator::reserved_size();
 		min_size = (min_size > bound_size) ? min_size : bound_size;
 		std::tie(min_size, std::ignore) = MemoryPageAllocator::pre_calculte_size(min_size);
-		m_page_size = (min_size - (sizeof(StorageBlock) + sizeof(StorageBlock::Control) * m_type_layouts.count + all_align)) / element_size;
+		m_element_count = (min_size - fixed_size) / element_size;
 	}
 
 	ComponentPool::InitBlock::~InitBlock()
@@ -392,7 +554,7 @@ namespace PO::ECS::Implement
 					}
 				}
 				else {
-					auto [new_block, new_element_index] = find_result->second->allocate_group();
+					auto [new_block, new_element_index] = find_result->second->allocate_group(m_allocator);
 					for (size_t i = 0; i < m_new_type_template.size(); ++i)
 					{
 						auto control = new_block->controls + i;

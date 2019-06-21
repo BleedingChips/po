@@ -90,7 +90,23 @@ namespace PO::ECS
 	{
 
 		struct TypeGroup;
-		struct StorageBlock;
+
+		struct StorageBlockFunctionPair
+		{
+			void (*destructor)(void*) noexcept = nullptr;
+			void (*mover)(void*, void*) noexcept = nullptr;
+		};
+
+		struct StorageBlock
+		{
+			const TypeGroup* m_owner;
+			StorageBlock* front = 0;
+			StorageBlock* next = 0;
+			size_t available_count = 0;
+			StorageBlockFunctionPair** functions = nullptr;
+			void** datas = nullptr;
+			EntityInterface** entitys = nullptr;
+		};
 
 		struct EntityInterface
 		{
@@ -148,54 +164,26 @@ namespace PO::ECS
 {
 	namespace Implement
 	{
-		struct ComponentPoolReadWrapper
-		{
-			ComponentMemoryPageDesc* page = nullptr;
-			size_t component_size = 0;
-			size_t available_count = 0;
-			PO::ECS::Implement::EntityInterface** entitys;
-			void* components;
-			size_t total_count;
-			bool reach_first()
-			{
-				assert(page != nullptr);
-				assert(entitys != nullptr);
-				if (*entitys == nullptr)
-					return find_next();
-				return true;
-			}
-			bool find_next() noexcept
-			{
-				assert(page != nullptr);
-				if (*entitys != nullptr)
-				{
-					if (available_count >= 1)
-						--available_count;
-				}
-				while (available_count > 0)
-				{
-					entitys = entitys + 1;
-					components = static_cast<std::byte*>(components) + component_size;
-					if ((*entitys) != nullptr)
-						return true;
-				}
-				return false;
-			}
-			bool operator==(const ComponentPoolReadWrapper& c) const noexcept
-			{
-				return page == c.page && entitys == c.entitys;
-			}
-		};
 
+		enum class EntityDeleteOperator : uint8_t
+		{
+			DeleteAll = 0,
+			Destory = 1,
+		};
 
 		struct ComponentPoolInterface
 		{
 			template<typename CompT, typename ...Parameter> CompT& construction_component(EntityInterface* owner, Parameter&& ...pa);
-			virtual bool lock(ComponentPoolReadWrapper& wrapper, size_t count, const TypeLayout* layout, uint64_t* version, size_t mutex_size, void* mutex) = 0;
-			virtual void next(ComponentPoolReadWrapper& wrapper) = 0;
-			virtual void unlock(size_t count, size_t mutex_size, void* mutex) noexcept = 0;
+			virtual void lock(const TypeLayout* require_layout, size_t index, const TypeGroup** output_group_buffer, const StorageBlock** output_group, size_t buffer_count, size_t mutex_size, void* mutex) = 0;
+			virtual void lock(size_t mutex_size, void* mutex) = 0;
+			virtual void next(const TypeLayout* require_layout, size_t index, const TypeGroup* last_page, const TypeGroup** output_group_buffer, const StorageBlock** output_group, size_t buffer_count) = 0;
+			virtual void unlock(size_t mutex_size, void* mutex) noexcept = 0;
+			virtual bool loacte_un_ordered_layouts(const TypeGroup* input, const TypeLayout* require_layout, size_t index, size_t* output) = 0;
 			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*) noexcept) = 0;
 			virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept = 0;
+			virtual void handle_entity_imp(EntityInterface*, EntityDeleteOperator ope) noexcept = 0;
+			void entity_destory(EntityInterface* in) { return handle_entity_imp(in, EntityDeleteOperator::Destory); }
+			void entity_delete_all(EntityInterface* in) { return handle_entity_imp(in, EntityDeleteOperator::DeleteAll); }
 		};
 
 		template<typename CompT, typename ...Parameter> auto ComponentPoolInterface::construction_component(EntityInterface* owner, Parameter&& ...pa) -> CompT&
@@ -218,60 +206,27 @@ namespace PO::ECS
 			static constexpr bool value = std::is_same_v<T, type> || std::is_same_v<T, std::add_const_t<type>>;
 		};
 
-		template<size_t index, size_t total_index> struct ComponentPointerTranstlate
+		template<typename CompT>
+
+		template<size_t index, typename ...CompT> struct ComponentTranslate
 		{
-			template<typename Tuple>
-			void operator()(Tuple& output, std::array<void*, total_index>& input) noexcept
+			template<typename Function, typename ...OtherInput> decltype(auto) operator()
+				(Function&& func, StorageBlock* sb, size_t* layouts, size_t count, size_t element_index, OtherInput&& ...in)
 			{
-				using target_type = std::remove_reference_t<decltype(std::get<index>(output))>;
-				static_assert(std::is_pointer_v<target_type>);
-				static_assert(index < total_index);
-				auto byte = input[index];
-				assert(byte != nullptr);
-				std::get<index>(output) = reinterpret_cast<target_type>(byte);
-				ComponentPointerTranstlate<index + 1, total_index>{}(output, input);
+				return std::forward<Function>(func)(std::forward<OtherInput>(in)...);
 			}
 		};
 
-		template<size_t total_index> struct ComponentPointerTranstlate<total_index, total_index>
+		template<size_t index, typename CurT, typename ...CompT> struct ComponentTranslate<index, CurT, CompT...>
 		{
-			template<typename Tuple>
-			void operator()(Tuple& output, std::array<void*, total_index>& input) noexcept {}
-		};
-
-		template<typename ...CompT> struct EntityFilterImp
-		{
-			template<typename Func> bool operator<<(Func&& f);
-			EntityFilterImp(EntityFilterImp&&) = default;
-		private:
-			template<typename Func, typename Tuple, size_t ...index>
-			void apply(Func&& f, Tuple&& t, std::index_sequence<index...>);
-			EntityFilterImp(EntityInterfacePtr ptr) : m_ptr(std::move(ptr)) {};
-			EntityInterfacePtr m_ptr;
-			template<typename ...CompT> friend struct EntityFilter;
-		};
-
-		template<typename ...CompT> template<typename Func> bool EntityFilterImp<CompT...>::operator<<(Func&& f)
-		{
-			if (m_ptr)
+			template<typename Function, typename ...OtherInput> decltype(auto) operator()
+				(Function&& func, StorageBlock* sb, size_t* layouts, size_t count, size_t element_index, OtherInput&& ...in)
 			{
-				std::array<void*, sizeof...(CompT)> result;
-				if (m_ptr->read_tuple<CompT...>(result))
-				{
-					std::tuple<std::add_pointer_t<CompT>...> m_storage;
-					ComponentPointerTranstlate<0, sizeof...(CompT)>{}(m_storage, result);
-					apply(std::forward<Func>(f), m_storage, std::index_sequence_for<CompT...>{});
-					return true;
-				}
+				return ComponentTranslate<index + 1, CompT...>{}(std::forward<Function>(func), sb, layouts, count, element_index, std::forward<OtherInput>(in)..., 
+					 reinterpret_cast<std::remove_reference_t<CurT>*>(sb->datas[layouts[index]]) + element_index
+					);
 			}
-			return false;
-		}
-
-		template<typename ...CompT> template<typename Func, typename Tuple, size_t ...index>
-		void EntityFilterImp<CompT...>::apply(Func&& f, Tuple&& t, std::index_sequence<index...>)
-		{
-			std::forward<Func>(f)(*std::get<index>(t)...);
-		}
+		};
 
 		template<typename ...CompT> struct ComponentTypeInfo
 		{
@@ -288,7 +243,10 @@ namespace PO::ECS
 	template<typename ...CompT> struct EntityFilter
 	{
 		static_assert(Tmp::bool_and<true, Implement::TypePropertyDetector<CompT>::value...>::value, "EntityFilter only accept Type and const Type!");
-		Implement::EntityFilterImp<CompT...> operator()(Entity enity) const;
+		template<typename Func>
+		void operator()(EntityWrapper wrapper, Func&& f);
+		template<typename Func>
+		void operator()(const Entity& wrapper, Func&& f) { operator()(EntityWrapper{wrapper.m_imp}, std::forward<Func>(f)); }
 	private:
 		EntityFilter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { assert(pool != nullptr); }
 		bool lock() noexcept;
@@ -302,17 +260,33 @@ namespace PO::ECS
 		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
 	};
 
-	template<typename ...CompT> Implement::EntityFilterImp<CompT...> EntityFilter<CompT...>::operator()(Entity enity) const
+	template<typename ...CompT> template<typename Func>
+	void EntityFilter<CompT...>::operator()(EntityWrapper wrapper, Func&& f)
 	{
-		return Implement::EntityFilterImp<CompT...>{std::move(enity.m_imp)};
+		if (wrapper)
+		{
+			Implement::TypeGroup* group;
+			Implement::StorageBlock* block;
+			size_t index;
+			wrapper.m_imp->read(group, block, index);
+			if (group != nullptr)
+			{
+				auto& infos = Implement::ComponentTypeInfo<CompT...>::info();
+				assert(block != nullptr);
+				std::array<size_t, sizeof...(CompT)> indexs;
+				if (m_pool->loacte_un_ordered_layouts(group, infos.data(), sizeof...(CompT), indexs.data()))
+				{
+					Implement::ComponentTranslate<0, CompT...>{}(
+						std::forward<Func>(f), block, indexs.data(), sizeof...(CompT), index, 
+						);
+				}
+			}
+		}
 	}
 
 	template<typename ...CompT> bool EntityFilter<CompT...>::lock() noexcept
 	{
-		Implement::ComponentPoolReadWrapper wrapper;
-		auto& info = Implement::ComponentTypeInfo<CompT...>::info();
-		std::array<uint64_t, sizeof...(CompT)> version;
-		m_pool->lock(wrapper, sizeof...(CompT), info.data(), version.data(), sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
+		m_pool->lock(sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
 		return true;
 	}
 
