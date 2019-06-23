@@ -26,8 +26,8 @@ namespace PO::ECS::Implement
 	std::tuple<size_t, size_t> MemoryPageAllocator::pre_calculte_size(size_t target_size) noexcept
 	{
 		target_size += MemoryPageAllocator::reserved_size();
-		size_t index = (target_size + MemoryPageAllocator::reserved_size()) / memory_page_space;
-		if ((target_size + MemoryPageAllocator::reserved_size()) % memory_page_space == 0)
+		size_t index = target_size / memory_page_space;
+		if (target_size % memory_page_space == 0)
 			index -= 1;
 		return { (index + 1) * memory_page_space - MemoryPageAllocator::reserved_size(), index };
 	}
@@ -54,8 +54,8 @@ namespace PO::ECS::Implement
 	{
 		auto [space, index] = pre_calculte_size(target_sapce);
 		std::lock_guard lg(m_page_mutex);
-		if (m_pages.size() < index)
-			m_pages.resize(index);
+		if (m_pages.size() < index + 1)
+			m_pages.resize(index + 1);
 		auto& [head, count] = m_pages[index];
 		std::byte* buffer = nullptr;
 		if (count == 0)
@@ -66,8 +66,9 @@ namespace PO::ECS::Implement
 			head = head->m_next_page;
 			next->~RawPageHead();
 			buffer = reinterpret_cast<std::byte*>(next);
+			--count;
 		}
-		*reinterpret_cast<MemoryPageHead*>(buffer) = MemoryPageHead{this, index, memory_flag };
+		auto ptr = new (buffer) MemoryPageHead{this, index, memory_flag };
 		return { buffer + sizeof(MemoryPageHead), space };
 	}
 
@@ -77,15 +78,16 @@ namespace PO::ECS::Implement
 		MemoryPageHead* buffer = reinterpret_cast<MemoryPageHead*>(input) - 1;
 		assert(buffer->flag == memory_flag);
 		size_t index = buffer->index;
-		buffer->~MemoryPageHead();
 		std::lock_guard lg(buffer->owner->m_page_mutex);
 		assert(buffer->owner->m_pages.size() > index);
 		auto& [old_head, old_index] = buffer->owner->m_pages[index];
 		if (old_index >= buffer->owner->m_require_storage)
 		{
+			buffer->~MemoryPageHead();
 			delete[](buffer);
 		}
 		else {
+			buffer->~MemoryPageHead();
 			RawPageHead* head = new (buffer) RawPageHead{};
 			head->m_next_page = old_head;
 			old_head = head;

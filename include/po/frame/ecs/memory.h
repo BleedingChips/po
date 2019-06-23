@@ -18,6 +18,7 @@ namespace PO::ECS::Implement
 	private:
 		struct RawPageHead
 		{
+			size_t flag = 0x23234345;
 			RawPageHead* m_next_page = nullptr;
 			~RawPageHead() = default;
 		};

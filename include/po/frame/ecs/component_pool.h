@@ -19,10 +19,16 @@ namespace PO::ECS::Implement
 			assert(index < count);
 			return layouts[index];
 		}
-		bool hold(const TypeLayoutArray& array) const noexcept { return hold(array.layouts, array.count); }
-		bool hold(const TypeLayout* input, size_t index) const noexcept;
+
 		size_t locate(const TypeLayout& input) const noexcept;
-		bool locate(const TypeLayout* input, size_t* output, size_t length) const noexcept;
+		bool locate_ordered(const TypeLayout* input, size_t* output, size_t length) const noexcept;
+		bool locate_unordered(const TypeLayout* input, size_t* output, size_t length) const noexcept;
+
+		bool hold(const TypeLayout& input) const noexcept { return (locate(input) < count); }
+		bool hold_ordered(const TypeLayoutArray& array) const noexcept { return hold_ordered(array.layouts, array.count); }
+		bool hold_ordered(const TypeLayout* input, size_t count) const noexcept { return locate_ordered(input, nullptr, count); }
+		bool hold_unordered(const TypeLayoutArray& array) const noexcept { return hold_unordered(array.layouts, array.count); }
+		bool hold_unordered(const TypeLayout* input, size_t length) const noexcept { return locate_unordered(input, nullptr, length); }
 	};
 
 	struct TypeGroup
@@ -37,6 +43,8 @@ namespace PO::ECS::Implement
 		std::tuple<StorageBlock*, size_t> allocate_group(MemoryPageAllocator& allocator);
 		void release_group(StorageBlock* block, size_t);
 		void update();
+		StorageBlock* top_block() const noexcept { return m_start_block; }
+		size_t available_count() const noexcept { return m_available_count; }
 
 	private:
 
@@ -53,6 +61,7 @@ namespace PO::ECS::Implement
 
 		size_t m_page_size;
 		size_t m_element_count;
+		size_t m_available_count = 0;
 		std::map<StorageBlock*, size_t> m_deleted_page;
 	};
 
@@ -65,14 +74,21 @@ namespace PO::ECS::Implement
 
 	struct ComponentPool : ComponentPoolInterface
 	{
-
+		virtual void lock(size_t mutex_size, void* mutex) override;
+		virtual size_t search_type_group(
+			const TypeLayout* require_layout, size_t input_layout_count, size_t* output_layout_index,
+			StorageBlock** output_group, size_t buffer_count, size_t& total_count
+		) override;
+		virtual void unlock(size_t mutex_size, void* mutex) noexcept override;
+		virtual bool loacte_unordered_layouts(const TypeGroup* input, const TypeLayout* require_layout, size_t index, size_t* output) override;
+		virtual void handle_entity_imp(EntityInterface*, EntityOperator ope) noexcept override;
 		virtual void construct_component(
 			const TypeLayout& layout, void(*constructor)(void*, void*), void* data, 
 			EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*) noexcept
 		) override;
-		virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept override;
+		virtual void deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept override;
 		void update();
-		void clean();
+		void clean_all();
 		ComponentPool(MemoryPageAllocator& allocator) noexcept;
 		~ComponentPool();
 
@@ -83,15 +99,19 @@ namespace PO::ECS::Implement
 			std::byte* start_block;
 			void* last_block;
 			size_t last_available_count;
+			InitBlock(std::byte* sb, void* last, size_t l)
+				: start_block(sb), last_block(last), last_available_count(l) {}
 			~InitBlock();
 		};
 
 		struct InitHistory
 		{
-			bool is_construction;
+			EntityOperator ope;
 			TypeLayout type;
 			StorageBlockFunctionPair functions;
 			void* data;
+			InitHistory(EntityOperator i, const TypeLayout& t, StorageBlockFunctionPair p, void* d)
+				: ope(i), type(t), functions(p), data(d) {}
 			~InitHistory();
 		};
 		std::shared_mutex m_type_group_mutex;

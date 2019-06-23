@@ -107,10 +107,6 @@ void init(PO::ECS::Context* context, std::mutex* mutex)
 	}
 	context->create_system<MoveSystem>();
 	context->create_system<EventTesting>();
-	context->create_system([](Context& c) {
-		std::lock_guard lg(*gobal_mutex);
-		std::cout << "thread id<" << std::this_thread::get_id() <<"> : lambda 函数刷个存在感" << std::endl;
-	});
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,

@@ -44,6 +44,10 @@ namespace PO::ECS
 		{
 			return hash_code == type.hash_code && size == type.size && align == type.align;
 		}
+		bool operator!=(const TypeLayout& type) const noexcept
+		{
+			return !(*this == type);
+		}
 	};
 
 	struct Context;
@@ -90,6 +94,7 @@ namespace PO::ECS
 	{
 
 		struct TypeGroup;
+		struct EntityInterface;
 
 		struct StorageBlockFunctionPair
 		{
@@ -99,9 +104,9 @@ namespace PO::ECS
 
 		struct StorageBlock
 		{
-			const TypeGroup* m_owner;
-			StorageBlock* front = 0;
-			StorageBlock* next = 0;
+			const TypeGroup* m_owner = nullptr;
+			StorageBlock* front = nullptr;
+			StorageBlock* next = nullptr;
 			size_t available_count = 0;
 			StorageBlockFunctionPair** functions = nullptr;
 			void** datas = nullptr;
@@ -112,9 +117,8 @@ namespace PO::ECS
 		{
 			virtual void add_ref() const noexcept = 0;
 			virtual void sub_ref() const noexcept = 0;
-			virtual void* owner() const noexcept = 0;
 			virtual void read(TypeGroup*&, StorageBlock*&, size_t& index) const noexcept = 0;
-			virtual void set(TypeGroup*, StorageBlock*, size_t index) const noexcept = 0;
+			virtual void set(TypeGroup*, StorageBlock*, size_t index) noexcept = 0;
 			virtual bool have(const TypeLayout*, size_t index) const noexcept = 0;
 		};
 
@@ -127,7 +131,7 @@ namespace PO::ECS
 		template<typename ...Type> bool have() const noexcept
 		{
 			assert(m_imp);
-			std::array<TypeLayout, sizeof(...Type)> infos = {TypeLayout::create<Type>()...};
+			std::array<TypeLayout, sizeof...(Type)> infos = {TypeLayout::create<Type>()...};
 			return m_imp->have(infos.data(), infos.size());
 		}
 		Entity(const Entity&) = default;
@@ -149,11 +153,11 @@ namespace PO::ECS
 		operator bool() const noexcept { return m_imp != nullptr; }
 		operator Entity() const noexcept { return Entity{ m_imp }; }
 		EntityWrapper(Implement::EntityInterface* ptr = nullptr) : m_imp(ptr) {}
-		template<typename Type> bool have() const noexcept
+		template<typename ...Type> bool have() const noexcept
 		{
-			Implement::ComponentMemoryPageDesc* desc; size_t index;
-			m_imp->read(TypeLayout::create<Type>(), desc, index);
-			return desc != nullptr;
+			assert(m_imp);
+			std::array<TypeLayout, sizeof...(Type)> infos = { TypeLayout::create<Type>()... };
+			return m_imp->have(infos.data(), infos.size());
 		}
 	private:
 		Implement::EntityInterface* m_imp;
@@ -165,25 +169,29 @@ namespace PO::ECS
 	namespace Implement
 	{
 
-		enum class EntityDeleteOperator : uint8_t
+		enum class EntityOperator : uint8_t
 		{
-			DeleteAll = 0,
-			Destory = 1,
+			Construct = 0,
+			Destruct = 1,
+			DeleteAll = 2,
+			Destory = 3,
 		};
 
 		struct ComponentPoolInterface
 		{
 			template<typename CompT, typename ...Parameter> CompT& construction_component(EntityInterface* owner, Parameter&& ...pa);
-			virtual void lock(const TypeLayout* require_layout, size_t index, const TypeGroup** output_group_buffer, const StorageBlock** output_group, size_t buffer_count, size_t mutex_size, void* mutex) = 0;
 			virtual void lock(size_t mutex_size, void* mutex) = 0;
-			virtual void next(const TypeLayout* require_layout, size_t index, const TypeGroup* last_page, const TypeGroup** output_group_buffer, const StorageBlock** output_group, size_t buffer_count) = 0;
+			virtual size_t search_type_group(
+				const TypeLayout* require_layout, size_t input_layout_count, size_t* output_layout_index,
+				StorageBlock** output_group, size_t buffer_count, size_t& total_count
+			) = 0;
 			virtual void unlock(size_t mutex_size, void* mutex) noexcept = 0;
-			virtual bool loacte_un_ordered_layouts(const TypeGroup* input, const TypeLayout* require_layout, size_t index, size_t* output) = 0;
+			virtual bool loacte_unordered_layouts(const TypeGroup* input, const TypeLayout* require_layout, size_t index, size_t* output) = 0;
 			virtual void construct_component(const TypeLayout& layout, void(*constructor)(void*,void*), void* data, EntityInterface*, void(*deconstructor)(void*) noexcept, void(*mover)(void*, void*) noexcept) = 0;
-			virtual bool deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept = 0;
-			virtual void handle_entity_imp(EntityInterface*, EntityDeleteOperator ope) noexcept = 0;
-			void entity_destory(EntityInterface* in) { return handle_entity_imp(in, EntityDeleteOperator::Destory); }
-			void entity_delete_all(EntityInterface* in) { return handle_entity_imp(in, EntityDeleteOperator::DeleteAll); }
+			virtual void deconstruct_component(EntityInterface*, const TypeLayout& layout) noexcept = 0;
+			virtual void handle_entity_imp(EntityInterface*, EntityOperator ope) noexcept = 0;
+			void entity_destory(EntityInterface* in) { return handle_entity_imp(in, EntityOperator::Destory); }
+			void entity_delete_all(EntityInterface* in) { return handle_entity_imp(in, EntityOperator::DeleteAll); }
 		};
 
 		template<typename CompT, typename ...Parameter> auto ComponentPoolInterface::construction_component(EntityInterface* owner, Parameter&& ...pa) -> CompT&
@@ -194,11 +202,13 @@ namespace PO::ECS
 				auto& ref = *static_cast<decltype(pa_tuple)*>(para);
 				using Type = CompT;
 				std::apply([&](auto& ref, auto && ...at) { ref = new (adress) Type{ std::forward<decltype(at)&&>(at)... }; },ref);
-				}, & pa_tuple, owner, [](void* in) noexcept { static_cast<CompT*>(in)->~CompT(); });
+			}, & pa_tuple, owner, [](void* in) noexcept { static_cast<CompT*>(in)->~CompT(); }, [](void* target, void* source) noexcept {
+				new (target) CompT{std::move(*reinterpret_cast<CompT*>(source))};
+			});
 			return *result;
 		}
 	}
-	template<typename ...CompT> struct EntityFilter;
+
 	namespace Implement
 	{
 		template<typename T> struct TypePropertyDetector {
@@ -206,26 +216,26 @@ namespace PO::ECS
 			static constexpr bool value = std::is_same_v<T, type> || std::is_same_v<T, std::add_const_t<type>>;
 		};
 
-		template<typename CompT>
-
-		template<size_t index, typename ...CompT> struct ComponentTranslate
+		template<size_t start, size_t end> struct ComponentTupleHelper
 		{
-			template<typename Function, typename ...OtherInput> decltype(auto) operator()
-				(Function&& func, StorageBlock* sb, size_t* layouts, size_t count, size_t element_index, OtherInput&& ...in)
-			{
-				return std::forward<Function>(func)(std::forward<OtherInput>(in)...);
+			template<typename TupleType>
+			static void translate(StorageBlock* block, size_t* index, TupleType& tuple) { 
+				std::get<start>(tuple) = 
+					reinterpret_cast<std::remove_reference_t<decltype(std::get<start>(tuple))>>(block->datas[index[start]]);
+				ComponentTupleHelper<start + 1, end>::translate(block, index, tuple);
 			}
+
+			template<typename TupleType>
+			static void add(TupleType& tuple) { std::get<start>(tuple) += 1; ComponentTupleHelper<start + 1, end>::add(tuple); }
 		};
 
-		template<size_t index, typename CurT, typename ...CompT> struct ComponentTranslate<index, CurT, CompT...>
+		template<size_t end> struct ComponentTupleHelper<end, end>
 		{
-			template<typename Function, typename ...OtherInput> decltype(auto) operator()
-				(Function&& func, StorageBlock* sb, size_t* layouts, size_t count, size_t element_index, OtherInput&& ...in)
-			{
-				return ComponentTranslate<index + 1, CompT...>{}(std::forward<Function>(func), sb, layouts, count, element_index, std::forward<OtherInput>(in)..., 
-					 reinterpret_cast<std::remove_reference_t<CurT>*>(sb->datas[layouts[index]]) + element_index
-					);
-			}
+			template<typename TupleType>
+			static void translate(StorageBlock* block, size_t* index, TupleType& tuple) {}
+
+			template<typename TupleType>
+			static void add(TupleType& tuple) { }
 		};
 
 		template<typename ...CompT> struct ComponentTypeInfo
@@ -249,7 +259,7 @@ namespace PO::ECS
 		void operator()(const Entity& wrapper, Func&& f) { operator()(EntityWrapper{wrapper.m_imp}, std::forward<Func>(f)); }
 	private:
 		EntityFilter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { assert(pool != nullptr); }
-		bool lock() noexcept;
+		void lock() noexcept;
 		void unlock() noexcept;
 		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept { Implement::ComponentInfoExtractor<CompT...>{}(tuple.components); }
 
@@ -274,20 +284,21 @@ namespace PO::ECS
 				auto& infos = Implement::ComponentTypeInfo<CompT...>::info();
 				assert(block != nullptr);
 				std::array<size_t, sizeof...(CompT)> indexs;
-				if (m_pool->loacte_un_ordered_layouts(group, infos.data(), sizeof...(CompT), indexs.data()))
+				if (m_pool->loacte_unordered_layouts(group, infos.data(), sizeof...(CompT), indexs.data()))
 				{
-					Implement::ComponentTranslate<0, CompT...>{}(
-						std::forward<Func>(f), block, indexs.data(), sizeof...(CompT), index, 
-						);
+					std::tuple<std::remove_reference_t<CompT>*...> component_pointer;
+					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(block, indexs.data(), component_pointer);
+					std::apply([&](auto ...pointer) {
+						std::forward<Func>(f)(*pointer...);
+					}, component_pointer);
 				}
 			}
 		}
 	}
 
-	template<typename ...CompT> bool EntityFilter<CompT...>::lock() noexcept
+	template<typename ...CompT> void EntityFilter<CompT...>::lock() noexcept
 	{
 		m_pool->lock(sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
-		return true;
 	}
 
 	template<typename ...CompT> void EntityFilter<CompT...>::unlock() noexcept
@@ -300,147 +311,134 @@ namespace PO::ECS
 		static_assert(Tmp::bool_and<true, Implement::TypePropertyDetector<CompT>::value...>::value, "Filter only accept Type and const Type!");
 		struct iterator
 		{
-			EntityWrapper entity() const noexcept { return std::get<0>(*m_ite); }
-			std::tuple<CompT&...>& components() noexcept { return std::get<1>(*m_ite); }
-			std::tuple<EntityWrapper, std::tuple<CompT& ...>> operator*() noexcept { return *m_ite; }
-			bool operator==(const iterator& i) const noexcept { return m_ite == i.m_ite; }
+			EntityWrapper entity() const noexcept { return EntityWrapper{ *m_current_entity }; }
+			std::tuple<CompT&...>& components() noexcept { 
+				return *m_component_ref;
+			}
+			std::tuple<EntityWrapper, std::tuple<CompT& ...>> operator*() noexcept { return { entity() , components() }; }
+			bool operator==(const iterator& i) const noexcept { 
+				return current_block == i.current_block && m_element_last == i.m_element_last;
+			}
 			bool operator!=(const iterator& i) const noexcept { return !((*this) == i); }
 			iterator& operator++() noexcept { 
-				++m_ite; 
-				return *this; 
-			}
-		private:
-			typename std::vector<std::tuple<EntityWrapper, std::tuple<CompT&...>>>::iterator m_ite;
-			template<typename ...CompT> friend struct Filter;
-		};
-		iterator begin() noexcept { iterator tem; tem.m_ite = m_all_component.begin(); return tem; }
-		iterator end() noexcept { iterator tem; tem.m_ite = m_all_component.end(); return tem; }
-		size_t count() const noexcept { return m_all_component.size(); }
-	protected:
-		Filter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { assert(pool != nullptr); }
-		bool lock() noexcept;
-		void unlock() noexcept;
-		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept { Implement::ComponentInfoExtractor<CompT...>{}(tuple.components); }
-
-		std::vector<std::tuple<EntityWrapper, std::tuple<CompT&...>>> m_all_component;
-		std::array<uint64_t, sizeof...(CompT)> m_version;
-		std::array<std::byte, sizeof(sizeof(std::shared_lock<std::shared_mutex>)) * 2 * sizeof...(CompT)> m_mutex;
-		Implement::ComponentPoolInterface* m_pool = nullptr;
-
-		template<typename ...Require> friend struct Implement::SystemStorage;
-		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
-	};
-
-	template<typename ...CompT> bool Filter<CompT...>::lock() noexcept
-	{
-		Implement::ComponentPoolReadWrapper wrapper;
-		auto& info = Implement::ComponentTypeInfo<CompT...>::info();
-		if (m_pool->lock(wrapper, sizeof...(CompT), info.data(), m_version.data(), sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data()))
-		{
-			m_all_component.clear();
-			while (wrapper.page != nullptr)
-			{
-				if (wrapper.reach_first())
+				assert(current_block != nullptr);
+				--m_element_last;
+				if (m_element_last != 0)
 				{
-					std::array<void*, sizeof...(CompT)> pointer;
-					if ((*wrapper.entitys)->read_tuple<CompT...>(pointer))
+					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
+					m_component_ref = std::nullopt;
+					m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+					m_current_entity += 1;
+
+					std::vector<Implement::EntityInterface*> m_interface;
+					if (*m_current_entity == nullptr)
 					{
-						std::tuple<std::add_pointer_t<CompT>...> storage;
-						Implement::ComponentPointerTranstlate<0, sizeof...(CompT)>{}(storage, pointer);
-						auto result = std::apply([](auto* ...ptr) {return std::forward_as_tuple(*ptr...); }, storage);
-						m_all_component.push_back({ *wrapper.entitys, result });
+						for (size_t i = 0; i < current_block->available_count; ++i)
+							m_interface.push_back(current_block->entitys[i]);
 					}
-					if (!wrapper.find_next())
-						m_pool->next(wrapper);
-				}else
-					m_pool->next(wrapper);
-			}
-		}
-		return true;
-	}
-
-	template<typename ...CompT> void Filter<CompT...>::unlock() noexcept
-	{
-		m_pool->unlock(sizeof...(CompT), sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
-	}
-
-	template<typename CompT> struct Filter<CompT>
-	{
-		static_assert(Implement::TypePropertyDetector<CompT>::value, "Filter only accept Type and const Type!");
-		struct iterator
-		{
-			EntityWrapper entity() const noexcept { return *m_wrapper.entitys; }
-			CompT& components() noexcept { return *static_cast<CompT*>(m_wrapper.components); }
-			std::tuple<EntityWrapper, CompT&> operator*() noexcept { return { entity(), components()}; }
-			bool operator==(const iterator& i) const noexcept { return m_wrapper == i.m_wrapper; }
-			bool operator!=(const iterator& i) const noexcept { return !((*this) == i); }
-			iterator& operator++() noexcept {
-				while (m_wrapper.page != nullptr)
-				{
-					if (!m_wrapper.find_next())
+					assert(*m_current_entity != nullptr);
+				}
+				else {
+					if (current_block->next != nullptr)
+						current_block = current_block->next;
+					else {
+						++m_buffer_used;
+						if (m_buffer_used < m_max_buffer)
+							current_block = m_storage_block[m_buffer_used];
+						else
+							current_block = nullptr;
+					}
+					if (current_block != nullptr)
 					{
-						m_pool->next(m_wrapper);
-						if (m_wrapper.page != nullptr)
-						{
-							while(m_wrapper.page != nullptr && !m_wrapper.reach_first())
-								m_pool->next(m_wrapper);
-							break;
-						}
+						m_element_last = current_block->available_count;
+						Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(current_block, m_layout_index + m_buffer_used * sizeof...(CompT), m_component_pointer);
+						m_component_ref = std::nullopt;
+						m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+						m_current_entity = current_block->entitys;
+						assert(*m_current_entity != nullptr);
 					}
 					else
-						break;
+						m_element_last = 0;
 				}
 				return *this;
 			}
 		private:
-			Implement::ComponentPoolReadWrapper m_wrapper;
-			Implement::ComponentPoolInterface* m_pool = nullptr;
+			Implement::StorageBlock** m_storage_block = nullptr;
+			size_t* m_layout_index = nullptr;
+			Implement::StorageBlock* current_block = nullptr;
+			size_t m_max_buffer = 0;
+			size_t m_buffer_used = 0;
+			size_t m_element_last = 0;
+			std::tuple<CompT* ...> m_component_pointer;
+			std::optional<std::tuple<CompT& ...>> m_component_ref;
+			Implement::EntityInterface** m_current_entity = nullptr;
 			template<typename ...CompT> friend struct Filter;
 		};
-		iterator begin() const noexcept;
-		iterator end() const noexcept;
-		size_t count() const noexcept { return m_wrapper.total_count; }
+
+		iterator begin() noexcept { 
+			iterator tem;
+			tem.m_storage_block = m_storage.data();
+			tem.m_layout_index = m_layout_index.data();
+			tem.m_max_buffer = m_used_buffer_count;
+			if (m_used_buffer_count != 0)
+			{
+				tem.current_block = m_storage[0];
+				tem.m_element_last = tem.current_block->available_count;
+				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(tem.m_storage_block[0], m_layout_index.data(), tem.m_component_pointer);
+				tem.m_component_ref = std::nullopt;
+				tem.m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
+				tem.m_current_entity = tem.current_block->entitys;
+			}
+			return tem;
+		}
+		iterator end() noexcept { iterator tem; return tem; }
+		size_t count() const noexcept { return m_total_element_count; }
 	protected:
-		bool lock() noexcept;
+		Filter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { 
+			assert(pool != nullptr); 
+			m_storage.resize(10, nullptr);
+			m_layout_index.resize(10 * sizeof...(CompT), sizeof...(CompT));
+			m_used_buffer_count = 0;
+		}
+		void lock() noexcept;
 		void unlock() noexcept;
-		Filter(Implement::ComponentPoolInterface* in) noexcept : m_pool(in) {}
-		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept { Implement::ComponentInfoExtractor<CompT>{}(tuple.components); }
-		Implement::ComponentPoolInterface* m_pool = nullptr;
+		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept { Implement::ComponentInfoExtractor<CompT...>{}(tuple.components); }
+
+		std::vector<Implement::StorageBlock*> m_storage;
+		std::vector<size_t> m_layout_index;
+		size_t m_used_buffer_count;
 		std::array<std::byte, sizeof(std::shared_lock<std::shared_mutex>) * 2> m_mutex;
-		Implement::ComponentPoolReadWrapper m_wrapper;
+		Implement::ComponentPoolInterface* m_pool = nullptr;
+		size_t m_total_element_count;
+
 		template<typename ...Require> friend struct Implement::SystemStorage;
 		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
 	};
 
-	template<typename CompT> auto Filter<CompT>::begin() const noexcept ->iterator
+	template<typename ...CompT> void Filter<CompT...>::lock() noexcept
 	{
-		iterator result;
-		result.m_wrapper = m_wrapper;
-		result.m_pool = m_pool;
-		return result;
+		m_pool->lock(sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
+		while (true)
+		{
+			size_t require_count = m_pool->search_type_group(
+				Implement::ComponentTypeInfo<CompT...>::info().data(), sizeof...(CompT),
+				m_layout_index.data(), m_storage.data(), m_storage.size(), m_total_element_count
+			);
+			if (require_count <= m_storage.size())
+			{
+				m_used_buffer_count = require_count;
+				break;
+			}
+			else {
+				m_storage.resize(require_count, nullptr);
+				m_layout_index.resize(require_count, sizeof...(CompT));
+			}
+		}
 	}
 
-	template<typename CompT> auto Filter<CompT>::end() const noexcept->iterator
+	template<typename ...CompT> void Filter<CompT...>::unlock() noexcept
 	{
-		iterator result;
-		result.m_wrapper = Implement::ComponentPoolReadWrapper{nullptr,sizeof(CompT), 0, nullptr, nullptr, 0};
-		result.m_pool = m_pool;
-		return result;
-	}
-
-	template<typename CompT> bool Filter<CompT>::lock() noexcept
-	{
-		auto& info = Implement::ComponentTypeInfo<CompT>::info();
-		uint64_t version = 0;
-		m_pool->lock(m_wrapper, 1, info.data(), &version, sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
-		while (m_wrapper.page != nullptr && !m_wrapper.reach_first())
-			m_pool->next(m_wrapper);
-		return true;
-	}
-
-	template<typename CompT> void Filter<CompT>::unlock() noexcept
-	{
-		m_pool->unlock(1, sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
+		m_pool->unlock(sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
 	}
 
 	namespace Implement
@@ -452,25 +450,18 @@ namespace PO::ECS
 			virtual void construct_event(void(*construct)(void*, void*), void* para, void(*deconstruct)(void*)noexcept) = 0;
 		};
 
-		struct EventPoolReadResult
+		struct EventPoolMemoryDescription
 		{
-			EventPoolMemoryDescription* page = nullptr;
+			EventPoolMemoryDescription* front = nullptr;
+			EventPoolMemoryDescription* next = nullptr;
+			void (**deconstructor_start)(void*) noexcept = nullptr;
 			size_t count = 0;
-			void* components = nullptr;
-			bool operator==(const EventPoolReadResult& epr) const noexcept
-			{
-				return page == epr.page && count == epr.count;
-			}
-			bool operator!=(const EventPoolReadResult& epr) const noexcept
-			{
-				return !(*this == epr);
-			}
+			void* event_start = nullptr;
 		};
 
 		struct EventPoolInterface
 		{
-			virtual void read_lock(const TypeLayout& layout, EventPoolReadResult&, size_t mutex_size, void* mutex) noexcept = 0;
-			virtual void read_next_page(EventPoolReadResult& result) noexcept = 0;
+			virtual EventPoolMemoryDescription* read_lock(const TypeLayout& layout, size_t mutex_size, void* mutex) noexcept = 0;
 			virtual void read_unlock(size_t mutex_size, void* mutex) noexcept = 0;
 			virtual EventPoolWriteWrapperInterface* write_lock(const TypeLayout& layout, size_t mutex_size, void* mutex) noexcept = 0;
 			virtual void write_unlock(EventPoolWriteWrapperInterface*, size_t mutex_size, void* mutex) noexcept = 0;
@@ -479,11 +470,13 @@ namespace PO::ECS
 
 	template<typename EventT> struct EventProvider
 	{
+		static_assert(std::is_same_v<EventT, std::remove_cv_t<std::remove_reference_t<EventT>>>, "EventProvider only accept pure Type!");
+
 		operator bool() const noexcept { return m_ref != nullptr; }
 		template<typename ...Parameter> void push(Parameter&& ...pa);
 	private:
 		EventProvider(Implement::EventPoolInterface* pool) noexcept : m_pool(pool){}
-		bool lock() noexcept;
+		void lock() noexcept;
 		void unlock() noexcept;
 		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept {
 			tuple.events.insert(TypeLayout::create<EventT>());
@@ -508,11 +501,10 @@ namespace PO::ECS
 			}, &pa_tuple, [](void* in) noexcept { reinterpret_cast<EventT*>(in)->~EventT(); });
 	}
 
-	template<typename EventT> bool EventProvider<EventT>::lock() noexcept
+	template<typename EventT> void EventProvider<EventT>::lock() noexcept
 	{
 		m_ref = m_pool->write_lock(TypeLayout::create<EventT>(), sizeof(std::lock_guard<std::mutex>) * 2, m_mutex.data());
-		return m_ref != nullptr;
-		return true;
+		assert(m_ref != nullptr);
 	}
 
 	template<typename EventT> void EventProvider<EventT>::unlock() noexcept
@@ -523,67 +515,64 @@ namespace PO::ECS
 
 	template<typename EventT> struct EventViewer
 	{
+		static_assert(std::is_same_v<EventT, std::remove_cv_t<std::remove_reference_t<EventT>>>, "EventViewer only accept pure Type!");
+
 		struct iterator
 		{
-			const EventT& operator*() const noexcept{ return *static_cast<const EventT*>(m_wrapper.components); }
+			const EventT& operator*() const noexcept{ return *(static_cast<const EventT*>(m_start->event_start) + m_index); }
 			iterator operator++() noexcept
 			{
-				if (m_wrapper.page != nullptr)
+				assert(m_start != nullptr);
+				++m_index;
+				if (m_index >= m_start->count)
 				{
-					if (m_wrapper.count == 1)
-						m_pool->read_next_page(m_wrapper);
-					else {
-						--m_wrapper.count;
-						m_wrapper.components = static_cast<std::byte*>(m_wrapper.components) + sizeof(EventT);
-					}
+					m_start = m_start->next;
+					m_index = 0;
 				}
 				return *this;
 			}
-			bool operator== (const iterator& i) const noexcept { return m_wrapper == i.m_wrapper; }
-			bool operator!= (const iterator& i) const noexcept { return !(m_wrapper == i.m_wrapper); }
+			bool operator== (const iterator& i) const noexcept { return m_start == i.m_start && m_index == i.m_index; }
+			bool operator!= (const iterator& i) const noexcept { return !(*this == i); }
 		private:
-			Implement::EventPoolReadResult m_wrapper;
-			Implement::EventPoolInterface* m_pool;
+			Implement::EventPoolMemoryDescription* m_start = nullptr;
+			size_t m_index = 0;
 			template<typename EventT> friend struct EventViewer;
 		};
 		iterator begin() noexcept;
 		iterator end() noexcept;
 	private:
 		EventViewer(Implement::EventPoolInterface* pool) noexcept : m_pool(pool){}
-		bool lock() noexcept;
+		void lock() noexcept;
 		void unlock() noexcept;
 		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept {}
-		Implement::EventPoolReadResult m_wrapper;
 		Implement::EventPoolInterface* m_pool = nullptr;
 		std::array<std::byte, sizeof(std::shared_lock<std::shared_mutex>) * 2> m_mutex;
+		Implement::EventPoolMemoryDescription* m_start = nullptr;
 		template<typename ...Require> friend struct Implement::SystemStorage;
 		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
 	};
 
-	template<typename EventT> bool EventViewer<EventT>::lock() noexcept
+	template<typename EventT> void EventViewer<EventT>::lock() noexcept
 	{
-		m_pool->read_lock(TypeLayout::create<EventT>(), m_wrapper, sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
-		return true;
+		m_start = m_pool->read_lock(TypeLayout::create<EventT>(), sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
 	}
 
 	template<typename EventT> void EventViewer<EventT>::unlock() noexcept
 	{
 		m_pool->read_unlock(sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
+		m_start = nullptr;
 	}
 
 	template<typename EventT> auto EventViewer<EventT>::begin() noexcept -> iterator
 	{
 		iterator result;
-		result.m_wrapper = m_wrapper;
-		result.m_pool = m_pool;
+		result.m_start = m_start;
 		return result;
 	}
 
 	template<typename EventT> auto EventViewer<EventT>::end() noexcept -> iterator
 	{
 		iterator result;
-		result.m_wrapper = Implement::EventPoolReadResult{};
-		result.m_pool = m_pool;
 		return result;
 	}
 
@@ -653,6 +642,35 @@ namespace PO::ECS
 		}
 	}
 
+	template<typename CompT> struct GobalFilter
+	{
+		static_assert(Implement::TypePropertyDetector<CompT>::value, "GobalFilter only accept Type and const Type!");
+		operator bool() const noexcept { return m_cur != nullptr; }
+		CompT* operator->() noexcept { return m_cur; }
+		CompT& operator*() noexcept { return *m_cur; }
+		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept
+		{
+			if constexpr (std::is_const_v<CompT> || std::is_same_v<CompT, std::remove_reference<CompT>>)
+				tuple.gobal_components.emplace(TypeLayout::create<CompT>(), Implement::RWProperty::Read);
+			else
+				tuple.gobal_components[TypeLayout::create<CompT>()] = Implement::RWProperty::Write;
+		}
+	private:
+		void lock() noexcept;
+		void unlock()  noexcept { m_cur = nullptr; }
+		GobalFilter(Implement::GobalComponentPoolInterface* in) noexcept : m_pool(in) { assert(m_pool != nullptr); }
+		template<typename ...Require> friend struct Implement::SystemStorage;
+		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
+
+		Implement::GobalComponentPoolInterface* m_pool = nullptr;
+		CompT* m_cur;
+	};
+
+	template<typename CompT> void GobalFilter<CompT>::lock() noexcept
+	{
+		m_cur = m_pool->find<CompT>();
+	}
+
 	enum class TickPriority
 	{
 		HighHigh = 0,
@@ -677,8 +695,8 @@ namespace PO::ECS
 			virtual void* data() noexcept = 0;
 			virtual const TypeLayout& layout() const noexcept = 0;
 			virtual void apply(Context*) noexcept = 0;
-			virtual void add_ref() const noexcept = 0;
-			virtual void sub_ref() const noexcept = 0;
+			virtual void add_ref() noexcept = 0;
+			virtual void sub_ref() noexcept = 0;
 			virtual TickPriority tick_layout() = 0;
 			virtual TickPriority tick_priority() = 0;
 			virtual TickOrder tick_order(const TypeLayout&) = 0;
@@ -710,13 +728,14 @@ namespace PO::ECS
 	struct SystemWrapper
 	{
 		static_assert(Implement::TypePropertyDetector<Type>::value, "SystemWrapper only accept Type and const Type!");
-		Type* operator->() noexcept { return static_cast<Type*>(m_resource->data()); }
+		operator bool() const noexcept { return m_resource != nullptr; }
+		Type* operator->() noexcept { return m_resource; }
 	private:
 		SystemWrapper(Implement::SystemPoolInterface* pool) noexcept : m_pool(pool) {}
 		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept;
-		bool lock() noexcept;
-		void unlock()  noexcept { m_resource.reset(); }
-		Implement::SystemInterfacePtr m_resource;
+		void lock() noexcept;
+		void unlock()  noexcept { m_resource = nullptr; }
+		Type* m_resource;
 		Implement::SystemPoolInterface* m_pool;
 		template<typename ...Require> friend struct Implement::SystemStorage;
 		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
@@ -731,40 +750,19 @@ namespace PO::ECS
 			tuple.systems[TypeLayout::create<Type>()] = Implement::RWProperty::Write;
 	}
 
-	template<typename Type> bool SystemWrapper<Type>::lock() noexcept
+	template<typename Type> void SystemWrapper<Type>::lock() noexcept
 	{
 		//Implement::SystemPoolInterface& SI = *in;
-		m_resource = m_pool->find_system(TypeLayout::create<Type>());
-		return m_resource;
+		auto ptr = m_pool->find_system(TypeLayout::create<Type>());
+		if (ptr)
+			m_resource = reinterpret_cast<Type*>(ptr->data());
+		else
+			m_resource = nullptr;
 	}
 
 
 	namespace Implement
 	{
-		template<typename Type> struct GobalComponentStorage
-		{
-			bool lock() noexcept;
-			void unlock()  noexcept { m_component = nullptr; }
-			std::remove_reference_t<Type>* as_pointer()noexcept { return m_component; }
-			static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept
-			{
-				if constexpr (std::is_const_v<Type> || std::is_same_v<Type, std::remove_reference<Type>>)
-					tuple.gobal_components.emplace(TypeLayout::create<Type>(), Implement::RWProperty::Read);
-				else
-					tuple.gobal_components[TypeLayout::create<Type>()] = Implement::RWProperty::Write;
-			}
-			GobalComponentStorage(Context* in) noexcept : m_pool(*in) {}
-		private:
-			using PureType = std::remove_const_t<std::remove_reference_t<Type>>;
-			std::remove_reference_t<Type>* m_component;
-			Implement::GobalComponentPoolInterface* m_pool;
-		};
-
-		template<typename Type> bool GobalComponentStorage<Type>::lock() noexcept
-		{
-			m_component = m_pool->find<Type>();
-			return m_component != nullptr;
-		}
 
 		template<typename Type> struct ContextStorage
 		{
@@ -781,7 +779,7 @@ namespace PO::ECS
 
 		template<typename Type> struct FilterAndEventAndSystem
 		{
-			bool lock() noexcept { return m_storage.lock(); }
+			void lock() noexcept { m_storage.lock(); }
 			void unlock() noexcept { m_storage.unlock(); }
 			std::remove_reference_t<Type>* as_pointer() noexcept { return &m_storage; }
 			static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept { PureType::export_rw_info(tuple); }
@@ -804,8 +802,11 @@ namespace PO::ECS
 		template<typename T> struct IsFilterOrEventOrSystem<EventProvider<T>> : std::true_type {};
 		template<typename T> struct IsFilterOrEventOrSystem<EventViewer<T>> : std::true_type {};
 		template<typename T> struct IsFilterOrEventOrSystem<SystemWrapper<T>> : std::true_type {};
+		template<typename T> struct IsFilterOrEventOrSystem<GobalFilter<T>> : std::true_type {};
 
-		template<size_t index, typename InputType> struct SystemStorageDetectorImp { using Type = GobalComponentStorage<InputType>; };
+		template<size_t index, typename InputType> struct SystemStorageDetectorImp { 
+			static_assert(index != 0, "unsupport filter");
+		};
 		template<typename InputType> struct SystemStorageDetectorImp<1, InputType> { using Type = ContextStorage<InputType>; };
 		template<typename InputType> struct SystemStorageDetectorImp<2, InputType> { using Type = FilterAndEventAndSystem<InputType>; };
 
@@ -821,11 +822,10 @@ namespace PO::ECS
 		template<size_t start, size_t end> struct SystemStorageImp
 		{
 			template<typename Tuple>
-			static bool lock(Tuple& tuple) noexcept
+			static void lock(Tuple& tuple) noexcept
 			{
-				bool re = std::get<start>(tuple).lock();
-				bool re2 = SystemStorageImp<start + 1, end>::lock(tuple);
-				return re && re2;
+				std::get<start>(tuple).lock();
+				SystemStorageImp<start + 1, end>::lock(tuple);
 			}
 			template<typename Tuple>
 			static void unlock(Tuple& tuple) noexcept
@@ -838,8 +838,7 @@ namespace PO::ECS
 		template<size_t end> struct SystemStorageImp<end, end>
 		{
 			template<typename Tuple>
-			static bool lock(Tuple& tuple) noexcept
-			{ return true; }
+			static void lock(Tuple& tuple) noexcept {  }
 			template<typename Tuple>
 			static void unlock(Tuple& tuple) noexcept {}
 		};
@@ -912,8 +911,8 @@ namespace PO::ECS
 			template<typename System>
 			void apply(System& sys, Context* con) noexcept
 			{
-				if (SystemStorageImp<0, sizeof...(Requires)>::lock(m_storage))
-					std::apply([&](auto && ... ai) { sys(*ai.as_pointer()...); }, m_storage);
+				SystemStorageImp<0, sizeof...(Requires)>::lock(m_storage);
+				std::apply([&](auto && ... ai) { sys(*ai.as_pointer()...); }, m_storage);
 				SystemStorageImp<0, sizeof...(Requires)>::unlock(m_storage);
 			}
 			static SystemRWInfo<Requires...> rw_info;
@@ -964,30 +963,6 @@ namespace PO::ECS
 			TickOrder operator()(SystemT& sys, const TypeLayout& id) const { return sys.tick_order(id); }
 		};
 
-		template<typename SystemT, typename = std::void_t<>>
-		struct PreTickDetector
-		{
-			void operator()(SystemT& sys, Context& c) const {}
-		};
-
-		template<typename SystemT>
-		struct PreTickDetector<SystemT, std::enable_if_t<std::is_same_v<typename Tmp::function_type_extractor<decltype(&SystemT::pre_tick)>::pure_type, void(Context&)>>>
-		{
-			void operator()(SystemT& sys, Context& c) const { sys.pre_tick(c); }
-		};
-
-		template<typename SystemT, typename = std::void_t<>>
-		struct PosTickDetector
-		{
-			void operator()(SystemT& sys, Context& c) const {}
-		};
-
-		template<typename SystemT>
-		struct PosTickDetector<SystemT, std::enable_if_t<std::is_same_v<typename Tmp::function_type_extractor<decltype(&SystemT::pos_tick)>::pure_type, void(Context&)>>>
-		{
-			void operator()(SystemT& sys, Context& c) const { sys.pos_tick(c); }
-		};
-
 		template<typename Type> struct SystemImplement : SystemInterface
 		{
 			virtual void* data() noexcept { return &m_storage; }
@@ -995,19 +970,25 @@ namespace PO::ECS
 			using ParameterType = Tmp::function_type_extractor<PureType>;
 			using AppendType = typename ParameterType::template extract_parameter<SystemStorage>;
 			virtual void apply(Context* con) noexcept override { 
-				PreTickDetector<Type>{}(m_storage, *con);
 				m_append_storgae.apply(m_storage, con); 
-				PosTickDetector<Type>{}(m_storage, *con);
 			}
-			virtual void add_ref() const noexcept { m_ref.add_ref(); };
-			virtual void sub_ref() const noexcept {
+			virtual void add_ref() noexcept { m_ref.add_ref(); };
+			virtual void sub_ref() noexcept {
 				if (m_ref.sub_ref())
 					m_deconstructor(this);
 			}
 			virtual const TypeLayout& layout() const noexcept override { return TypeLayout::create<Type>(); }
-			template<typename ...Parameter> SystemImplement(Context* in, void (*deconstructor)(const SystemImplement<Type>*) noexcept, Parameter&& ... para);
-			virtual TickPriority tick_layout() override { return TickLayoutDetector<PureType>{}(m_storage); }
-			virtual TickPriority tick_priority() override { return TickPriorityDetector<PureType>{}(m_storage); }
+			template<typename ...Parameter> SystemImplement(
+				Context* in, void (*deconstructor)(const SystemImplement<Type>*) noexcept, 
+				TickPriority prioerity, TickPriority layout,
+				Parameter&& ... para
+			);
+			virtual TickPriority tick_layout() override { 
+				return (m_outside_layout == TickPriority::Normal) ? TickLayoutDetector<PureType>{}(m_storage) : m_outside_layout;
+			}
+			virtual TickPriority tick_priority() override { 
+				return (m_outside_priority == TickPriority::Normal) ? TickPriorityDetector<PureType>{}(m_storage) : m_outside_priority;
+			}
 			virtual TickOrder tick_order(const TypeLayout& layout) override { return TickOrderDetector<PureType>{}(m_storage, layout); };
 			virtual void rw_property(const TypeLayout*& storage, const RWProperty*& property, const size_t*& count) const noexcept override { 
 				AppendType::rw_info.rw_property(storage, property, count);
@@ -1015,15 +996,22 @@ namespace PO::ECS
 			operator std::remove_reference_t<Type>& () noexcept { return m_storage; }
 		private:
 			//virtual std::type_index id() const noexcept { return typeid(Type); }
-			mutable Tool::atomic_reference_count m_ref;
+			Tool::atomic_reference_count m_ref;
 			PureType m_storage;
 			AppendType m_append_storgae;
+			TickPriority m_outside_priority;
+			TickPriority m_outside_layout;
 			void (*m_deconstructor)(const SystemImplement<Type>*) noexcept;
 		};
 
 		template<typename Type> template<typename ...Parameter>
-		SystemImplement<Type>::SystemImplement(Context* in, void (*deconstructor)(const SystemImplement<Type>*) noexcept, Parameter&& ... para)
-			: m_storage(std::forward<Parameter>(para)...), m_append_storgae(in), m_deconstructor(deconstructor)
+		SystemImplement<Type>::SystemImplement(
+			Context* in, void (*deconstructor)(const SystemImplement<Type>*) noexcept, 
+			TickPriority prioerity, TickPriority layout,
+			Parameter&& ... para
+		)
+			: m_storage(std::forward<Parameter>(para)...), m_append_storgae(in), m_deconstructor(deconstructor), 
+			m_outside_priority(prioerity), m_outside_layout(layout)
 		{
 			assert(m_deconstructor != nullptr);
 		}
@@ -1036,16 +1024,20 @@ namespace PO::ECS
 		template<typename CompT, typename ...Parameter> std::remove_reference_t<std::remove_const_t<CompT>>& create_component(Entity entity, Parameter&& ...p);
 		template<typename CompT, typename ...Parameter> std::remove_reference_t<std::remove_const_t<CompT>>& create_gobal_component(Parameter&& ...p);
 		template<typename SystemT, typename ...Parameter> std::remove_reference_t<std::remove_const_t<SystemT>>& create_system(Parameter&& ...p);
-		template<typename SystemT> void create_system(SystemT&& p);
+		template<typename SystemT> void create_system(SystemT&& p, TickPriority priority = TickPriority::Normal, TickPriority layout = TickPriority::Normal);
 		template<typename SystemT> void destory_system();
 		template<typename CompT> bool destory_component(Entity entity);
 		template<typename CompT> void destory_gobal_component();
-		void destory_entity(Entity entity) { assert(entity); entity.m_imp->remove_all(*this->operator PO::ECS::Implement::ComponentPoolInterface *()); }
+		void destory_entity(Entity entity) { 
+			assert(entity);
+			Implement::ComponentPoolInterface* CPI = *this;
+			assert(entity); 
+			CPI->entity_destory(entity.m_imp);
+		}
 		virtual void exit() noexcept = 0;
 		virtual float duration_s() const noexcept = 0;
 	private:
 		template<typename CompT> friend struct Implement::FilterAndEventAndSystem;
-		template<typename CompT> friend struct Implement::GobalComponentStorage;
 		template<typename CompT> friend struct Implement::ContextStorage;
 		virtual operator Implement::ComponentPoolInterface* () = 0;
 		virtual operator Implement::GobalComponentPoolInterface* () = 0;
@@ -1085,15 +1077,15 @@ namespace PO::ECS
 	template<typename SystemT, typename ...Parameter> std::remove_reference_t<std::remove_const_t<SystemT>>& Context::create_system(Parameter&& ...p)
 	{
 		Implement::SystemPoolInterface* SI = *this;
-		Tool::intrusive_ptr<Implement::SystemImplement<SystemT>> ptr = new Implement::SystemImplement<SystemT>{this, [](const Implement::SystemImplement<SystemT> * in) noexcept {delete in; }, std::forward<Parameter>(p)... };
+		Tool::intrusive_ptr<Implement::SystemImplement<SystemT>> ptr = new Implement::SystemImplement<SystemT>{this, [](const Implement::SystemImplement<SystemT> * in) noexcept {delete in; }, TickPriority::Normal, TickPriority::Normal, std::forward<Parameter>(p)... };
 		SI->regedit_system(ptr);
 		return *ptr;
 	}
 
-	template<typename SystemT> void Context::create_system(SystemT&& p)
+	template<typename SystemT> void Context::create_system(SystemT&& p, TickPriority priority, TickPriority layout)
 	{
 		Implement::SystemPoolInterface* SI = *this;
-		Tool::intrusive_ptr<Implement::SystemImplement<SystemT>> ptr = new Implement::SystemImplement<SystemT>{this, [](const Implement::SystemImplement<SystemT> * in) noexcept {delete in; }, std::forward<SystemT>(p) };
+		Tool::intrusive_ptr<Implement::SystemImplement<SystemT>> ptr = new Implement::SystemImplement<SystemT>{this, [](const Implement::SystemImplement<SystemT> * in) noexcept {delete in; }, priority, layout, std::forward<SystemT>(p) };
 		SI->regedit_system(ptr);
 	}
 

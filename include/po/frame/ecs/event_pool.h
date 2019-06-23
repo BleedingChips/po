@@ -5,14 +5,6 @@
 #include <shared_mutex>
 namespace PO::ECS::Implement
 {
-	struct EventPoolMemoryDescription
-	{
-		EventPoolMemoryDescription* front = nullptr;
-		EventPoolMemoryDescription* next = nullptr;
-		void (**deconstructor_start)(void*) noexcept = nullptr;
-		size_t count = 0;
-		std::byte* event_start = nullptr;
-	};
 
 	struct SimilerEventPool : EventPoolWriteWrapperInterface
 	{
@@ -24,7 +16,7 @@ namespace PO::ECS::Implement
 
 		void update();
 
-		void read_lock(EventPoolReadResult& result, size_t mutex_size, void* mutex);
+		EventPoolMemoryDescription* read_lock(size_t mutex_size, void* mutex);
 		void write_lock(size_t mutex_size, void* mutex);
 
 		const TypeLayout& layout() const noexcept { return m_layout; }
@@ -45,15 +37,13 @@ namespace PO::ECS::Implement
 		EventPoolMemoryDescription* read_top = nullptr;
 		size_t last_read_index = 0;
 
-		
-		MemoryPageAllocator::SpaceResult page_space;
+		size_t target_size = 0;
 		size_t max_event_count = 0;
 	};
 
 	struct EventPool : EventPoolInterface
 	{
-		virtual void read_lock(const TypeLayout& layout, EventPoolReadResult&, size_t mutex_size, void* mutex) noexcept override;
-		virtual void read_next_page(EventPoolReadResult& result) noexcept override;
+		virtual EventPoolMemoryDescription* read_lock(const TypeLayout& layout, size_t mutex_size, void* mutex) noexcept override;
 		virtual void read_unlock(size_t mutex_size, void* mutex) noexcept override;
 		virtual EventPoolWriteWrapperInterface* write_lock(const TypeLayout& layout, size_t mutex_size, void* mutex) noexcept override;
 		virtual void write_unlock(EventPoolWriteWrapperInterface*, size_t mutex_size, void* mutex) noexcept override;
