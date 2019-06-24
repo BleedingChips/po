@@ -45,41 +45,12 @@ template<typename Type> struct CallRecord
 	}
 };
 
-struct MarkStartSystem
-{
-	void operator()()
-	{
-		std::lock_guard lg(cout_mutex);
-		std::cout << "loop start --------------" << std::endl;
-	}
-
-	TickPriority tick_layout() const noexcept { return TickPriority::HighHigh; }
-};
-
-struct MarkEndSystem
-{
-	void operator()()
-	{
-		std::lock_guard lg(cout_mutex);
-		std::cout << "loop end --------------" << std::endl;
-	}
-
-	TickPriority tick_layout() const noexcept {
-		return TickPriority::LowLow; 
-	}
-};
-
-
-
 struct CollisionSystem
 {
 	std::vector<std::pair<Entity, Entity>> all_entity;
-	void pre_tick(Context& con)
-	{
-		all_entity.clear();
-	}
 	void operator()(Filter<const Location, const Collision>& f, EventProvider<uint64_t>& ep)
 	{
+		all_entity.clear();
 		CallRecord<CollisionSystem> record;
 		uint64_t collition_count = 0;
 		for (auto ite = f.begin(); ite != f.end(); ++ite)
@@ -110,29 +81,31 @@ struct CollisionSystem
 
 struct DestorySystem
 {
-	void operator()(SystemWrapper<const CollisionSystem>& s, Context& con)
+	void operator()(SystemFilter<const CollisionSystem>& s, Context& con)
 	{
-		const CollisionSystem* sys = s.operator->();
-		CallRecord<DestorySystem> record;
-		for (auto& ite : s->all_entity)
+		if (s)
 		{
-			if(ite.first.have<Velocity>())
-				con.destory_entity(ite.first);
-			if(ite.second.have<Velocity>())
-				con.destory_entity(ite.second);
+			CallRecord<DestorySystem> record;
+			for (auto& ite : s->all_entity)
+			{
+				if (ite.first.have<Velocity>())
+					con.destory_entity(ite.first);
+				if (ite.second.have<Velocity>())
+					con.destory_entity(ite.second);
+			}
 		}
 	}
 };
 
 struct RenderSystem
 {
-	void operator()(Filter<const Collision, const Location>& f, Dx11::FormRenderer& render)
+	void operator()(Filter<const Collision, const Location>& f, GobalFilter<Dx11::FormRenderer>& render)
 	{
 		CallRecord<RenderSystem> record;
-		if (render.ready_to_update())
+		if (render->ready_to_update())
 		{
 			float p[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-			render->ClearRenderTargetView(render, p);
+			(*render)->ClearRenderTargetView(*render, p);
 			if (f.count() > 0)
 			{
 				size_t count = f.count();
@@ -160,21 +133,21 @@ struct RenderSystem
 				HRESULT re = (*context)->CreateBuffer(&DBD, &DSD, ComWrapper::ref(ins_buffer));
 				assert(SUCCEEDED(re));
 
-				render->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				render->IASetInputLayout(layout);
+				(*render)->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				(*render)->IASetInputLayout(layout);
 				ID3D11Buffer* tem_buffer[2] = { buffer, ins_buffer };
 				UINT str[2] = { sizeof(float) * 2, sizeof(float) * 4 };
 				UINT offset[2] = { 0, 0 };
-				render->IASetVertexBuffers(0, 2, tem_buffer, str, offset);
-				render->VSSetShader(vs, nullptr, 0);
-				render->PSSetShader(ps, nullptr, 0);
-				ID3D11RenderTargetView* view[1] = { render };
-				render->OMSetRenderTargets(1, view, nullptr);
+				(*render)->IASetVertexBuffers(0, 2, tem_buffer, str, offset);
+				(*render)->VSSetShader(vs, nullptr, 0);
+				(*render)->PSSetShader(ps, nullptr, 0);
+				ID3D11RenderTargetView* view[1] = { (*render) };
+				(*render)->OMSetRenderTargets(1, view, nullptr);
 				D3D11_VIEWPORT viewport{ 0.0, 0.0, 1024.0f, 768.0f, 0.0, 1.0 };
-				render->RSSetViewports(1, &viewport);
-				render->DrawInstanced(13 * 3, count, 0, 0);
+				(*render)->RSSetViewports(1, &viewport);
+				(*render)->DrawInstanced(13 * 3, count, 0, 0);
 			}
-			render.replaceable_updates();
+			(*render).replaceable_updates();
 		}
 	}
 	RenderSystem(Dx11::ContextPtr input_context)
@@ -230,11 +203,13 @@ private:
 
 struct FormUpdateSystem
 {
-	void operator()(Dx11::FormRenderer& render, Context& c)
+	void operator()(GobalFilter<Dx11::FormRenderer>& render, Context& c)
 	{
+		if (!render)
+			return;
 		CallRecord<FormUpdateSystem> record;
 		MSG msg;
-		while (render.pook_event(msg))
+		while (render->pook_event(msg))
 		{
 			if (msg.message == WM_CLOSE)
 			{
@@ -261,20 +236,28 @@ int main()
 		ContextImplement imp;
 		imp.create_gobal_component<Dx11::FormRenderer>(context->create_form());
 		imp.set_thread_reserved(2);
-		//imp.set_duration(duration_ms{500});
+
 		imp.create_system<CollisionSystem>();
 		imp.create_system<DestorySystem>();
 		imp.create_system<RenderSystem>(context);
 		imp.create_system<FormUpdateSystem>();
-		imp.create_system<MarkStartSystem>();
-		imp.create_system<MarkEndSystem>();
+
+		imp.create_system([&]() {
+			std::lock_guard lg(cout_mutex);
+			std::cout << "loop start --------------" << std::endl;
+		}, TickPriority::HighHigh, TickPriority::HighHigh);
+		imp.create_system([&]() {
+			std::lock_guard lg(cout_mutex);
+			std::cout << "loop end --------------" << std::endl;
+		}, TickPriority::LowLow, TickPriority::LowLow);
+
 		std::random_device r_dev;
 		std::default_random_engine engine(r_dev());
 		std::uniform_real_distribution<float> location(-0.9f, 0.9f);
 		std::uniform_real_distribution<float> range(0.03f, 0.05f);
 		std::uniform_real_distribution<float> vel(-0.4f, 0.4f);
 
-		for (size_t i = 0; i < 20; ++i)
+		for (size_t i = 0; i < 400; ++i)
 		{
 			auto entity = imp.create_entity();
 			auto& re = imp.create_component<Location>(entity, location(engine), location(engine));

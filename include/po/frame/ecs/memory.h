@@ -11,20 +11,16 @@ namespace PO::ECS::Implement
 		MemoryPageAllocator(size_t storage_page_count = 4) noexcept;
 		~MemoryPageAllocator();
 
-		struct SpaceResult
-		{
-			size_t space;
-			size_t allocate_flag;
-		};
-
-		static SpaceResult recalculate_space(size_t require_space);
-		void* allocate(SpaceResult flag);
-		void release(void* buffer, SpaceResult flag) noexcept;
-		
+		std::tuple<std::byte*, size_t> allocate(size_t target_sapce);
+		static void release(std::byte* buffer) noexcept;
+		static size_t reserved_size() noexcept;
+		static std::tuple<size_t, size_t> pre_calculte_size(size_t) noexcept;
 	private:
 		struct RawPageHead
 		{
+			size_t flag = 0x23234345;
 			RawPageHead* m_next_page = nullptr;
+			~RawPageHead() = default;
 		};
 		std::mutex m_page_mutex;
 		std::vector<std::tuple<RawPageHead*, size_t>> m_pages;

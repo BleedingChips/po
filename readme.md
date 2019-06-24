@@ -39,11 +39,6 @@ Demo code in `po/demo/ecs_demo/ecs_demo.sln (vs2019)`.
 		//Define operator() function with special Filter.
 		void operator()(PO::ECS::Filter<const Component1>&, PO::ECS::Context&);
 
-		//Would be call before operator(). It could be ignored.
-		void pre_tick(PO::ECS::Context&);
-
-		//Would be call after operator() and no matter wheather operator() has been call or not. It could be ignored.
-		void pos_tick(PO::ECS::Context&);
 	};
 
 	// lambda or normal function are also an acceptable system.
@@ -69,7 +64,7 @@ Demo code in `po/demo/ecs_demo/ecs_demo.sln (vs2019)`.
 	GobalComponent& ref2 = imp.create_gobal_component<Component2>(entity, /*contructional parameter*/);
 	System1& sys1 = imp.create_system<System1>(/*contructional parameter*/);
 	//Callable object
-	imp.create_system([](Filter<Component1>& f){});
+	imp.create_system([](Filter<Component1>& f){}, TickPriority::Normal, TickPriority::Normal);
 	```
 
 1. Have Fun!
@@ -196,24 +191,36 @@ Demo code in `po/demo/ecs_demo/ecs_demo.sln (vs2019)`.
 	}
 	```
 
-* SystemWrapper
+* SystemFilter
 
-	Access other system. Functions would be call only if those systems exist.
+	Access other system. 
 
 	```cpp
-	void s1::operator()(PO::ECS::SystemWrapper<System2>& f, PO::ECS::SystemWrapper<const System2>& f2)
+	void s1::operator()(PO::ECS::SystemFilter<System2>& f, PO::ECS::SystemFilter<const System2>& f2)
 	{
-		System2* sys = f.operator->();
-		const System2* sys = f2.operator->();
+		// make sure that systems exist
+		if(f && f2)
+		{
+			System2* sys = f.operator->();
+			const System2* sys2 = f2.operator->();
+		}
 	}
 	```
 
-* Other
+* GobalFilter
 
-	Access gobal component. Functions would be call only if those gobal components exist.
+	Access gobal component. 
 
 	```cpp
-	void s1::operator()(GobalComponent& g1, const GobalComponent2& g2);
+	void s1::operator()(GobalFilter<GobalComponent>& g1, GobalFilter<const GobalComponent2>& g2)
+	{
+		// make sure that gobal components exist
+		if(g1 && g2)
+		{
+			GobalComponent* gc1 = g1.operator->();
+			const GobalComponent2* gc2 = g2.operator->();
+		}
+	}
 	```
 
 
@@ -227,8 +234,8 @@ Framework uses the type of special filter from system's `operator()` funtion to 
 |`Filter<const A>`or`EntityFilter<const A>`|Read From ComponentA|
 |`SystemWrapper<A>`| Write To SystemA|
 |`SystemWrapper<const A>`|Read From SystemA|
-|`A&`|Write To GobalComponentA|
-|`const A&`|Read From GobalComponentA|
+|`GobalFilter<A>`|Write To GobalComponentA|
+|`GobalFilter<const A>`|Read From GobalComponentA|
 |`EntityProvider<A>`|Write To EventA|
 |`EntityViewer<A>`|None|
 

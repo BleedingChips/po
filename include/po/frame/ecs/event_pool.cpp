@@ -7,9 +7,10 @@ namespace PO::ECS::Implement
 		: m_allocator(allocator), m_layout(layout)
 	{
 		size_t aligned_space = (layout.align > sizeof(nullptr) ? layout.align - sizeof(nullptr) : 0);
-		size_t require_space = sizeof(EventPoolMemoryDescription) + aligned_space + (sizeof(void (*)(void*) noexcept) + layout.size) * min_page_event_count;
-		page_space = MemoryPageAllocator::recalculate_space(require_space);
-		max_event_count = page_space.space - sizeof(EventPoolMemoryDescription) - aligned_space;
+		size_t target_size = sizeof(EventPoolMemoryDescription) + aligned_space + (sizeof(void (*)(void*) noexcept) + layout.size) * min_page_event_count;
+		auto [i,k] = MemoryPageAllocator::pre_calculte_size(target_size);
+		target_size = i;
+		max_event_count = target_size - sizeof(EventPoolMemoryDescription) - aligned_space;
 		max_event_count = max_event_count / (sizeof(void (**)(void*) noexcept) + layout.size);
 		assert(max_event_count >= min_page_event_count);
 	}
@@ -30,12 +31,12 @@ namespace PO::ECS::Implement
 
 	EventPoolMemoryDescription* SimilerEventPool::allocate_new_page()
 	{
-		void* buffer = m_allocator.allocate(page_space);
+		auto [buffer, page_size] = m_allocator.allocate(target_size);
 		EventPoolMemoryDescription* head = new (buffer) EventPoolMemoryDescription{};
 		auto shift = reinterpret_cast<std::byte*>(head + 1);
 		head->deconstructor_start = reinterpret_cast<void (**)(void*) noexcept>(shift);
 		void* next_shift = shift + sizeof(void (*)(void*) noexcept) * max_event_count;
-		size_t last_sapce = page_space.space - sizeof(EventPoolMemoryDescription) - sizeof(void (*)(void*) noexcept) * max_event_count;
+		size_t last_sapce = page_size - sizeof(EventPoolMemoryDescription) - sizeof(void (*)(void*) noexcept) * max_event_count;
 		auto re = std::align(m_layout.align, m_layout.size * max_event_count, next_shift, last_sapce);
 		assert(re != nullptr);
 		head->event_start = reinterpret_cast<std::byte*>(next_shift);
@@ -54,7 +55,7 @@ namespace PO::ECS::Implement
 				break;
 		}
 		in->~EventPoolMemoryDescription();
-		m_allocator.release(in, page_space);
+		MemoryPageAllocator::release(reinterpret_cast<std::byte*>(in));
 		return next;
 	}
 
@@ -86,7 +87,7 @@ namespace PO::ECS::Implement
 			ptr->front = last_write_desc;
 			last_write_desc = ptr;
 		}
-		construct(static_cast<void*>(last_write_desc->event_start + last_index * layout().size), para);
+		construct(static_cast<void*>(reinterpret_cast<std::byte*>(last_write_desc->event_start) + last_index * layout().size), para);
 		last_write_desc->deconstructor_start[last_index] = deconstruct;
 		++last_write_desc->count;
 	}
@@ -97,21 +98,11 @@ namespace PO::ECS::Implement
 		new (mutex) std::lock_guard<std::mutex>(write_mutex);
 	}
 
-	void SimilerEventPool::read_lock(EventPoolReadResult& result, size_t mutex_size, void* mutex)
+	EventPoolMemoryDescription* SimilerEventPool::read_lock(size_t mutex_size, void* mutex)
 	{
 		assert(mutex_size >= sizeof(std::shared_lock<std::shared_mutex>));
 		new (mutex) std::shared_lock<std::shared_mutex>(read_mutex);
-		result.page = read_top;
-		if (result.page != nullptr)
-		{
-			result.count = result.page->count;
-			result.components = result.page->event_start;
-		}
-		else
-		{
-			result.count = 0;
-			result.components = nullptr;
-		}
+		return read_top;
 	}
 
 	EventPool::EventPool(MemoryPageAllocator& allocate) noexcept
@@ -129,26 +120,12 @@ namespace PO::ECS::Implement
 		m_event_list.clear();
 	}
 
-	void EventPool::read_lock(const TypeLayout& layout, EventPoolReadResult& result, size_t mutex_size, void* mutex) noexcept
+	EventPoolMemoryDescription* EventPool::read_lock(const TypeLayout& layout,  size_t mutex_size, void* mutex) noexcept
 	{
 		assert(mutex_size >= sizeof(std::shared_lock<std::shared_mutex>));
 		std::shared_lock<std::shared_mutex>* ss = static_cast<std::shared_lock<std::shared_mutex>*>(mutex);
 		auto ptr = find_pool(layout);
-		ptr->read_lock(result, mutex_size, mutex);
-	}
-
-	void EventPool::read_next_page(EventPoolReadResult& result) noexcept
-	{
-		result.page = result.page->next;
-		if (result.page != nullptr)
-		{
-			result.count = result.page->count;
-			result.components = result.page->event_start;
-		}
-		else {
-			result.count = 0;
-			result.components = nullptr;
-		}
+		return ptr->read_lock(mutex_size, mutex);
 	}
 
 	void EventPool::read_unlock(size_t mutex_size, void* mutex) noexcept
