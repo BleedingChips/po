@@ -313,9 +313,9 @@ namespace PO::ECS
 		{
 			EntityWrapper entity() const noexcept { return EntityWrapper{ *m_current_entity }; }
 			std::tuple<CompT&...>& components() noexcept { 
-				return *m_component_ref;
+				return std::get<1>(*m_component_ref);
 			}
-			std::tuple<EntityWrapper, std::tuple<CompT& ...>> operator*() noexcept { return { entity() , components() }; }
+			std::tuple<EntityWrapper, std::tuple<CompT& ...>>& operator*() noexcept { return *m_component_ref; }
 			bool operator==(const iterator& i) const noexcept { 
 				return current_block == i.current_block && m_element_last == i.m_element_last;
 			}
@@ -325,18 +325,9 @@ namespace PO::ECS
 				--m_element_last;
 				if (m_element_last != 0)
 				{
-					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
-					m_component_ref = std::nullopt;
-					m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 					m_current_entity += 1;
-
-					std::vector<Implement::EntityInterface*> m_interface;
-					if (*m_current_entity == nullptr)
-					{
-						for (size_t i = 0; i < current_block->available_count; ++i)
-							m_interface.push_back(current_block->entitys[i]);
-					}
-					assert(*m_current_entity != nullptr);
+					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
+					m_component_ref.emplace(EntityWrapper{ *m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 				}
 				else {
 					if (current_block->next != nullptr)
@@ -352,9 +343,8 @@ namespace PO::ECS
 					{
 						m_element_last = current_block->available_count;
 						Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(current_block, m_layout_index + m_buffer_used * sizeof...(CompT), m_component_pointer);
-						m_component_ref = std::nullopt;
-						m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 						m_current_entity = current_block->entitys;
+						m_component_ref.emplace(EntityWrapper{ *m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 						assert(*m_current_entity != nullptr);
 					}
 					else
@@ -370,7 +360,7 @@ namespace PO::ECS
 			size_t m_buffer_used = 0;
 			size_t m_element_last = 0;
 			std::tuple<CompT* ...> m_component_pointer;
-			std::optional<std::tuple<CompT& ...>> m_component_ref;
+			std::optional<std::tuple<EntityWrapper, std::tuple<CompT& ...>>> m_component_ref;
 			Implement::EntityInterface** m_current_entity = nullptr;
 			template<typename ...CompT> friend struct Filter;
 		};
@@ -385,9 +375,9 @@ namespace PO::ECS
 				tem.current_block = m_storage[0];
 				tem.m_element_last = tem.current_block->available_count;
 				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(tem.m_storage_block[0], m_layout_index.data(), tem.m_component_pointer);
-				tem.m_component_ref = std::nullopt;
-				tem.m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
 				tem.m_current_entity = tem.current_block->entitys;
+				tem.m_component_ref.emplace(EntityWrapper{ *tem.m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
+
 			}
 			return tem;
 		}
@@ -658,7 +648,7 @@ namespace PO::ECS
 	private:
 		void lock() noexcept;
 		void unlock()  noexcept { m_cur = nullptr; }
-		GobalFilter(Implement::GobalComponentPoolInterface* in) noexcept : m_pool(in) { assert(m_pool != nullptr); }
+		GobalFilter(Implement::GobalComponentPoolInterface* in) noexcept : m_pool(in), m_cur(nullptr) { assert(m_pool != nullptr); }
 		template<typename ...Require> friend struct Implement::SystemStorage;
 		template<typename Require> friend struct Implement::FilterAndEventAndSystem;
 
@@ -725,13 +715,13 @@ namespace PO::ECS
 	}
 
 	template<typename Type>
-	struct SystemWrapper
+	struct SystemFilter
 	{
 		static_assert(Implement::TypePropertyDetector<Type>::value, "SystemWrapper only accept Type and const Type!");
 		operator bool() const noexcept { return m_resource != nullptr; }
 		Type* operator->() noexcept { return m_resource; }
 	private:
-		SystemWrapper(Implement::SystemPoolInterface* pool) noexcept : m_pool(pool) {}
+		SystemFilter(Implement::SystemPoolInterface* pool) noexcept : m_pool(pool), m_resource(nullptr){}
 		static void export_rw_info(Implement::RWPropertyTuple& tuple) noexcept;
 		void lock() noexcept;
 		void unlock()  noexcept { m_resource = nullptr; }
@@ -742,7 +732,7 @@ namespace PO::ECS
 	};
 
 	template<typename Type>
-	void SystemWrapper<Type>::export_rw_info(Implement::RWPropertyTuple& tuple) noexcept
+	void SystemFilter<Type>::export_rw_info(Implement::RWPropertyTuple& tuple) noexcept
 	{
 		if constexpr (std::is_const_v<Type>)
 			tuple.systems.emplace(TypeLayout::create<Type>(), Implement::RWProperty::Read);
@@ -750,7 +740,7 @@ namespace PO::ECS
 			tuple.systems[TypeLayout::create<Type>()] = Implement::RWProperty::Write;
 	}
 
-	template<typename Type> void SystemWrapper<Type>::lock() noexcept
+	template<typename Type> void SystemFilter<Type>::lock() noexcept
 	{
 		//Implement::SystemPoolInterface& SI = *in;
 		auto ptr = m_pool->find_system(TypeLayout::create<Type>());
@@ -801,7 +791,7 @@ namespace PO::ECS
 		template<typename ...T> struct IsFilterOrEventOrSystem<EntityFilter<T...>> : std::true_type {};
 		template<typename T> struct IsFilterOrEventOrSystem<EventProvider<T>> : std::true_type {};
 		template<typename T> struct IsFilterOrEventOrSystem<EventViewer<T>> : std::true_type {};
-		template<typename T> struct IsFilterOrEventOrSystem<SystemWrapper<T>> : std::true_type {};
+		template<typename T> struct IsFilterOrEventOrSystem<SystemFilter<T>> : std::true_type {};
 		template<typename T> struct IsFilterOrEventOrSystem<GobalFilter<T>> : std::true_type {};
 
 		template<size_t index, typename InputType> struct SystemStorageDetectorImp { 

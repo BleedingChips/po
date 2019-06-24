@@ -45,32 +45,6 @@ template<typename Type> struct CallRecord
 	}
 };
 
-struct MarkStartSystem
-{
-	void operator()()
-	{
-		std::lock_guard lg(cout_mutex);
-		std::cout << "loop start --------------" << std::endl;
-	}
-
-	TickPriority tick_layout() const noexcept { return TickPriority::HighHigh; }
-};
-
-struct MarkEndSystem
-{
-	void operator()()
-	{
-		std::lock_guard lg(cout_mutex);
-		std::cout << "loop end --------------" << std::endl;
-	}
-
-	TickPriority tick_layout() const noexcept {
-		return TickPriority::LowLow; 
-	}
-};
-
-
-
 struct CollisionSystem
 {
 	std::vector<std::pair<Entity, Entity>> all_entity;
@@ -107,7 +81,7 @@ struct CollisionSystem
 
 struct DestorySystem
 {
-	void operator()(SystemWrapper<const CollisionSystem>& s, Context& con)
+	void operator()(SystemFilter<const CollisionSystem>& s, Context& con)
 	{
 		if (s)
 		{
@@ -273,11 +247,11 @@ int main()
 		imp.create_system([&]() {
 			std::lock_guard lg(cout_mutex);
 			std::cout << "loop start --------------" << std::endl;
-		}, TickPriority::Normal, TickPriority::HighHigh);
+		}, TickPriority::HighHigh, TickPriority::HighHigh);
 		imp.create_system([&]() {
 			std::lock_guard lg(cout_mutex);
 			std::cout << "loop end --------------" << std::endl;
-		}, TickPriority::Normal, TickPriority::LowLow);
+		}, TickPriority::LowLow, TickPriority::LowLow);
 
 		std::random_device r_dev;
 		std::default_random_engine engine(r_dev());
