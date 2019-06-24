@@ -123,7 +123,7 @@ Demo code in `po/demo/ecs_demo/ecs_demo.sln (vs2019)`.
 	void s1::operator()(PO::ECS::EntityFilter<const Component1, Component2>& f)
 	{
 		PO::ECS::Entity entity;
-		f(entity) << [](const Component1&, Component2&){};
+		f(entity, [](const Component1&, Component2&){});
 	}
 	```
 	
