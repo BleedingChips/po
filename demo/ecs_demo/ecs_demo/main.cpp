@@ -236,13 +236,11 @@ int main()
 		ContextImplement imp;
 		imp.create_gobal_component<Dx11::FormRenderer>(context->create_form());
 		imp.set_thread_reserved(2);
-		imp.set_duration(duration_ms{100});
+
 		imp.create_system<CollisionSystem>();
 		imp.create_system<DestorySystem>();
 		imp.create_system<RenderSystem>(context);
 		imp.create_system<FormUpdateSystem>();
-		//imp.create_system<MarkStartSystem>();
-		//imp.create_system<MarkEndSystem>();
 
 		imp.create_system([&]() {
 			std::lock_guard lg(cout_mutex);
