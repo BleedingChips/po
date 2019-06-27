@@ -48,7 +48,7 @@ struct MoveSystem
 		CallRecord<MoveSystem> record;
 		for (auto ite : f)
 		{
-			auto& [lo, ve, col] = std::get<1>(ite);
+			auto& [lo, ve, col] = ite;
 			lo.x += ve.x * c.duration_s();
 			lo.y += ve.y * c.duration_s();
 			if ((lo.x - col.Range) < -1.0f)

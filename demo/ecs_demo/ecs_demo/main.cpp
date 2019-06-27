@@ -117,10 +117,10 @@ struct RenderSystem
 				std::vector<Poi> data;
 				data.resize(count);
 				size_t i = 0;
-				for (auto ite : f)
+				for (auto ite = f.begin(); ite != f.end(); ++ite)
 				{
-					auto& [entity, tup] = ite;
-					auto& [col, loc] = tup;
+					auto& [col, loc] = *ite;
+					auto entity = ite.entity();
 					data[i].lx = loc.x;
 					data[i].ly = loc.y;
 					data[i].range = col.Range;
@@ -254,10 +254,10 @@ int main()
 		std::random_device r_dev;
 		std::default_random_engine engine(r_dev());
 		std::uniform_real_distribution<float> location(-0.9f, 0.9f);
-		std::uniform_real_distribution<float> range(0.03f, 0.05f);
+		std::uniform_real_distribution<float> range(0.005f, 0.02f);
 		std::uniform_real_distribution<float> vel(-0.4f, 0.4f);
 
-		for (size_t i = 0; i < 400; ++i)
+		for (size_t i = 0; i < 500; ++i)
 		{
 			auto entity = imp.create_entity();
 			auto& re = imp.create_component<Location>(entity, location(engine), location(engine));

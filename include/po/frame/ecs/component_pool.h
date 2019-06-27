@@ -99,8 +99,11 @@ namespace PO::ECS::Implement
 			std::byte* start_block;
 			void* last_block;
 			size_t last_available_count;
-			InitBlock(std::byte* sb, void* last, size_t l)
+			InitBlock(std::byte* sb, void* last, size_t l) noexcept
 				: start_block(sb), last_block(last), last_available_count(l) {}
+			InitBlock(InitBlock&& ib) noexcept : start_block(ib.start_block), last_block(ib.last_block), last_available_count(ib.last_available_count) {
+				ib.start_block = nullptr;
+			}
 			~InitBlock();
 		};
 

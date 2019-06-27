@@ -139,8 +139,8 @@ namespace PO::ECS
 		Entity() = default;
 		Entity& operator=(const Entity&) = default;
 		Entity& operator=(Entity&&) = default;
-	private:
 		Entity(Implement::EntityInterfacePtr ptr) : m_imp(std::move(ptr)) {}
+	private:
 		Implement::EntityInterfacePtr m_imp;
 
 		friend struct EntityWrapper;
@@ -148,20 +148,6 @@ namespace PO::ECS
 		friend struct Context;
 	};
 
-	struct EntityWrapper
-	{
-		operator bool() const noexcept { return m_imp != nullptr; }
-		operator Entity() const noexcept { return Entity{ m_imp }; }
-		EntityWrapper(Implement::EntityInterface* ptr = nullptr) : m_imp(ptr) {}
-		template<typename ...Type> bool have() const noexcept
-		{
-			assert(m_imp);
-			std::array<TypeLayout, sizeof...(Type)> infos = { TypeLayout::create<Type>()... };
-			return m_imp->have(infos.data(), infos.size());
-		}
-	private:
-		Implement::EntityInterface* m_imp;
-	};
 }
 
 namespace PO::ECS
@@ -254,9 +240,7 @@ namespace PO::ECS
 	{
 		static_assert(Tmp::bool_and<true, Implement::TypePropertyDetector<CompT>::value...>::value, "EntityFilter only accept Type and const Type!");
 		template<typename Func>
-		void operator()(EntityWrapper wrapper, Func&& f);
-		template<typename Func>
-		void operator()(const Entity& wrapper, Func&& f) { operator()(EntityWrapper{wrapper.m_imp}, std::forward<Func>(f)); }
+		void operator()(const Entity& wrapper, Func&& f);
 	private:
 		EntityFilter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { assert(pool != nullptr); }
 		void lock() noexcept;
@@ -271,7 +255,7 @@ namespace PO::ECS
 	};
 
 	template<typename ...CompT> template<typename Func>
-	void EntityFilter<CompT...>::operator()(EntityWrapper wrapper, Func&& f)
+	void EntityFilter<CompT...>::operator()(const Entity& wrapper, Func&& f)
 	{
 		if (wrapper)
 		{
@@ -311,11 +295,12 @@ namespace PO::ECS
 		static_assert(Tmp::bool_and<true, Implement::TypePropertyDetector<CompT>::value...>::value, "Filter only accept Type and const Type!");
 		struct iterator
 		{
-			EntityWrapper entity() const noexcept { return EntityWrapper{ *m_current_entity }; }
+			Entity entity() const noexcept { return Entity{ *m_current_entity }; }
 			std::tuple<CompT&...>& components() noexcept { 
-				return std::get<1>(*m_component_ref);
+				assert(m_component_ref.has_value());
+				return *m_component_ref;
 			}
-			std::tuple<EntityWrapper, std::tuple<CompT& ...>>& operator*() noexcept { return *m_component_ref; }
+			std::tuple<CompT& ...>& operator*() noexcept { return components(); }
 			bool operator==(const iterator& i) const noexcept { 
 				return current_block == i.current_block && m_element_last == i.m_element_last;
 			}
@@ -327,7 +312,7 @@ namespace PO::ECS
 				{
 					m_current_entity += 1;
 					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
-					m_component_ref.emplace(EntityWrapper{ *m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+					m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 				}
 				else {
 					if (current_block->next != nullptr)
@@ -344,7 +329,7 @@ namespace PO::ECS
 						m_element_last = current_block->available_count;
 						Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(current_block, m_layout_index + m_buffer_used * sizeof...(CompT), m_component_pointer);
 						m_current_entity = current_block->entitys;
-						m_component_ref.emplace(EntityWrapper{ *m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+						m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
 						assert(*m_current_entity != nullptr);
 					}
 					else
@@ -360,7 +345,7 @@ namespace PO::ECS
 			size_t m_buffer_used = 0;
 			size_t m_element_last = 0;
 			std::tuple<CompT* ...> m_component_pointer;
-			std::optional<std::tuple<EntityWrapper, std::tuple<CompT& ...>>> m_component_ref;
+			std::optional<std::tuple<CompT& ...>> m_component_ref;
 			Implement::EntityInterface** m_current_entity = nullptr;
 			template<typename ...CompT> friend struct Filter;
 		};
@@ -376,8 +361,7 @@ namespace PO::ECS
 				tem.m_element_last = tem.current_block->available_count;
 				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(tem.m_storage_block[0], m_layout_index.data(), tem.m_component_pointer);
 				tem.m_current_entity = tem.current_block->entitys;
-				tem.m_component_ref.emplace(EntityWrapper{ *tem.m_current_entity }, std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
-
+				tem.m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
 			}
 			return tem;
 		}

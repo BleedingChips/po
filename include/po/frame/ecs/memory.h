@@ -1,7 +1,7 @@
 #pragma once
 #include <tuple>
 #include <mutex>
-#include <vector>
+#include <array>
 namespace PO::ECS::Implement
 {
 	
@@ -23,7 +23,7 @@ namespace PO::ECS::Implement
 			~RawPageHead() = default;
 		};
 		std::mutex m_page_mutex;
-		std::vector<std::tuple<RawPageHead*, size_t>> m_pages;
+		std::array<std::tuple<RawPageHead*, size_t>, 10> m_pages;
 		uint64_t m_require_storage;
 	};
 }

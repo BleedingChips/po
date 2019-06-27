@@ -86,3 +86,10 @@ Temporary Items
 
 
 *.txt
+
+/project/*/*/x64
+/project/*/*/debug
+/demo/*/x64
+/demo/*/debug
+/demo/*/*/x64
+/demo/*/*/debug

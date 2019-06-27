@@ -16,7 +16,10 @@ namespace PO::ECS::Implement
 
 	MemoryPageAllocator::MemoryPageAllocator(size_t storage_page_count) noexcept
 		: m_require_storage(storage_page_count)
-	{}
+	{
+		for (auto& ite : m_pages)
+			ite = { nullptr, 0 };
+	}
 
 	size_t MemoryPageAllocator::reserved_size() noexcept
 	{
@@ -47,15 +50,13 @@ namespace PO::ECS::Implement
 				delete[] reinterpret_cast<std::byte*>(cur);
 			}
 		}
-		m_pages.clear();
 	}
 
 	std::tuple<std::byte*, size_t> MemoryPageAllocator::allocate(size_t target_sapce)
 	{
 		auto [space, index] = pre_calculte_size(target_sapce);
 		std::lock_guard lg(m_page_mutex);
-		if (m_pages.size() < index + 1)
-			m_pages.resize(index + 1);
+		assert(m_pages.size() >= index + 1);
 		auto& [head, count] = m_pages[index];
 		std::byte* buffer = nullptr;
 		if (count == 0)

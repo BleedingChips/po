@@ -263,18 +263,14 @@ namespace PO::ECS::Implement
 		assert(index < element_count());
 		--m_available_count;
 		release_storage_block(block, index);
-		if (block == m_last_block && index + 1 == block->available_count)
-			--block->available_count;
-		else {
-			auto ite = m_deleted_page.insert({ block, 0 }).first;
-			++ite->second;
-			if (block->available_count == ite->second)
-			{
-				remove_page_from_list(ite->first);
-				block->available_count = 0;
-				free_storage_block(ite->first);
-				m_deleted_page.erase(ite);
-			}
+		auto ite = m_deleted_page.insert({ block, 0 }).first;
+		++ite->second;
+		if (block->available_count == ite->second)
+		{
+			remove_page_from_list(block);
+			block->available_count = 0;
+			free_storage_block(block);
+			m_deleted_page.erase(ite);
 		}
 	}
 
@@ -380,7 +376,10 @@ namespace PO::ECS::Implement
 			}
 
 			cur->first->available_count = start_i;
-			insert_page_to_list(cur->first);
+			if (cur->first->available_count != 0)
+				insert_page_to_list(cur->first);
+			else
+				free_storage_block(cur->first);
 			all_block.clear();
 		}
 	}
@@ -439,8 +438,10 @@ namespace PO::ECS::Implement
 
 	ComponentPool::InitBlock::~InitBlock()
 	{
-		assert(start_block != nullptr);
-		MemoryPageAllocator::release(start_block);
+		if (start_block != nullptr)
+		{
+			MemoryPageAllocator::release(start_block);
+		}
 	}
 
 	ComponentPool::InitHistory::~InitHistory()
@@ -476,6 +477,7 @@ namespace PO::ECS::Implement
 		EntityInterfacePtr ptr(entity);
 		m_init_history[ptr].emplace_back(EntityOperator::Construct, layout, StorageBlockFunctionPair{deconstructor, mover}, last );
 		last = reinterpret_cast<std::byte*>(last) + layout.size;
+		size -= layout.size;
 	}
 
 	void ComponentPool::deconstruct_component(EntityInterface* entity, const TypeLayout& layout) noexcept
@@ -663,22 +665,27 @@ namespace PO::ECS::Implement
 		size_t index = 0;
 		for (auto& ite : m_data)
 		{
-			size_t* target_buffer;
-			if (index >= buffer_count)
-				target_buffer = nullptr;
-			else
-				target_buffer = output_layout_index;
-			if (ite.first.locate_unordered(require_layout, target_buffer, input_layout_count))
+			if (ite.second->top_block() != nullptr)
 			{
-				total_count += ite.second->available_count();
-				if (index < buffer_count)
+				size_t* target_buffer;
+				if (index >= buffer_count)
+					target_buffer = nullptr;
+				else
+					target_buffer = output_layout_index;
+				if (ite.first.locate_unordered(require_layout, target_buffer, input_layout_count))
 				{
-					*output_group = ite.second->top_block();
-					++output_group;
-					output_layout_index += input_layout_count;
+					total_count += ite.second->available_count();
+					if (index < buffer_count)
+					{
+						*output_group = ite.second->top_block();
+						++output_group;
+						output_layout_index += input_layout_count;
+					}
+					++index;
 				}
-				++index;
 			}
+			else
+				continue;
 		}
 		return index;
 	}
