@@ -31,7 +31,7 @@ namespace
 		};
 
 		PathState state(size_t index) {
-			PO::Tool::scope_exit se{ [this]() {m_state = State::Start; } };
+			PO::Tool::scope_guard se{ [this]() noexcept {m_state = State::Start; } };
 			switch (m_state)
 			{
 			case State::Start:

@@ -576,11 +576,21 @@ namespace PO
 		template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 		template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-		template<typename Ts> struct scope_exit : private Ts {
-			scope_exit(Ts ts) : Ts(std::move(ts)) {}
-			~scope_exit() { this->operator()(); } 
+		template<typename Ts, typename = std::void_t<>> struct scope_guard;
+
+		template<typename Ts>
+		struct scope_guard<Ts, std::void_t<decltype(std::declval<Ts>()())>> {
+			
+			static_assert(std::is_nothrow_invocable_v<Ts>, "scope gurad need noexcept function");
+			scope_guard(Ts ts) noexcept : m_function(std::move(ts)), m_dissmise(false) {}
+			~scope_guard()  noexcept { if (!m_dissmise) m_function(); }
+			void dissmise() noexcept { m_dissmise = true; }
+		private:
+			Ts m_function;
+			bool m_dissmise;
 		};
-		template<typename Ts> scope_exit(Ts)->scope_exit<Ts>;
+
+		template<typename Ts> scope_guard(Ts)->scope_guard<Ts>;
 
 	} 
 }

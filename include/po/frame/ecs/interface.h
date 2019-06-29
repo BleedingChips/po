@@ -1,11 +1,11 @@
 #pragma once
 #include <typeindex>
-#include "../../tool/tool.h"
 #include "../../tool/intrusive_ptr.h"
 #include <array>
 #include <map>
 #include <shared_mutex>
 #include <set>
+#include <tuple>
 namespace PO::ECS
 {
 
@@ -290,68 +290,99 @@ namespace PO::ECS
 		m_pool->unlock(sizeof...(CompT), sizeof(std::shared_lock<std::shared_mutex>) * 2, m_mutex.data());
 	}
 
+	template<typename ...CompT> struct FilterIterator;
+
+	namespace Implement
+	{
+		template<typename ...CompT> struct FilterIteratorWrapper
+		{
+			Entity entity() noexcept { return Entity{ *m_entity }; }
+			std::tuple<CompT& ...>& components() noexcept { assert(m_ref.has_value()); return *m_ref; }
+			FilterIteratorWrapper() = default;
+			FilterIteratorWrapper(const FilterIteratorWrapper&) = default;
+
+			template<size_t index> decltype(auto) get() noexcept { return std::get<index>(*m_ref); }
+
+		private:
+			
+			void reset(Implement::StorageBlock* input, size_t* layout_index)
+			{
+				m_entity = input->entitys;
+				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(input, layout_index, m_component_pointer);
+				m_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+			}
+			void add()
+			{
+				m_entity += 1;
+				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
+				m_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
+			}
+			Implement::EntityInterface** m_entity = nullptr;
+			std::tuple<CompT* ...> m_component_pointer;
+			std::optional<std::tuple<CompT& ...>> m_ref;
+
+			template<typename ...CompT> friend struct FilterIterator;
+		};
+	}
+
+	template<typename ...CompT> struct Filter;
+
+	template<typename ...CompT> struct FilterIterator
+	{
+		Implement::FilterIteratorWrapper<CompT...>& operator*() noexcept { return m_wrapper; }
+		Implement::FilterIteratorWrapper<CompT...>* operator->() noexcept { return &m_wrapper; }
+		bool operator==(const FilterIterator& i) const noexcept {
+			return current_block == i.current_block && m_element_last == i.m_element_last;
+		}
+		bool operator!=(const FilterIterator& i) const noexcept { return !((*this) == i); }
+		FilterIterator& operator++() noexcept {
+			assert(current_block != nullptr);
+			--m_element_last;
+			if (m_element_last != 0)
+				m_wrapper.add();
+			else {
+				if (current_block->next != nullptr)
+					current_block = current_block->next;
+				else {
+					++m_buffer_used;
+					if (m_buffer_used < m_max_buffer)
+						current_block = m_storage_block[m_buffer_used];
+					else
+						current_block = nullptr;
+				}
+				if (current_block != nullptr)
+				{
+					reset_wrapper();
+					m_element_last = current_block->available_count;
+					assert(*current_block->entitys != nullptr);
+				}
+				else
+					m_element_last = 0;
+			}
+			return *this;
+		}
+	private:
+
+		void reset_wrapper() {
+			m_wrapper.reset(current_block, m_layout_index + m_buffer_used * sizeof...(CompT));
+		}
+
+		Implement::StorageBlock** m_storage_block = nullptr;
+		size_t* m_layout_index = nullptr;
+		Implement::StorageBlock* current_block = nullptr;
+		size_t m_max_buffer = 0;
+		size_t m_buffer_used = 0;
+		size_t m_element_last = 0;
+		Implement::FilterIteratorWrapper<CompT...> m_wrapper;
+		template<typename ...CompT> friend struct Filter;
+	};
+
 	template<typename ...CompT> struct Filter
 	{
 		static_assert(Tmp::bool_and<true, Implement::TypePropertyDetector<CompT>::value...>::value, "Filter only accept Type and const Type!");
-		struct iterator
-		{
-			Entity entity() const noexcept { return Entity{ *m_current_entity }; }
-			std::tuple<CompT&...>& components() noexcept { 
-				assert(m_component_ref.has_value());
-				return *m_component_ref;
-			}
-			std::tuple<CompT& ...>& operator*() noexcept { return components(); }
-			bool operator==(const iterator& i) const noexcept { 
-				return current_block == i.current_block && m_element_last == i.m_element_last;
-			}
-			bool operator!=(const iterator& i) const noexcept { return !((*this) == i); }
-			iterator& operator++() noexcept { 
-				assert(current_block != nullptr);
-				--m_element_last;
-				if (m_element_last != 0)
-				{
-					m_current_entity += 1;
-					Implement::ComponentTupleHelper<0, sizeof...(CompT)>::add(m_component_pointer);
-					m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
-				}
-				else {
-					if (current_block->next != nullptr)
-						current_block = current_block->next;
-					else {
-						++m_buffer_used;
-						if (m_buffer_used < m_max_buffer)
-							current_block = m_storage_block[m_buffer_used];
-						else
-							current_block = nullptr;
-					}
-					if (current_block != nullptr)
-					{
-						m_element_last = current_block->available_count;
-						Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(current_block, m_layout_index + m_buffer_used * sizeof...(CompT), m_component_pointer);
-						m_current_entity = current_block->entitys;
-						m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, m_component_pointer));
-						assert(*m_current_entity != nullptr);
-					}
-					else
-						m_element_last = 0;
-				}
-				return *this;
-			}
-		private:
-			Implement::StorageBlock** m_storage_block = nullptr;
-			size_t* m_layout_index = nullptr;
-			Implement::StorageBlock* current_block = nullptr;
-			size_t m_max_buffer = 0;
-			size_t m_buffer_used = 0;
-			size_t m_element_last = 0;
-			std::tuple<CompT* ...> m_component_pointer;
-			std::optional<std::tuple<CompT& ...>> m_component_ref;
-			Implement::EntityInterface** m_current_entity = nullptr;
-			template<typename ...CompT> friend struct Filter;
-		};
 
-		iterator begin() noexcept { 
-			iterator tem;
+		FilterIterator<CompT...> begin() noexcept {
+			FilterIterator<CompT...> tem;
 			tem.m_storage_block = m_storage.data();
 			tem.m_layout_index = m_layout_index.data();
 			tem.m_max_buffer = m_used_buffer_count;
@@ -359,13 +390,11 @@ namespace PO::ECS
 			{
 				tem.current_block = m_storage[0];
 				tem.m_element_last = tem.current_block->available_count;
-				Implement::ComponentTupleHelper<0, sizeof...(CompT)>::translate(tem.m_storage_block[0], m_layout_index.data(), tem.m_component_pointer);
-				tem.m_current_entity = tem.current_block->entitys;
-				tem.m_component_ref.emplace(std::apply([](auto ...pointer) { return std::tuple<CompT & ...>{*pointer...}; }, tem.m_component_pointer));
+				tem.reset_wrapper();
 			}
 			return tem;
 		}
-		iterator end() noexcept { iterator tem; return tem; }
+		FilterIterator<CompT...> end() noexcept { FilterIterator<CompT...> tem; return tem; }
 		size_t count() const noexcept { return m_total_element_count; }
 	protected:
 		Filter(Implement::ComponentPoolInterface* pool) noexcept : m_pool(pool) { 
@@ -992,6 +1021,56 @@ namespace PO::ECS
 
 	}
 
+	namespace Implement
+	{
+		struct AsynchronousWorkInterface
+		{
+			virtual void add_ref() noexcept = 0;
+			virtual void sub_ref() noexcept = 0;
+			virtual bool apply(Context&) noexcept = 0;
+			virtual ~AsynchronousWorkInterface() = default;
+		};
+
+		template<typename CallableObject, typename ...Parameter> struct AsynchronousWorkImplement 
+			: AsynchronousWorkInterface
+		{
+
+			virtual void add_ref() noexcept { m_ref.add_ref(); }
+			virtual void sub_ref() noexcept { 
+				if (m_ref.sub_ref())
+					delete this;
+			}
+
+			virtual bool apply(Context& context) noexcept {
+				if constexpr (std::is_same_v<decltype(apply_imp(context)), void>)
+				{
+					apply_imp(context);
+					return false;
+				}
+				else {
+					bool result = apply_imp(context);
+					return result;
+				}
+			}
+
+			decltype(auto) apply_imp(Context& context)
+			{
+				return std::apply([&, this](auto&& ...at) {
+					return std::forward<CallableObject>(object)(context, std::forward<decltype(at) &&>(at)...);
+				}, parameter);
+			}
+
+
+			std::remove_reference_t<CallableObject> object;
+			std::tuple<std::remove_reference_t<Parameter>...> parameter;
+			Tool::atomic_reference_count m_ref;
+
+			AsynchronousWorkImplement(CallableObject&& object, Parameter&& ... pa)
+				: object(std::forward<CallableObject>(object)), parameter(std::forward<Parameter>(pa)...) {}
+
+		};
+	}
+
 	struct Context
 	{
 		Entity create_entity() { return Entity{ create_entity_imp() }; }
@@ -1010,7 +1089,9 @@ namespace PO::ECS
 		}
 		virtual void exit() noexcept = 0;
 		virtual float duration_s() const noexcept = 0;
+		template<typename CallableObject, typename ...Parameter> void insert_asynchronous_work(CallableObject&& co, Parameter&& ... pa);
 	private:
+		virtual void insert_asynchronous_work_imp(Implement::AsynchronousWorkInterface* ptr) = 0;
 		template<typename CompT> friend struct Implement::FilterAndEventAndSystem;
 		template<typename CompT> friend struct Implement::ContextStorage;
 		virtual operator Implement::ComponentPoolInterface* () = 0;
@@ -1019,6 +1100,14 @@ namespace PO::ECS
 		virtual operator Implement::SystemPoolInterface* () = 0;
 		virtual Implement::EntityInterfacePtr create_entity_imp() = 0;
 	};
+
+	template<typename CallableObject, typename ...Parameter> void Context::insert_asynchronous_work(CallableObject&& co, Parameter&& ... pa)
+	{
+		Tool::intrusive_ptr<Implement::AsynchronousWorkInterface> ptr = new Implement::AsynchronousWorkImplement<CallableObject, Parameter...>{ 
+			std::forward<CallableObject>(co), std::forward<Parameter>(pa)...  
+		};
+		insert_asynchronous_work_imp(ptr);
+	}
 
 	template<typename CompT> void Context::destory_gobal_component()
 	{
@@ -1069,4 +1158,13 @@ namespace PO::ECS
 		SI->destory_system(TypeLayout::create<SystemT>());
 	}
 
+}
+
+namespace std
+{
+	template<typename ...AT> struct tuple_size<typename PO::ECS::Implement::FilterIteratorWrapper<AT...>> : std::integral_constant<size_t, sizeof...(AT)> {};
+	template<size_t index, typename ...AT> decltype(auto) get(typename PO::ECS::Implement::FilterIteratorWrapper<AT...>& ite) { 
+		return std::get<index>(ite.components());
+	}
+	template<size_t index, typename ...AT> struct tuple_element<index, typename PO::ECS::Implement::FilterIteratorWrapper<AT...>> : std::tuple_element<index, std::tuple<AT...>> {};
 }

@@ -107,6 +107,12 @@ namespace PO::ECS::Implement
 			buffer += layouts[i].size * element_count;
 			page_size -= layouts[i].size * element_count;
 		}
+
+		{
+			void* ptr = buffer;
+			std::align(alignof(EntityInterface*), sizeof(EntityInterface*), ptr, page_size);
+			buffer = reinterpret_cast<std::byte*>(ptr);
+		}
 		result->entitys = reinterpret_cast<EntityInterface * *>(buffer);
 		for (size_t i = 0; i < element_count; ++i)
 			result->entitys[i] = nullptr;
@@ -116,11 +122,6 @@ namespace PO::ECS::Implement
 		for (size_t i = 0; i < layout_count; ++i)
 		{
 			result->functions[i] = tem_ptr;
-			for (size_t i = 0; i < element_count; ++i)
-			{
-				StorageBlockFunctionPair* p = tem_ptr + i;
-				new (tem_ptr + i)StorageBlockFunctionPair{ nullptr, nullptr };
-			}
 			tem_ptr += element_count;
 		}
 		return result;
@@ -424,11 +425,11 @@ namespace PO::ECS::Implement
 		for (size_t i = 0; i < m_type_layouts.count; ++i)
 		{
 			all_size += m_type_layouts.layouts[i].size;
-			auto align_size = (m_type_layouts.layouts[i].align > alignof(nullptr_t)) ? m_type_layouts.layouts[i].align - alignof(nullptr_t) : 0;
+			auto align_size = (m_type_layouts.layouts[i].align > alignof(nullptr_t)) ? m_type_layouts.layouts[i].align : alignof(nullptr_t);
 			all_align += align_size;
 		}
 		size_t element_size = all_size + sizeof(EntityInterface*) + sizeof(StorageBlockFunctionPair) * m_type_layouts.count;
-		size_t fixed_size = sizeof(StorageBlock) + (sizeof(StorageBlockFunctionPair*) + sizeof(void*)) * m_type_layouts.count + all_align;
+		size_t fixed_size = sizeof(StorageBlock) + (sizeof(StorageBlockFunctionPair*) + sizeof(void*)) * m_type_layouts.count + all_align + alignof(nullptr_t);
 		m_page_size = fixed_size + element_size * min_page_comp_count;
 		size_t bound_size = 1024 * 8 - MemoryPageAllocator::reserved_size();
 		m_page_size = (m_page_size > bound_size) ? m_page_size : bound_size;
